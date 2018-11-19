@@ -1,0 +1,10 @@
+old/
+note.txt
+a.out
+*.o
+*.d
+*.dat
+*.h5
+*.a
+*.pyc
+
