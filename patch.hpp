@@ -49,6 +49,11 @@ public:
   // return load
   virtual float64 get_load()
   {
+    static std::random_device rd;
+    static std::mt19937 mt(rd());
+    static std::uniform_real_distribution<float64> rand(0.75, +1.25);
+
+    load = rand(mt);
     return load;
   }
 

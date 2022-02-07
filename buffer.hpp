@@ -33,7 +33,7 @@ struct Buffer
   }
 
   /// resize
-  bool resize(const int s)
+  void resize(const int s)
   {
     if( s > size ) {
       // allocate new memory and copy contents

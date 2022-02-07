@@ -43,8 +43,8 @@ protected:
   std::string  savefile;  ///< snapshot to be saved
   int          ndims[4];  ///< global grid dimensions
   int          pdims[4];  ///< patch dimensions
-  int          step;      ///< current iteration step
-  float64      tnow;      ///< current time
+  int          curstep;   ///< current iteration step
+  float64      curtime;   ///< current time
   float64      delt;      ///< time step
   float64      delh;      ///< cell size
   float64      cc;        ///< speed of light
@@ -151,8 +151,8 @@ public:
     parse_cfg_default(parser.get<std::string>("config"));
 
     // initialize current physical time and time step
-    step = 0;
-    tnow = 0.0;
+    curstep = 0;
+    curtime = 0.0;
 
     // MPI
     initialize_mpi_default(&argc, &argv);
@@ -173,7 +173,7 @@ public:
   virtual void load()
   {
     if( ! loadfile.empty() ) {
-      std::cout << tfm::format("load snapshoft from %s\n",
+      std::cout << tfm::format("load snapshot from %s\n",
                                loadfile.c_str());
     }
     std::cout << "no load file specified\n";
@@ -183,7 +183,7 @@ public:
   virtual void save()
   {
     if( ! savefile.empty() ) {
-      std::cout << tfm::format("save snapshoft to %s\n",
+      std::cout << tfm::format("save snapshot to %s\n",
                                savefile.c_str());
     }
     std::cout << "no save file specified\n";
@@ -225,14 +225,14 @@ public:
 
   virtual void push()
   {
-    tnow = tnow + delt;
-    step++;
+    curtime += delt;
+    curstep++;
   }
 
 
   virtual bool need_push()
   {
-    if( tnow < tmax ) {
+    if( curtime < tmax ) {
       return true;
     }
     return false;
@@ -513,6 +513,47 @@ public:
       "\n"
       "----- <<< END INFORMATION >>> -----"
       "\n\n";
+  }
+
+
+  int main(std::ostream &out)
+  {
+    //
+    // + print initial info
+    // + setup solvers
+    // + setup initial condition or load a previous snapshot
+    // + output diagnostic if needed
+    //
+    print_info(out, 1);
+    setup();
+    initialize();
+    diagnostic();
+
+    // main loop
+    while( need_push() ) {
+      out << tfm::format("*** step = %8d (time = %10.5f)\n",
+                         curstep, curtime);
+
+      // advance everything by one step
+      push();
+      // output diagnostic if needed
+      diagnostic();
+
+      // exit if elapsed time exceed a limit
+      if( available_etime() < 0 ) {
+        break;
+      }
+
+      rebuild_patchmap();
+      print_info(out, 1);
+    }
+    //
+    // + save current snapshot if needed
+    // + finalize MPI
+    //
+    finalize();
+
+    return 0;
   }
 
 };

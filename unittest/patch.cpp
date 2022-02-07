@@ -20,7 +20,7 @@ int main()
   for(int dirz=-1; dirz <= +1 ;dirz++) {
     for(int diry=-1; diry <= +1 ;diry++) {
       for(int dirx=-1; dirx <= +1 ;dirx++) {
-        std::cout << std::bitset<31>(p.get_sndtag(dirz, diry, dirx, p.get_id()))
+        std::cout << std::bitset<31>(p.get_sndtag(dirz, diry, dirx))
                   << std::endl;
       }
     }

@@ -16,8 +16,8 @@ class BaseBalancer
 {
 public:
   /// calculate decomposition from load array
-  virtual int partition(const int np, const int nr,
-                        float64 load[], int rank[])
+  virtual void partition(const int np, const int nr,
+                         float64 load[], int rank[])
   {
     float64 boundary[nr+1];
     float64 avgload, prv, cur, difc, difp;

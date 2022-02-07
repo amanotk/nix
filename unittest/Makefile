@@ -3,7 +3,7 @@
 
 ### target
 LIBS    :=
-SRCS    := application.cpp patchmap.cpp hilbert.cpp
+SRCS    := application.cpp patchmap.cpp patch.cpp hilbert.cpp
 
 ### OBJS/DEPS
 EXES    := $(SRCS:%.cpp=%)
@@ -25,12 +25,15 @@ application: application.o
 patchmap: patchmap.o
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
+patch: patch.o
+	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
+
 hilbert: hilbert.o
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
 ### clean
 clean:
-	rm -f *.o *.out
+	rm -f *.o *.d *.out
 
 cleanall:
 	rm -f *.o *.d *.out *.dat

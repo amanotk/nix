@@ -123,7 +123,7 @@ private:
 
 public:
   ///
-  /// return Hilbert curve index associated with given cartesian coordiante
+  /// return Hilbert curve index associated with given cartesian coordinate
   ///
   static int get_index(int coord[DIM],
                        int entry, int direction, int order)
@@ -158,7 +158,7 @@ public:
 
 
   ///
-  /// return cartesian coordiante for given Hilbert curve index
+  /// return cartesian coordinate for given Hilbert curve index
   ///
   static void get_coordinate(int x,
                              int entry, int direction, int order,

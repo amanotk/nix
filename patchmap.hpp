@@ -269,7 +269,7 @@ public:
 
 
   // return patach coordinate
-  int get_coordiante(const int pid, int &pz, int &py, int &px)
+  void get_coordiante(const int pid, int &pz, int &py, int &px)
   {
     pz = coord(pid,0);
     py = coord(pid,1);
