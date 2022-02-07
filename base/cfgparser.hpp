@@ -60,6 +60,9 @@ private:
 
     // close
     ifs.close();
+
+    // free buffer
+    regfree(&buf);
   }
 
   // discard comment (after "#" for each line)

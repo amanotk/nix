@@ -4,7 +4,7 @@
 CXX_INCLUDE = -I../ -I../base -I../mdarray
 
 # compilers
-CXX		= mpicxx
+CXX		= mpicxx -g
 CXXFLAGS	= -std=c++14 -UNDEBUG -O3 -MMD $(CXX_INCLUDE)
 LDFLAGS	=
 

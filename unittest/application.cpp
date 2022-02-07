@@ -66,6 +66,8 @@ int main(int argc, char **argv)
   //
   app->finalize();
 
+  delete app;
+
   return 0;
 }
 
