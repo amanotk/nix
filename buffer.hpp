@@ -7,7 +7,7 @@
 ///
 /// $Id$
 ///
-#include "base/common.hpp"
+#include "utils/common.hpp"
 
 ///
 /// Buffer for MPI

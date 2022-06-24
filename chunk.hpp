@@ -7,10 +7,10 @@
 ///
 /// $Id$
 ///
-#include "base/common.hpp"
-#include "base/cmdparser.hpp"
-#include "base/cfgparser.hpp"
-#include "base/mpistream.hpp"
+#include "utils/common.hpp"
+#include "utils/cmdparser.hpp"
+#include "utils/cfgparser.hpp"
+#include "utils/mpistream.hpp"
 #include <bitset>
 
 ///

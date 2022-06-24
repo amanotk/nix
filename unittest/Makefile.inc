@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 # include path
-CXX_INCLUDE = -I../ -I../base -I../mdarray
+CXX_INCLUDE = -I../ -I../utils -I../mdarray
 
 # compilers
 CXX		= mpicxx -g
@@ -11,4 +11,3 @@ LDFLAGS	=
 
 %.o : %.cpp
 	$(CXX) -c $(CXXFLAGS) $<
-

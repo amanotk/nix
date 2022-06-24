@@ -7,10 +7,11 @@
 ///
 /// $Id$
 ///
-#include "base/common.hpp"
-#include "base/cmdparser.hpp"
-#include "base/cfgparser.hpp"
-#include "base/mpistream.hpp"
+#include "utils/common.hpp"
+#include "utils/cmdparser.hpp"
+#include "utils/cfgparser.hpp"
+#include "utils/json.hpp"
+#include "utils/mpistream.hpp"
 #include "balancer.hpp"
 #include "buffer.hpp"
 
@@ -22,6 +23,7 @@ template <class Chunk, class ChunkMap>
 class BaseApplication
 {
 protected:
+  using json = nlohmann::json;
   typedef std::unique_ptr<BaseBalancer> PtrBalancer;
   typedef std::unique_ptr<Chunk>        PtrChunk;
   typedef std::unique_ptr<ChunkMap>     PtrChunkMap;
@@ -30,7 +32,7 @@ protected:
   typedef std::vector<PtrChunk>         ChunkVec;
 
   CmdParser    parser;    ///< command line parser
-  CfgParser    config;    ///< configuration file parser
+  std::string  config;    ///< configuration file
   float64      wclock;    ///< wall clock time at initialization
   PtrBalancer  balancer;  ///< load balancer
   int          numchunk;  ///< number of chunkes in current process
@@ -42,7 +44,7 @@ protected:
   std::string  loadfile;  ///< snapshot to be loaded
   std::string  savefile;  ///< snapshot to be saved
   int          ndims[4];  ///< global grid dimensions
-  int          pdims[4];  ///< chunk dimensions
+  int          cdims[4];  ///< chunk dimensions
   int          curstep;   ///< current iteration step
   float64      curtime;   ///< current time
   float64      delt;      ///< time step
@@ -75,28 +77,34 @@ protected:
   // default configuration file parsing
   void parse_cfg_default(std::string cfg)
   {
-    config.read(cfg.c_str());
+    json root;
 
-    // others
-    int nx    = config.getAs<int>("Nx");
-    int ny    = config.getAs<int>("Ny");
-    int nz    = config.getAs<int>("Nz");
-    int px    = config.getAs<int>("Px");
-    int py    = config.getAs<int>("Py");
-    int pz    = config.getAs<int>("Pz");
-    delt      = config.getAs<float64>("delt");
-    delh      = config.getAs<float64>("delh");
-    cc        = config.getAs<float64>("cc");
+    // read configuration file
+    config = cfg;
+    {
+      std::ifstream f(config.c_str());
+      f >> root;
+    }
 
-    // store dimensions
-    ndims[0]  = nz*pz;
-    ndims[1]  = ny*py;
-    ndims[2]  = nx*px;
+    // delt and delh
+    delt = root["delt"].get<float64>();
+    delh = root["delt"].get<float64>();
+
+    // get dimensions
+    int nx    = root["Nx"].get<int>();
+    int ny    = root["Ny"].get<int>();
+    int nz    = root["Nz"].get<int>();
+    int ncx   = root["Ncx"].get<int>();
+    int ncy   = root["Ncy"].get<int>();
+    int ncz   = root["Ncz"].get<int>();
+    ndims[0]  = nz*ncz;
+    ndims[1]  = ny*ncy;
+    ndims[2]  = nx*ncx;
     ndims[3]  = ndims[0]*ndims[1]*ndims[2];
-    pdims[0]  = pz;
-    pdims[1]  = py;
-    pdims[2]  = px;
-    pdims[3]  = pdims[0]*pdims[1]*pdims[2];
+    cdims[0]  = ncz;
+    cdims[1]  = ncy;
+    cdims[2]  = ncx;
+    cdims[3]  = cdims[0]*cdims[1]*cdims[2];
 
     // set global domain size
     xlim[0] = 0;
@@ -254,7 +262,7 @@ public:
 
   virtual void calc_workload()
   {
-    const int np = pdims[3];
+    const int np = cdims[3];
     float64 sendbuf[np];
 
     // calculate global workload per chunk
@@ -277,7 +285,7 @@ public:
 
   virtual void initialize_chunkmap()
   {
-    const int np = pdims[3];
+    const int np = cdims[3];
     const int mp = np / nprocess;
 
     // error check
@@ -294,7 +302,7 @@ public:
     // initialize global chunkmap
     // (chunkes are equally distributed over all processes)
     //
-    chunkmap.reset(new ChunkMap(pdims));
+    chunkmap.reset(new ChunkMap(cdims));
 
     for(int pid=0; pid < np ;pid++) {
       chunkmap->set_rank(pid, pid / mp);
@@ -304,9 +312,9 @@ public:
     // initialize local chunkvec
     //
     {
-      int dims[3] = {ndims[0]/pdims[0],
-                     ndims[1]/pdims[1],
-                     ndims[2]/pdims[2]};
+      int dims[3] = {ndims[0]/cdims[0],
+                     ndims[1]/cdims[1],
+                     ndims[2]/cdims[2]};
       int pid = thisrank * mp;
 
       chunkvec.resize(mp);
@@ -329,7 +337,7 @@ public:
 
   virtual void rebuild_chunkmap()
   {
-    const int np = pdims[0]*pdims[1]*pdims[2];
+    const int np = cdims[0]*cdims[1]*cdims[2];
     int     rank[np];
 
     // calculate global workload
@@ -347,11 +355,11 @@ public:
 
   virtual void sendrecv_chunk(int newrank[])
   {
-    const int dims[3] = {ndims[0]/pdims[0],
-                         ndims[1]/pdims[1],
-                         ndims[2]/pdims[2]};
+    const int dims[3] = {ndims[0]/cdims[0],
+                         ndims[1]/cdims[1],
+                         ndims[2]/cdims[2]};
     const int npmax   = std::numeric_limits<int>::max();
-    const int np      = pdims[0]*pdims[1]*pdims[2];
+    const int np      = cdims[0]*cdims[1]*cdims[2];
     const int spos_l  = 0;
     const int spos_r  = sendbuf.size/2;
     const int rpos_l  = 0;
@@ -486,7 +494,7 @@ public:
 
     // local chunk
     if( verbose >= 1 ) {
-      const int np = pdims[3];
+      const int np = cdims[3];
       float64 gsum = 0.0;
       float64 lsum = 0.0;
 
