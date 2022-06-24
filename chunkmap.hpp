@@ -1,9 +1,9 @@
 // -*- C++ -*-
-#ifndef _PATCHMAP_HPP_
-#define _PATCHMAP_HPP_
+#ifndef _CHUNKMAP_HPP_
+#define _CHUNKMAP_HPP_
 
 ///
-/// PatchMap
+/// ChunkMap
 ///
 /// $Id$
 ///
@@ -13,28 +13,28 @@
 
 
 ///
-/// BasePatchMap
+/// BaseChunkMap
 ///
-/// * rank   : MPI rank for each patch
-///            Defines mappping from patch ID to MPI rank.
+/// * rank   : MPI rank for each chunk
+///            Defines mappping from chunk ID to MPI rank.
 ///
 /// * coord  : cartesian coordiante for each index
 ///            Defines mapping from hilbert index to cartesian coordinate
 ///
-/// The patch ID is defined with row-major ordering of patches in cartesian
-/// coordinate. Mapping between patch ID and cartesian coordinate may be
-/// calculated via get_patch() and get_coordinate() methods.
+/// The chunk ID is defined with row-major ordering of chunkes in cartesian
+/// coordinate. Mapping between chunk ID and cartesian coordinate may be
+/// calculated via get_chunk() and get_coordinate() methods.
 ///
-class BasePatchMap
+class BaseChunkMap
 {
 protected:
   typedef xt::xtensor<int,1>  IntArray1D;
   typedef xt::xtensor<int,2>  IntArray2D;
 
-  int          Np;        ///< number of total patches
-  int          pdims[3];  ///< patch dimension
-  int          stride[3]; ///< patch stride
-  IntArray1D   rank;      ///< patch id to MPI rank map
+  int          Np;        ///< number of total chunkes
+  int          pdims[3];  ///< chunk dimension
+  int          stride[3]; ///< chunk stride
+  IntArray1D   rank;      ///< chunk id to MPI rank map
   IntArray2D   coord;     ///< index to cartesian coordinate map
 
 
@@ -219,7 +219,7 @@ protected:
 
 public:
   // constructor
-  BasePatchMap(const int dims[3])
+  BaseChunkMap(const int dims[3])
   {
     Np        = dims[0]*dims[1]*dims[2];
     pdims[0]  = dims[0];
@@ -254,14 +254,14 @@ public:
   }
 
 
-  // set rank for patch id
+  // set rank for chunk id
   void set_rank(const int pid, const int r)
   {
     rank(pid) = r;
   }
 
 
-  // return process rank associated with patch id
+  // return process rank associated with chunk id
   int get_rank(const int pid)
   {
     return rank(pid);

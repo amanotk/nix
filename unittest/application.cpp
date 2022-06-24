@@ -6,10 +6,10 @@
 /// $Id$
 ///
 #include "application.hpp"
-#include "patch.hpp"
-#include "patchmap.hpp"
+#include "chunk.hpp"
+#include "chunkmap.hpp"
 
-typedef BaseApplication<BasePatch<3>,BasePatchMap> T_app;
+typedef BaseApplication<BaseChunk<3>,BaseChunkMap> T_app;
 
 
 int main(int argc, char **argv)

@@ -6,16 +6,16 @@
 /// $Id$
 ///
 #include <iostream>
-#include "patch.hpp"
-#include "patchmap.hpp"
+#include "chunk.hpp"
+#include "chunkmap.hpp"
 
 int main()
 {
   const int N = 3;
-  const int patch_shape[N] = {4, 4, 4};
-  const int patch_dims[N] = {2, 4, 6};
-  BasePatch<N> p(0, patch_shape);
-  BasePatchMap map(patch_dims);
+  const int chunk_shape[N] = {4, 4, 4};
+  const int chunk_dims[N] = {2, 4, 6};
+  BaseChunk<N> p(0, chunk_shape);
+  BaseChunkMap map(chunk_dims);
 
   for(int dirz=-1; dirz <= +1 ;dirz++) {
     for(int diry=-1; diry <= +1 ;diry++) {

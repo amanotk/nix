@@ -3,7 +3,7 @@
 
 ### target
 LIBS    :=
-SRCS    := application.cpp patchmap.cpp patch.cpp hilbert.cpp
+SRCS    := application.cpp chunkmap.cpp chunk.cpp hilbert.cpp
 
 ### OBJS/DEPS
 EXES    := $(SRCS:%.cpp=%)
@@ -22,10 +22,10 @@ default: $(EXES)
 application: application.o
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
-patchmap: patchmap.o
+chunkmap: chunkmap.o
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
-patch: patch.o
+chunk: chunk.o
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
 hilbert: hilbert.o

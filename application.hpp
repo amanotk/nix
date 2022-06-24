@@ -18,31 +18,31 @@
 ///
 /// Definition of BaseApplication Class
 ///
-template <class Patch, class PatchMap>
+template <class Chunk, class ChunkMap>
 class BaseApplication
 {
 protected:
   typedef std::unique_ptr<BaseBalancer> PtrBalancer;
-  typedef std::unique_ptr<Patch>        PtrPatch;
-  typedef std::unique_ptr<PatchMap>     PtrPatchMap;
+  typedef std::unique_ptr<Chunk>        PtrChunk;
+  typedef std::unique_ptr<ChunkMap>     PtrChunkMap;
   typedef std::unique_ptr<char[]>       PtrByte;
   typedef std::unique_ptr<float64[]>    PtrFloat;
-  typedef std::vector<PtrPatch>         PatchVec;
+  typedef std::vector<PtrChunk>         ChunkVec;
 
   CmdParser    parser;    ///< command line parser
   CfgParser    config;    ///< configuration file parser
-  float64      clock0;    ///< wall clock time at initialization
+  float64      wclock;    ///< wall clock time at initialization
   PtrBalancer  balancer;  ///< load balancer
-  int          numpatch;  ///< number of patches in current process
-  PatchVec     patchvec;  ///< patch array
-  PtrPatchMap  patchmap;  ///< global patchmap
+  int          numchunk;  ///< number of chunkes in current process
+  ChunkVec     chunkvec;  ///< chunk array
+  PtrChunkMap  chunkmap;  ///< global chunkmap
   PtrFloat     workload;  ///< global load array
   float64      tmax;      ///< maximum physical time
   float64      emax;      ///< maximum elapsed time
   std::string  loadfile;  ///< snapshot to be loaded
   std::string  savefile;  ///< snapshot to be saved
   int          ndims[4];  ///< global grid dimensions
-  int          pdims[4];  ///< patch dimensions
+  int          pdims[4];  ///< chunk dimensions
   int          curstep;   ///< current iteration step
   float64      curtime;   ///< current time
   float64      delt;      ///< time step
@@ -121,9 +121,9 @@ protected:
 
     // store initial clock
     if( thisrank == 0 ) {
-      clock0 = MPI_Wtime();
+      wclock = MPI_Wtime();
     }
-    MPI_Bcast(&clock0, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&wclock, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // redirect stdout/stderr
     mpistream::initialize(argv[0][0]);
@@ -157,8 +157,8 @@ public:
     // MPI
     initialize_mpi_default(&argc, &argv);
 
-    // patchmap
-    initialize_patchmap();
+    // chunkmap
+    initialize_chunkmap();
 
     // load balancer
     balancer.reset(new BaseBalancer());
@@ -244,7 +244,7 @@ public:
     float64 etime;
 
     if( thisrank == 0 ) {
-      etime = MPI_Wtime() - clock0;
+      etime = MPI_Wtime() - wclock;
     }
     MPI_Bcast(&etime, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -257,16 +257,16 @@ public:
     const int np = pdims[3];
     float64 sendbuf[np];
 
-    // calculate global workload per patch
+    // calculate global workload per chunk
     for(int i=0; i < np ;i++) {
       sendbuf[i]  = 0.0;
       workload[i] = 0.0;
     }
 
     // local workload
-    for(int i=0; i < numpatch ;i++) {
-      int pid      = patchvec[i]->get_id();
-      sendbuf[pid] = patchvec[i]->get_load();
+    for(int i=0; i < numchunk ;i++) {
+      int pid      = chunkvec[i]->get_id();
+      sendbuf[pid] = chunkvec[i]->get_load();
     }
 
     // global workload
@@ -275,7 +275,7 @@ public:
   }
 
 
-  virtual void initialize_patchmap()
+  virtual void initialize_chunkmap()
   {
     const int np = pdims[3];
     const int mp = np / nprocess;
@@ -283,7 +283,7 @@ public:
     // error check
     if( np % nprocess != 0 ) {
       std::cerr << tfm::format("Error: "
-                               "number of patch %8d, "
+                               "number of chunk %8d, "
                                "number of process %8d\n",
                                np, nprocess);
       finalize_mpi_default();
@@ -291,17 +291,17 @@ public:
     }
 
     //
-    // initialize global patchmap
-    // (patches are equally distributed over all processes)
+    // initialize global chunkmap
+    // (chunkes are equally distributed over all processes)
     //
-    patchmap.reset(new PatchMap(pdims));
+    chunkmap.reset(new ChunkMap(pdims));
 
     for(int pid=0; pid < np ;pid++) {
-      patchmap->set_rank(pid, pid / mp);
+      chunkmap->set_rank(pid, pid / mp);
     }
 
     //
-    // initialize local patchvec
+    // initialize local chunkvec
     //
     {
       int dims[3] = {ndims[0]/pdims[0],
@@ -309,11 +309,11 @@ public:
                      ndims[2]/pdims[2]};
       int pid = thisrank * mp;
 
-      patchvec.resize(mp);
+      chunkvec.resize(mp);
       for(int i=0; i < mp ;i++, pid++) {
-        patchvec[i].reset(new Patch(pid, dims));
+        chunkvec[i].reset(new Chunk(pid, dims));
       }
-      numpatch = mp;
+      numchunk = mp;
     }
 
     //
@@ -327,7 +327,7 @@ public:
   }
 
 
-  virtual void rebuild_patchmap()
+  virtual void rebuild_chunkmap()
   {
     const int np = pdims[0]*pdims[1]*pdims[2];
     int     rank[np];
@@ -339,13 +339,13 @@ public:
     balancer->partition(np, nprocess, workload.get(), rank);
 
     //
-    // patch send/recv
+    // chunk send/recv
     //
-    sendrecv_patch(rank);
+    sendrecv_chunk(rank);
   }
 
 
-  virtual void sendrecv_patch(int newrank[])
+  virtual void sendrecv_chunk(int newrank[])
   {
     const int dims[3] = {ndims[0]/pdims[0],
                          ndims[1]/pdims[1],
@@ -365,25 +365,25 @@ public:
     //
     // pack and calculate message size to be sent
     //
-    for(int i=0; i < numpatch ;i++) {
-      int hi = patchvec[i]->get_id();
+    for(int i=0; i < numchunk ;i++) {
+      int hi = chunkvec[i]->get_id();
 
       if( newrank[hi] == thisrank-1 ) {
         // send to left
-        int size = patchvec[i]->pack(0, sbuf_l);
+        int size = chunkvec[i]->pack(0, sbuf_l);
         sbuf_l += size;
-        patchvec[i]->set_id(npmax); // to be removed
+        chunkvec[i]->set_id(npmax); // to be removed
       } else if( newrank[hi] == thisrank+1 ) {
         // send to right
-        int size = patchvec[i]->pack(0, sbuf_r);
+        int size = chunkvec[i]->pack(0, sbuf_r);
         sbuf_r += size;
-        patchvec[i]->set_id(npmax); // to be removed
+        chunkvec[i]->set_id(npmax); // to be removed
       } else if( newrank[hi] == thisrank ) {
         // no need to seed
         continue;
       } else {
         // something wrong
-        std::cerr << tfm::format("Error: patch ID = %4d; "
+        std::cerr << tfm::format("Error: chunk ID = %4d; "
                                  "current rank = %4d; "
                                  "newrank = %4d\n",
                                  hi, thisrank, newrank[hi]);
@@ -391,7 +391,7 @@ public:
     }
 
     //
-    // send/recv patches
+    // send/recv chunkes
     //
     {
       MPI_Request request[4];
@@ -406,7 +406,7 @@ public:
       int rank_l = thisrank > 0          ? thisrank-1 : MPI_PROC_NULL;
       int rank_r = thisrank < nprocess-1 ? thisrank+1 : MPI_PROC_NULL;
 
-      // send/recv patches
+      // send/recv chunkes
       sbuf_l = sendbuf.get(spos_l);
       sbuf_r = sendbuf.get(spos_r);
       rbuf_l = recvbuf.get(rpos_l);
@@ -431,9 +431,9 @@ public:
         char *rbuf_l0 = rbuf_l;
 
         while( (rbuf_l - rbuf_l0) < rbufcnt_l ) {
-          PtrPatch p(new Patch(0, dims));
+          PtrChunk p(new Chunk(0, dims));
           size = p->unpack(0, rbuf_l);
-          patchvec.push_back(std::move(p));
+          chunkvec.push_back(std::move(p));
           rbuf_l += size;
         }
       }
@@ -444,31 +444,31 @@ public:
         char *rbuf_r0 = rbuf_r;
 
         while( (rbuf_r - rbuf_r0) < rbufcnt_r ) {
-          PtrPatch p(new Patch(0, dims));
+          PtrChunk p(new Chunk(0, dims));
           size = p->unpack(0, rbuf_r);
-          patchvec.push_back(std::move(p));
+          chunkvec.push_back(std::move(p));
           rbuf_r += size;
         }
       }
     }
 
     //
-    // sort patchvec and remove unused patches
+    // sort chunkvec and remove unused chunkes
     //
     {
-      std::sort(patchvec.begin(), patchvec.end(),
-                [](const PtrPatch &x, const PtrPatch &y)
+      std::sort(chunkvec.begin(), chunkvec.end(),
+                [](const PtrChunk &x, const PtrChunk &y)
                 {return x->get_id() < y->get_id();});
 
-      // reset numpatch
-      numpatch = 0;
-      for(int i=0; i < patchvec.size() ;i++) {
-        if( patchvec[i]->get_id() == npmax ) break;
-        numpatch++;
+      // reset numchunk
+      numchunk = 0;
+      for(int i=0; i < chunkvec.size() ;i++) {
+        if( chunkvec[i]->get_id() == npmax ) break;
+        numchunk++;
       }
 
       // better to resize if too much memory is used
-      if( numpatch > 2*patchvec.size() ) patchvec.resize(numpatch);
+      if( numchunk > 2*chunkvec.size() ) chunkvec.resize(numchunk);
     }
   }
 
@@ -484,7 +484,7 @@ public:
                        thisrank);
 
 
-    // local patch
+    // local chunk
     if( verbose >= 1 ) {
       const int np = pdims[3];
       float64 gsum = 0.0;
@@ -496,12 +496,12 @@ public:
         gsum += workload[i];
       }
 
-      out << tfm::format("\n--- %-8d local patches ---\n", numpatch);
+      out << tfm::format("\n--- %-8d local chunkes ---\n", numchunk);
 
-      for(int i=0; i < numpatch ;i++) {
-        lsum += patchvec[i]->get_load();
-        out << tfm::format("   patch[%.8d]:  workload = %10.4f\n",
-                           patchvec[i]->get_id(), patchvec[i]->get_load());
+      for(int i=0; i < numchunk ;i++) {
+        lsum += chunkvec[i]->get_load();
+        out << tfm::format("   chunk[%.8d]:  workload = %10.4f\n",
+                           chunkvec[i]->get_id(), chunkvec[i]->get_load());
       }
 
       out << "\n"
@@ -544,7 +544,7 @@ public:
         break;
       }
 
-      rebuild_patchmap();
+      rebuild_chunkmap();
       print_info(out, 1);
     }
     //

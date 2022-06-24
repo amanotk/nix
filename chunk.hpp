@@ -1,9 +1,9 @@
 // -*- C++ -*-
-#ifndef _PATCH_HPP_
-#define _PATCH_HPP_
+#ifndef _CHUNK_HPP_
+#define _CHUNK_HPP_
 
 ///
-/// Patch
+/// Chunk
 ///
 /// $Id$
 ///
@@ -14,21 +14,21 @@
 #include <bitset>
 
 ///
-/// BasePatch class
+/// BaseChunk class
 ///
 template <int N>
-class BasePatch
+class BaseChunk
 {
 protected:
   int myid;          ///< ID
-  int nbid[3][3][3]; ///< neighboring patch ID
+  int nbid[3][3][3]; ///< neighboring chunk ID
   float64 load;      ///< current load
 
 public:
-  BasePatch() = delete;
+  BaseChunk() = delete;
 
   // constructor
-  BasePatch(const int pid, const int dim[N])
+  BaseChunk(const int pid, const int dim[N])
     : myid(pid)
   {
     initialize_load();
@@ -104,7 +104,7 @@ public:
   }
 
 
-  // set neighbor patch id
+  // set neighbor chunk id
   void set_neighbor(const int dirz, const int diry, const int dirx,
                     const int pid)
   {
