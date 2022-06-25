@@ -555,6 +555,7 @@ public:
       rebuild_chunkmap();
       print_info(out, 1);
     }
+
     //
     // + save current snapshot if needed
     // + finalize MPI

@@ -55,43 +55,6 @@ const std::ios::openmode text_write  = std::ios::out | std::ios::trunc;
 const std::ios::openmode text_append = std::ios::out | std::ios::app;
 const std::ios::openmode text_read   = std::ios::in;
 
-// null stream
-static struct NullStream : std::ostream {
-  NullStream() : std::ios(0), std::ostream(0) {}
-} nullstream;
-
-// debug stream
-static struct DebugStream : std::ostream
-{
-  std::filebuf buffer;
-
-  DebugStream()
-  {
-    redirect(std::cerr);
-  }
-
-  // redirect to file
-  void redirect(const char* filename)
-  {
-    rdbuf(&buffer);
-    buffer.open(filename, common::text_write);
-  }
-
-  // redirect to file
-  void redirect(const std::string filename)
-  {
-    rdbuf(&buffer);
-    buffer.open(filename.c_str(), common::text_write);
-  }
-
-  // redirect to output stream
-  void redirect(std::ostream &os)
-  {
-    rdbuf(os.rdbuf());
-  }
-} debugstream;
-//@}
-
 // common functions
 //@{
 /// return elapsed time in second

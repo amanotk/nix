@@ -14,6 +14,7 @@ int main()
   const int N = 3;
   const int chunk_shape[N] = {4, 4, 4};
   const int chunk_dims[N] = {2, 4, 6};
+
   BaseChunk<N> p(0, chunk_shape);
   BaseChunkMap map(chunk_dims);
 
