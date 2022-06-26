@@ -22,7 +22,7 @@ template <class Chunk, class ChunkMap>
 class BaseApplication
 {
 protected:
-  using json = nlohmann::json;
+  using json = nlohmann::ordered_json;
   typedef std::unique_ptr<BaseBalancer> PtrBalancer;
   typedef std::unique_ptr<Chunk>        PtrChunk;
   typedef std::unique_ptr<ChunkMap>     PtrChunkMap;
