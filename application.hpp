@@ -9,7 +9,6 @@
 ///
 #include "utils/common.hpp"
 #include "utils/cmdparser.hpp"
-#include "utils/cfgparser.hpp"
 #include "utils/json.hpp"
 #include "utils/mpistream.hpp"
 #include "balancer.hpp"
@@ -31,8 +30,8 @@ protected:
   typedef std::unique_ptr<float64[]>    PtrFloat;
   typedef std::vector<PtrChunk>         ChunkVec;
 
+  std::string  config;    ///< configuration file name
   CmdParser    parser;    ///< command line parser
-  std::string  config;    ///< configuration file
   float64      wclock;    ///< wall clock time at initialization
   PtrBalancer  balancer;  ///< load balancer
   int          numchunk;  ///< number of chunkes in current process
@@ -146,7 +145,6 @@ protected:
 
     MPI_Finalize();
   }
-
 
 public:
   /// Constructor
@@ -262,38 +260,38 @@ public:
 
   virtual void calc_workload()
   {
-    const int np = cdims[3];
-    float64 sendbuf[np];
+    const int nc = cdims[3];
+    float64 sendbuf[nc];
 
     // calculate global workload per chunk
-    for(int i=0; i < np ;i++) {
+    for(int i=0; i < nc ;i++) {
       sendbuf[i]  = 0.0;
       workload[i] = 0.0;
     }
 
     // local workload
     for(int i=0; i < numchunk ;i++) {
-      int pid      = chunkvec[i]->get_id();
-      sendbuf[pid] = chunkvec[i]->get_load();
+      int id      = chunkvec[i]->get_id();
+      sendbuf[id] = chunkvec[i]->get_load();
     }
 
     // global workload
-    MPI_Allreduce(sendbuf, workload.get(), np,
+    MPI_Allreduce(sendbuf, workload.get(), nc,
                   MPI_REAL8, MPI_SUM, MPI_COMM_WORLD);
   }
 
 
   virtual void initialize_chunkmap()
   {
-    const int np = cdims[3];
-    const int mp = np / nprocess;
+    const int nc = cdims[3];
+    const int mc = nc / nprocess;
 
     // error check
-    if( np % nprocess != 0 ) {
+    if( nc % nprocess != 0 ) {
       std::cerr << tfm::format("Error: "
                                "number of chunk %8d, "
                                "number of process %8d\n",
-                               np, nprocess);
+                               nc, nprocess);
       finalize_mpi_default();
       exit(-1);
     }
@@ -304,8 +302,8 @@ public:
     //
     chunkmap.reset(new ChunkMap(cdims));
 
-    for(int pid=0; pid < np ;pid++) {
-      chunkmap->set_rank(pid, pid / mp);
+    for(int id=0; id < nc ;id++) {
+      chunkmap->set_rank(id, id / mc);
     }
 
     //
@@ -315,21 +313,22 @@ public:
       int dims[3] = {ndims[0]/cdims[0],
                      ndims[1]/cdims[1],
                      ndims[2]/cdims[2]};
-      int pid = thisrank * mp;
+      int id = thisrank * mc;
 
-      chunkvec.resize(mp);
-      for(int i=0; i < mp ;i++, pid++) {
-        chunkvec[i].reset(new Chunk(pid, dims));
+      chunkvec.resize(mc);
+      for(int i=0; i < mc ;i++, id++) {
+        chunkvec[i].reset(new Chunk(id, dims));
       }
-      numchunk = mp;
+      numchunk = mc;
     }
+    set_chunk_neighbors();
 
     //
     // allocate workload and initialize
     //
-    workload.reset(new float64[np]);
+    workload.reset(new float64[nc]);
 
-    for(int i=0; i < np ;i++) {
+    for(int i=0; i < nc ;i++) {
       workload[i] = 0.0;
     }
   }
@@ -337,19 +336,27 @@ public:
 
   virtual void rebuild_chunkmap()
   {
-    const int np = cdims[0]*cdims[1]*cdims[2];
-    int     rank[np];
+    const int nc = cdims[0]*cdims[1]*cdims[2];
+    int     rank[nc];
 
     // calculate global workload
     calc_workload();
 
     // calculate new decomposition
-    balancer->partition(np, nprocess, workload.get(), rank);
+    balancer->partition(nc, nprocess, workload.get(), rank);
 
     //
     // chunk send/recv
     //
     sendrecv_chunk(rank);
+
+    //
+    // reset rank
+    //
+    for(int id=0; id < nc ;id++) {
+      chunkmap->set_rank(id, rank[id]);
+    }
+    set_chunk_neighbors();
   }
 
 
@@ -358,8 +365,8 @@ public:
     const int dims[3] = {ndims[0]/cdims[0],
                          ndims[1]/cdims[1],
                          ndims[2]/cdims[2]};
-    const int npmax   = std::numeric_limits<int>::max();
-    const int np      = cdims[0]*cdims[1]*cdims[2];
+    const int ncmax   = std::numeric_limits<int>::max();
+    const int nc      = cdims[0]*cdims[1]*cdims[2];
     const int spos_l  = 0;
     const int spos_r  = sendbuf.size/2;
     const int rpos_l  = 0;
@@ -374,19 +381,19 @@ public:
     // pack and calculate message size to be sent
     //
     for(int i=0; i < numchunk ;i++) {
-      int hi = chunkvec[i]->get_id();
+      int id = chunkvec[i]->get_id();
 
-      if( newrank[hi] == thisrank-1 ) {
+      if( newrank[id] == thisrank-1 ) {
         // send to left
         int size = chunkvec[i]->pack(0, sbuf_l);
         sbuf_l += size;
-        chunkvec[i]->set_id(npmax); // to be removed
-      } else if( newrank[hi] == thisrank+1 ) {
+        chunkvec[i]->set_id(ncmax); // to be removed
+      } else if( newrank[id] == thisrank+1 ) {
         // send to right
         int size = chunkvec[i]->pack(0, sbuf_r);
         sbuf_r += size;
-        chunkvec[i]->set_id(npmax); // to be removed
-      } else if( newrank[hi] == thisrank ) {
+        chunkvec[i]->set_id(ncmax); // to be removed
+      } else if( newrank[id] == thisrank ) {
         // no need to seed
         continue;
       } else {
@@ -394,7 +401,7 @@ public:
         std::cerr << tfm::format("Error: chunk ID = %4d; "
                                  "current rank = %4d; "
                                  "newrank = %4d\n",
-                                 hi, thisrank, newrank[hi]);
+                                 id, thisrank, newrank[id]);
       }
     }
 
@@ -471,12 +478,48 @@ public:
       // reset numchunk
       numchunk = 0;
       for(int i=0; i < chunkvec.size() ;i++) {
-        if( chunkvec[i]->get_id() == npmax ) break;
+        if( chunkvec[i]->get_id() == ncmax ) break;
         numchunk++;
       }
 
       // better to resize if too much memory is used
       if( numchunk > 2*chunkvec.size() ) chunkvec.resize(numchunk);
+    }
+  }
+
+
+  // set neighbor id and rank for chunk
+  virtual void set_chunk_neighbors()
+  {
+    for(int i=0; i < numchunk ;i++) {
+      int ix, iy, iz;
+      int id = chunkvec[i]->get_id();
+      chunkmap->get_coordinate(id, iz, iy, ix);
+
+      for(int jz=-1; jz <= +1 ;jz++) {
+        for(int jy=-1; jy <= +1 ;jy++) {
+          for(int jx=-1; jx <= +1 ;jx++) {
+            // neighbor coordiante
+            int cz = iz + jz;
+            int cy = iy + jy;
+            int cx = ix + jx;
+            cz = cz < 0         ? cdims[0]-1  : cz;
+            cz = cz >= cdims[0] ? cdims[0]-cz : cz;
+            cy = cy < 0         ? cdims[1]-1  : cy;
+            cy = cy >= cdims[1] ? cdims[1]-cy : cy;
+            cx = cx < 0         ? cdims[2]-1  : cx;
+            cx = cx >= cdims[2] ? cdims[2]-cx : cx;
+
+            // set neighbor id
+            int nbid = chunkmap->get_chunkid(cz, cy, cx);
+            chunkvec[i]->set_nb_id(jz, jy, jx, nbid);
+
+            // set neighbor rank
+            int nbrank = chunkmap->get_rank(nbid);
+            chunkvec[i]->set_nb_rank(jz, jy, jx, nbrank);
+          }
+        }
+      }
     }
   }
 
@@ -494,13 +537,13 @@ public:
 
     // local chunk
     if( verbose >= 1 ) {
-      const int np = cdims[3];
+      const int nc = cdims[3];
       float64 gsum = 0.0;
       float64 lsum = 0.0;
 
       // global workload
       calc_workload();
-      for(int i=0; i < np ;i++) {
+      for(int i=0; i < nc ;i++) {
         gsum += workload[i];
       }
 

@@ -8,6 +8,8 @@
 /// $Id$
 ///
 #include "common.hpp"
+#include "utils/json.hpp"
+#include "utils/mpistream.hpp"
 #include "hilbert.hpp"
 #include "mdarray.hpp"
 
@@ -28,14 +30,16 @@
 class BaseChunkMap
 {
 protected:
+  using json = nlohmann::ordered_json;
   typedef xt::xtensor<int,1>  IntArray1D;
   typedef xt::xtensor<int,2>  IntArray2D;
+  typedef xt::xtensor<int,3>  IntArray3D;
 
-  int          Np;        ///< number of total chunkes
-  int          pdims[3];  ///< chunk dimension
-  int          stride[3]; ///< chunk stride
-  IntArray1D   rank;      ///< chunk id to MPI rank map
-  IntArray2D   coord;     ///< index to cartesian coordinate map
+  int          size;     ///< number of total chunkes
+  int          dims[3];  ///< chunk dimension
+  IntArray1D   rank;     ///< chunk id to MPI rank map
+  IntArray2D   coord;    ///< chunk id to coordinate map
+  IntArray3D   chunkid;  ///< coordiante to chunk id map
 
 
   int ilog2(int x)
@@ -148,6 +152,13 @@ protected:
       check_dimension_3d(dims, dirs);
       build_mapping_3d(dims, dirs);
     }
+
+    // set coordiante to chunk ID mapping
+    for(int i=0; i < size ;i++) {
+      int jx, jy, jz;
+      get_coordinate(i, jz, jy, jx);
+      chunkid(jz, jy, jx) = i;
+    }
   }
 
   void check_dimension_2d(const int dims[3], const int dirs[3])
@@ -219,27 +230,25 @@ protected:
 
 public:
   // constructor
-  BaseChunkMap(const int dims[3])
+  BaseChunkMap(const int cdims[3])
   {
-    Np        = dims[0]*dims[1]*dims[2];
-    pdims[0]  = dims[0];
-    pdims[1]  = dims[1];
-    pdims[2]  = dims[2];
-    stride[0] = dims[1]*dims[2];
-    stride[1] = dims[2];
-    stride[2] = 1;
+    size     = cdims[0]*cdims[1]*cdims[2];
+    dims[0]  = cdims[0];
+    dims[1]  = cdims[1];
+    dims[2]  = cdims[2];
 
     // memory allocation
-    xt::resize(rank, {Np});
-    xt::resize(coord, {Np, 3});
+    xt::resize(rank, {size});
+    xt::resize(coord, {size, 3});
+    xt::resize(chunkid, {dims[0], dims[1], dims[2]});
 
     // build mapping with pseudo hilbert curve
     {
-      int dims[3] = {pdims[0], pdims[1], pdims[2]};
-      int dirs[3] = {0, 1, 2};
+      int dimensions[3] = {dims[0], dims[1], dims[2]};
+      int directions[3] = {0, 1, 2};
 
-      sort_dimension(dims, dirs);
-      build_mapping(dims, dirs);
+      sort_dimension(dimensions, directions);
+      build_mapping(dimensions, directions);
     }
   }
 
@@ -247,33 +256,117 @@ public:
   // debug output
   void debug(std::ostream &ofs)
   {
-    for(int ip=0; ip < Np ;ip++) {
+    for(int i=0; i < size ;i++) {
       ofs << tfm::format("%3d, %3d, %3d\n",
-                         coord(ip,0), coord(ip,1), coord(ip,2));
+                         coord(i,0), coord(i,1), coord(i,2));
     }
   }
 
 
   // set rank for chunk id
-  void set_rank(const int pid, const int r)
+  void set_rank(const int id, const int r)
   {
-    rank(pid) = r;
+    rank(id) = r;
   }
 
 
   // return process rank associated with chunk id
-  int get_rank(const int pid)
+  int get_rank(const int id)
   {
-    return rank(pid);
+    if( id >= 0 && id < size ) {
+      return rank(id);
+    } else {
+      return MPI_PROC_NULL;
+    }
   }
 
 
-  // return patach coordinate
-  void get_coordiante(const int pid, int &pz, int &py, int &px)
+  // return chunk coordinate associated with chunk id
+  void get_coordinate(const int id, int &cz, int &cy, int &cx)
   {
-    pz = coord(pid,0);
-    py = coord(pid,1);
-    px = coord(pid,2);
+    if( id >= 0 && id < size ) {
+      cz = coord(id, 0);
+      cy = coord(id, 1);
+      cx = coord(id, 2);
+    } else {
+      cz = -1;
+      cy = -1;
+      cx = -1;
+    }
+  }
+
+
+  // return chunk id associated with coordinate
+  int get_chunkid(const int cz, const int cy, const int cx)
+  {
+    if( (cz >= 0 && cz < dims[2]) &&
+        (cy >= 0 && cy < dims[1]) &&
+        (cx >= 0 && cx < dims[0]) ) {
+      return chunkid(cz, cy, cx);
+    } else {
+      return -1;
+    }
+  }
+
+
+  // dump to json
+  virtual void json_dump(std::ostream &out)
+  {
+    json obj;
+
+    // meta data
+    {
+      obj["size"] = size;
+      obj["dims"] = {dims[0], dims[1], dims[2]};
+    }
+
+    // id
+    {
+      json chunkid_obj = json::array();
+
+      for(int iz=0; iz < dims[0] ;iz++) {
+        json cy = json::array();
+        for(int iy=0; iy < dims[1] ;iy++) {
+          json cx = json::array();
+          for(int ix=0; ix < dims[2] ;ix++) {
+            cx.push_back(chunkid(iz, iy, ix));
+          }
+          cy.push_back(cx);
+        }
+        chunkid_obj.push_back(cy);
+      }
+      obj["chunkid"] = chunkid_obj;
+    }
+
+    // coordinate
+    {
+      json coord_obj = json::array();
+
+      for(int id=0; id < size ;id++) {
+        int ix, iy, iz;
+        get_coordinate(id, iz, iy, ix);
+        coord_obj.push_back({iz, iy, ix});
+      }
+      obj["coord"] = coord_obj;
+    }
+
+    // rank
+    {
+      json rank_obj = json::array();
+
+      for(int id=0; id < size ;id++) {
+        int rank = get_rank(id);
+        rank_obj.push_back(rank);
+      }
+      obj["rank"] = rank_obj;
+    }
+
+    // output
+    {
+      json root;
+      root= { {"chunkmap", obj} };
+      out << std::setw(2) << root << std::endl;
+    }
   }
 };
 
