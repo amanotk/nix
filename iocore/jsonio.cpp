@@ -1,9 +1,8 @@
 // -*- C++ -*-
 
-#include <cassert>
-#include "iocore.hpp"
+#include "jsonio.hpp"
 
-namespace iocore
+namespace jsonio
 {
 
 template <typename T_int>
@@ -308,6 +307,137 @@ void read_collective(MPI_File *fh, int64_t *disp, void *data,
 
   int64_t gsize = get_size(ndim, gshape);
   *disp += gsize * elembyte;
+}
+
+void put_metadata(json &obj, string name, string dtype, string desc,
+                  const int64_t disp, const int64_t size,
+                  const int ndim, const int dims[])
+{
+  obj[name]["datatype"]    = dtype;
+  obj[name]["description"] = desc;
+  obj[name]["offset"]      = disp;
+  obj[name]["size"]        = size;
+  obj[name]["ndim"]        = ndim;
+  obj[name]["shape"]       = json::array();
+
+  for(int i=0; i < ndim ;i++ ) {
+    obj[name]["shape"].push_back(dims[i]);
+  }
+}
+
+void put_metadata(json &obj, string name, string dtype, string desc,
+                  const int64_t disp, const int64_t size)
+{
+  const int ndim = 1;
+  const int dims[1] = {1};
+  put_metadata(obj, name, dtype, desc, disp, size, ndim, dims);
+}
+
+void get_metadata(json &obj, string name, string &dtype, string &desc,
+                  int64_t &disp, int64_t &size, int &ndim, int dims[])
+{
+  dtype = obj[name]["datatype"].get<string>();
+  desc  = obj[name]["description"].get<string>();
+  disp  = obj[name]["offset"].get<int64_t>();
+  size  = obj[name]["size"].get<int64_t>();
+  ndim  = obj[name]["ndim"].get<int>();
+
+  auto v = obj[name]["shape"];
+  for(int i=0; i < ndim ;i++ ) {
+    dims[i] = v[i].get<int>();
+  }
+}
+
+void get_metadata(json &obj, string name, string &dtype, string &desc,
+                  int64_t &disp, int64_t &size)
+{
+  int ndim;
+  int dims[1];
+  get_metadata(obj, name, dtype, desc, disp, size, ndim, dims);
+}
+
+template <typename T>
+void get_attribute(json &obj, string name, int64_t &disp, T &data)
+{
+  string dtype;
+  string desc;
+  int64_t size;
+  get_metadata(obj, name, dtype, desc, disp, size);
+  data = obj[name]["data"].get<T>();
+}
+
+template <typename T>
+void get_attribute(json &obj, string name, int64_t &disp, int length, T *data)
+{
+  string dtype;
+  string desc;
+  int64_t size;
+  get_metadata(obj, name, dtype, desc, disp, size);
+  for(int i=0; i < length ;i++) {
+    data[i] = obj[name]["data"].get<T>();
+  }
+}
+
+template <> void get_attribute<int32_t>(json &obj, string name, int64_t &disp, int32_t &data);
+template <> void get_attribute<int64_t>(json &obj, string name, int64_t &disp, int64_t &data);
+template <> void get_attribute<float32>(json &obj, string name, int64_t &disp, float32 &data);
+template <> void get_attribute<float64>(json &obj, string name, int64_t &disp, float64 &data);
+template <> void get_attribute<int32_t>(json &obj, string name, int64_t &disp, int length, int32_t *data);
+template <> void get_attribute<int64_t>(json &obj, string name, int64_t &disp, int length, int64_t *data);
+template <> void get_attribute<float32>(json &obj, string name, int64_t &disp, int length, float32 *data);
+template <> void get_attribute<float64>(json &obj, string name, int64_t &disp, int length, float64 *data);
+
+
+void put_attribute(json &obj, string name, const int64_t disp, const int32_t data)
+{
+  put_metadata(obj, name, "i4", "", disp, sizeof(int32_t));
+  obj[name]["data"] = data;
+}
+
+void put_attribute(json &obj, string name, const int64_t disp, const int64_t data)
+{
+  put_metadata(obj, name, "i8", "", disp, sizeof(int64_t));
+  obj[name]["data"] = data;
+}
+
+void put_attribute(json &obj, string name, const int64_t disp, const float32 data)
+{
+  put_metadata(obj, name, "f4", "", disp, sizeof(float32));
+  obj[name]["data"] = data;
+}
+
+void put_attribute(json &obj, string name, const int64_t disp, const float64 data)
+{
+  put_metadata(obj, name, "f8", "", disp, sizeof(float64));
+  obj[name]["data"] = data;
+}
+
+void put_attribute(json &obj, string name, const int64_t disp, const int length, const int32_t *data)
+{
+  int dims[1] = {length};
+  put_metadata(obj, name, "i4", "", disp, sizeof(int32_t)*length, 1, dims);
+  obj[name]["data"] = std::vector<int32_t>(&data[0], &data[length-1]);
+}
+
+void put_attribute(json &obj, string name, const int64_t disp, const int length, const int64_t *data)
+{
+  int dims[1] = {length};
+  put_metadata(obj, name, "i8", "", disp, sizeof(int64_t)*length, 1, dims);
+  obj[name]["data"] = std::vector<int64_t>(&data[0], &data[length-1]);
+}
+
+void put_attribute(json &obj, string name, const int64_t disp, const int length, const float32 *data)
+{
+  int dims[1] = {length};
+  put_metadata(obj, name, "f4", "", disp, sizeof(float32)*length, 1, dims);
+  obj[name]["data"] = std::vector<float32>(&data[0], &data[length-1]);
+}
+
+void put_attribute(json &obj, string name, const int64_t disp, const int length, const float64 *data)
+{
+  int dims[1] = {length};
+  put_metadata(obj, name, "f8", "", disp, sizeof(float64)*length, 1, dims);
+  obj[name]["data"] = std::vector<float64>(&data[0], &data[length-1]);
 }
 
 }
