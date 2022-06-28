@@ -8,8 +8,6 @@
 /// $Id$
 ///
 #include "utils/common.hpp"
-#include "utils/cmdparser.hpp"
-#include "utils/cfgparser.hpp"
 #include "utils/mpistream.hpp"
 #include <bitset>
 
