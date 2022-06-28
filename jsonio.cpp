@@ -1,9 +1,14 @@
 // -*- C++ -*-
 
 #include "jsonio.hpp"
+#include "tinyformat.hpp"
 
 namespace jsonio
 {
+using std::cerr;
+using std::endl;
+using tfm::format;
+
 
 template <typename T_int>
 T_int get_size(const int32_t ndim, const T_int shape[])
@@ -76,7 +81,7 @@ void hindexed_readwrite(MPI_File *fh, int64_t *disp, void *data,
     MPI_File_write_all(*fh, data, packed_size[0], ptype, &status);
     break;
   default:
-    std::cerr << "Error: No such mode available" << std::endl;
+    cerr << format("Error: No such mode available\n");
   }
 
   MPI_Type_free(&ptype);
@@ -116,7 +121,7 @@ void subarray_readwrite(MPI_File *fh, int64_t *disp, void *data,
     MPI_File_write_all(*fh, data, count, ptype, &status);
     break;
   default:
-    std::cerr << "Error: No such mode available" << std::endl;
+    cerr << format("Error: No such mode available\n");
   }
 
   MPI_Type_free(&ptype);
@@ -148,7 +153,7 @@ void open_file(const char *filename, MPI_File *fh, int64_t *disp,
                            MPI_MODE_RDONLY,
                            MPI_INFO_NULL, fh);
     if( status != MPI_SUCCESS ) {
-      std::cerr << "failed to open file" << std::endl;
+      cerr << format("Error: failed to open file: %s\n", filename);
     }
 
     // set pointer to the beggining
@@ -163,7 +168,7 @@ void open_file(const char *filename, MPI_File *fh, int64_t *disp,
                            MPI_MODE_WRONLY | MPI_MODE_CREATE,
                            MPI_INFO_NULL, fh);
     if( status != MPI_SUCCESS ) {
-      std::cerr << "failed to open file" << std::endl;
+      cerr << format("Error: failed to open file: %s\n", filename);
     }
 
 
@@ -178,7 +183,7 @@ void open_file(const char *filename, MPI_File *fh, int64_t *disp,
                            MPI_MODE_WRONLY | MPI_MODE_CREATE,
                            MPI_INFO_NULL, fh);
     if( status != MPI_SUCCESS ) {
-      std::cerr << "failed to open file" << std::endl;
+      cerr << format("Error: failed to open file: %s\n", filename);
     }
 
     // set pointer to the end
@@ -188,7 +193,7 @@ void open_file(const char *filename, MPI_File *fh, int64_t *disp,
 
     break;
   default:
-    std::cout << "no such mode" << std::endl;
+    cerr << format("Error: No such mode available\n");
   }
 }
 
@@ -281,7 +286,7 @@ void write_collective(MPI_File *fh, int64_t *disp, void *data,
                       const int order)
 {
   if( order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN ) {
-    std::cerr << "No such order" << std::endl;
+    cerr << format("Error: No such order available\n");
   }
 
   subarray_readwrite(fh, disp, data, ndim, gshape, lshape, offset, elembyte, -1, order);
@@ -300,7 +305,7 @@ void read_collective(MPI_File *fh, int64_t *disp, void *data,
                      const int order)
 {
   if( order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN ) {
-    std::cerr << "No such order" << std::endl;
+    cerr << format("Error: No such order available\n");
   }
 
   subarray_readwrite(fh, disp, data, ndim, gshape, lshape, offset, elembyte, +1, order);
@@ -311,7 +316,7 @@ void read_collective(MPI_File *fh, int64_t *disp, void *data,
 
 void put_metadata(json &obj, string name, string dtype, string desc,
                   const int64_t disp, const int64_t size,
-                  const int ndim, const int dims[])
+                  const int32_t ndim, const int32_t dims[])
 {
   obj[name]["datatype"]    = dtype;
   obj[name]["description"] = desc;
@@ -334,7 +339,7 @@ void put_metadata(json &obj, string name, string dtype, string desc,
 }
 
 void get_metadata(json &obj, string name, string &dtype, string &desc,
-                  int64_t &disp, int64_t &size, int &ndim, int dims[])
+                  int64_t &disp, int64_t &size, int32_t &ndim, int32_t dims[])
 {
   dtype = obj[name]["datatype"].get<string>();
   desc  = obj[name]["description"].get<string>();
@@ -351,8 +356,8 @@ void get_metadata(json &obj, string name, string &dtype, string &desc,
 void get_metadata(json &obj, string name, string &dtype, string &desc,
                   int64_t &disp, int64_t &size)
 {
-  int ndim;
-  int dims[1];
+  int32_t ndim;
+  int32_t dims[1];
   get_metadata(obj, name, dtype, desc, disp, size, ndim, dims);
 }
 
@@ -367,7 +372,7 @@ void get_attribute(json &obj, string name, int64_t &disp, T &data)
 }
 
 template <typename T>
-void get_attribute(json &obj, string name, int64_t &disp, int length, T *data)
+void get_attribute(json &obj, string name, int64_t &disp, int32_t length, T *data)
 {
   string dtype;
   string desc;
@@ -382,10 +387,10 @@ template <> void get_attribute<int32_t>(json &obj, string name, int64_t &disp, i
 template <> void get_attribute<int64_t>(json &obj, string name, int64_t &disp, int64_t &data);
 template <> void get_attribute<float32>(json &obj, string name, int64_t &disp, float32 &data);
 template <> void get_attribute<float64>(json &obj, string name, int64_t &disp, float64 &data);
-template <> void get_attribute<int32_t>(json &obj, string name, int64_t &disp, int length, int32_t *data);
-template <> void get_attribute<int64_t>(json &obj, string name, int64_t &disp, int length, int64_t *data);
-template <> void get_attribute<float32>(json &obj, string name, int64_t &disp, int length, float32 *data);
-template <> void get_attribute<float64>(json &obj, string name, int64_t &disp, int length, float64 *data);
+template <> void get_attribute<int32_t>(json &obj, string name, int64_t &disp, int32_t length, int32_t *data);
+template <> void get_attribute<int64_t>(json &obj, string name, int64_t &disp, int32_t length, int64_t *data);
+template <> void get_attribute<float32>(json &obj, string name, int64_t &disp, int32_t length, float32 *data);
+template <> void get_attribute<float64>(json &obj, string name, int64_t &disp, int32_t length, float64 *data);
 
 
 void put_attribute(json &obj, string name, const int64_t disp, const int32_t data)
@@ -412,30 +417,30 @@ void put_attribute(json &obj, string name, const int64_t disp, const float64 dat
   obj[name]["data"] = data;
 }
 
-void put_attribute(json &obj, string name, const int64_t disp, const int length, const int32_t *data)
+void put_attribute(json &obj, string name, const int64_t disp, const int32_t length, const int32_t *data)
 {
-  int dims[1] = {length};
+  int32_t dims[1] = {length};
   put_metadata(obj, name, "i4", "", disp, sizeof(int32_t)*length, 1, dims);
   obj[name]["data"] = std::vector<int32_t>(&data[0], &data[length-1]);
 }
 
-void put_attribute(json &obj, string name, const int64_t disp, const int length, const int64_t *data)
+void put_attribute(json &obj, string name, const int64_t disp, const int32_t length, const int64_t *data)
 {
-  int dims[1] = {length};
+  int32_t dims[1] = {length};
   put_metadata(obj, name, "i8", "", disp, sizeof(int64_t)*length, 1, dims);
   obj[name]["data"] = std::vector<int64_t>(&data[0], &data[length-1]);
 }
 
-void put_attribute(json &obj, string name, const int64_t disp, const int length, const float32 *data)
+void put_attribute(json &obj, string name, const int64_t disp, const int32_t length, const float32 *data)
 {
-  int dims[1] = {length};
+  int32_t dims[1] = {length};
   put_metadata(obj, name, "f4", "", disp, sizeof(float32)*length, 1, dims);
   obj[name]["data"] = std::vector<float32>(&data[0], &data[length-1]);
 }
 
-void put_attribute(json &obj, string name, const int64_t disp, const int length, const float64 *data)
+void put_attribute(json &obj, string name, const int64_t disp, const int32_t length, const float64 *data)
 {
-  int dims[1] = {length};
+  int32_t dims[1] = {length};
   put_metadata(obj, name, "f8", "", disp, sizeof(float64)*length, 1, dims);
   obj[name]["data"] = std::vector<float64>(&data[0], &data[length-1]);
 }

@@ -1,11 +1,10 @@
 {
-    "debugstream" : "/dev/null",
     "Nx" : 16,
     "Ny" : 16,
     "Nz" : 16,
-    "Ncx" : 8,
-    "Ncy" : 8,
-    "Ncz" : 8,
+    "Ncx" : 4,
+    "Ncy" : 4,
+    "Ncz" : 4,
     "delt" : 1.0,
     "delh" : 1.0,
     "_EOF_" : 0
