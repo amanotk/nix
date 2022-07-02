@@ -47,9 +47,6 @@ const std::ios::openmode binary_append =
 const std::ios::openmode binary_read =
   std::ios::binary | std::ios::in;
 
-// endian flag
-const int32 endian = 1;
-
 // text mode
 const std::ios::openmode text_write  = std::ios::out | std::ios::trunc;
 const std::ios::openmode text_append = std::ios::out | std::ios::app;
@@ -57,6 +54,18 @@ const std::ios::openmode text_read   = std::ios::in;
 
 // common functions
 //@{
+
+//// return 1 on little endian and 16777216 on big endian
+inline int32_t get_endian_flag()
+{
+  union {
+    int  flag;
+    char byte[4] = {1, 0, 0, 0};
+  } endian_flag;
+
+  return endian_flag.flag;
+}
+
 /// return elapsed time in second
 inline double etime()
 {

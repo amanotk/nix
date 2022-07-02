@@ -20,8 +20,6 @@ using float64 = double;
 using string = std::string;
 using json = nlohmann::ordered_json;
 
-int get_endian_flag();
-
 void open_file(const char *filename, MPI_File *fh, int64_t *disp, const char *mode);
 
 void close_file(MPI_File *fh);

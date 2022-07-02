@@ -129,18 +129,6 @@ void subarray_readwrite(MPI_File *fh, int64_t *disp, void *data,
 }
 
 
-// return 1 on little endian and 16777216 on big endian
-int32_t get_endian_flag()
-{
-  union {
-    int  flag;
-    char byte[4] = {1, 0, 0, 0};
-  } endian_flag;
-
-  return endian_flag.flag;
-}
-
-
 void open_file(const char *filename, MPI_File *fh, int64_t *disp,
                const char *mode)
 {
