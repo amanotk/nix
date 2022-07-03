@@ -3,7 +3,8 @@
 
 ### target
 LIBS    :=
-SRCS    := application.cpp chunkmap.cpp test_chunk.cpp hilbert.cpp
+SRCS    := test_serial.cpp test_chunk.cpp test_jsonio1.cpp
+#SRCS    := application.cpp chunkmap.cpp test_serial.cpp test_chunk.cpp test_jsonio.cpp hilbert.cpp
 
 ### OBJS/DEPS
 EXES    := $(SRCS:%.cpp=%)
@@ -17,17 +18,20 @@ include Makefile.inc
 
 ### default
 #default: $(EXES)
-default: test_chunk
+default: test_chunk test_jsonio1
 
 # individual executables
+test_chunk: test_serial.o test_chunk.o
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
+
+test_jsonio1: test_serial.o test_jsonio1.o
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
+
 application: application.o
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
 chunkmap: chunkmap.o
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
-
-test_chunk: test_chunk.o
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
 
 hilbert: hilbert.o
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
