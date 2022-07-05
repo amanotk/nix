@@ -20,14 +20,14 @@ T_int get_size(const int32_t ndim, const T_int shape[])
 }
 
 // calculate offset
-void calculate_global_offset(int64_t lsize, int64_t *offset, int64_t *gsize)
+void calculate_global_offset(size_t lsize, size_t *offset, size_t *gsize)
 {
   int nprocess;
   int thisrank;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
   MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
 
-  int64_t *buffer = new int64_t[nprocess];
+  size_t *buffer = new size_t[nprocess];
 
   MPI_Allgather(&lsize, 1, MPI_INT64_T, buffer, 1, MPI_INT64_T, MPI_COMM_WORLD);
 
@@ -45,8 +45,8 @@ void calculate_global_offset(int64_t lsize, int64_t *offset, int64_t *gsize)
 }
 
 // collective raed/write with hindexed type
-void hindexed_readwrite(MPI_File *fh, int64_t *disp, void *data,
-                        const int64_t offset, const int64_t size,
+void hindexed_readwrite(MPI_File *fh, size_t *disp, void *data,
+                        const size_t offset, const size_t size,
                         const int32_t elembyte, const int32_t packbyte,
                         const int mode)
 {
@@ -84,7 +84,7 @@ void hindexed_readwrite(MPI_File *fh, int64_t *disp, void *data,
 }
 
 // collective raed/write with subarray type
-void subarray_readwrite(MPI_File *fh, int64_t *disp, void *data,
+void subarray_readwrite(MPI_File *fh, size_t *disp, void *data,
                         const int32_t ndim, const int32_t gshape[],
                         const int32_t lshape[], const int32_t offset[],
                         const int32_t elembyte, const int mode, const int order)
@@ -118,7 +118,7 @@ void subarray_readwrite(MPI_File *fh, int64_t *disp, void *data,
   MPI_Type_free(&ftype);
 }
 
-void open_file(const char *filename, MPI_File *fh, int64_t *disp,
+void open_file(const char *filename, MPI_File *fh, size_t *disp,
                const char *mode)
 {
   int status;
@@ -162,9 +162,11 @@ void open_file(const char *filename, MPI_File *fh, int64_t *disp,
     }
 
     // set pointer to the end
+    MPI_Offset pos;
     *disp = 0;
     MPI_File_seek(*fh, *disp, MPI_SEEK_END);
-    MPI_File_get_position(*fh, disp);
+    MPI_File_get_position(*fh, &pos);
+    *disp = static_cast<size_t>(pos);
 
     break;
   default:
@@ -177,7 +179,15 @@ void close_file(MPI_File *fh)
   MPI_File_close(fh);
 }
 
-void write_single(MPI_File *fh, int64_t *disp, void *data, const size_t size)
+void read_single(MPI_File *fh, size_t *disp, void *data, const size_t size)
+{
+  MPI_Status status;
+  MPI_File_read_at(*fh, *disp, data, size, MPI_BYTE, &status);
+
+  *disp += size;
+}
+
+void write_single(MPI_File *fh, size_t *disp, void *data, const size_t size)
 {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -190,41 +200,10 @@ void write_single(MPI_File *fh, int64_t *disp, void *data, const size_t size)
   *disp += size;
 }
 
-void read_single(MPI_File *fh, int64_t *disp, void *data, const size_t size)
+void read_collective(MPI_File *fh, size_t *disp, void *data, const size_t size,
+                     const int32_t elembyte, const int32_t packbyte)
 {
-  MPI_Status status;
-  MPI_File_read_at(*fh, *disp, data, size, MPI_BYTE, &status);
-
-  *disp += size;
-}
-
-void write_collective(MPI_File *fh, int64_t *disp, void *data,
-                      const int64_t size, const int32_t elembyte,
-                      const int32_t packbyte)
-{
-  int64_t gsize, offset;
-  int32_t pbyte;
-
-  if (packbyte < 0) {
-    pbyte = elembyte;
-  } else {
-    pbyte = packbyte;
-  }
-
-  // calculate offset
-  calculate_global_offset(size, &offset, &gsize);
-
-  // write to disk
-  hindexed_readwrite(fh, disp, data, offset, size, elembyte, pbyte, -1);
-
-  *disp += gsize * elembyte;
-}
-
-void read_collective(MPI_File *fh, int64_t *disp, void *data,
-                     const int64_t size, const int32_t elembyte,
-                     const int32_t packbyte)
-{
-  int64_t gsize, offset;
+  size_t gsize, offset;
   int32_t pbyte;
 
   if (packbyte < 0) {
@@ -242,37 +221,67 @@ void read_collective(MPI_File *fh, int64_t *disp, void *data,
   *disp += gsize * elembyte;
 }
 
-void write_collective(MPI_File *fh, int64_t *disp, void *data,
-                      const int32_t ndim, const int32_t gshape[],
-                      const int32_t lshape[], const int32_t offset[],
-                      const int32_t elembyte, const int order)
+void write_collective(MPI_File *fh, size_t *disp, void *data, const size_t size,
+                      const int32_t elembyte, const int32_t packbyte)
 {
-  if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
-    cerr << format("Error: No such order available\n");
+  size_t gsize, offset;
+  int32_t pbyte;
+
+  if (packbyte < 0) {
+    pbyte = elembyte;
+  } else {
+    pbyte = packbyte;
   }
 
-  subarray_readwrite(fh, disp, data, ndim, gshape, lshape, offset, elembyte, -1,
-                     order);
+  // calculate offset
+  calculate_global_offset(size, &offset, &gsize);
 
-  int64_t gsize = get_size(ndim, gshape);
+  // write to disk
+  hindexed_readwrite(fh, disp, data, offset, size, elembyte, pbyte, -1);
+
   *disp += gsize * elembyte;
 }
 
-void read_collective(MPI_File *fh, int64_t *disp, void *data,
-                     const int32_t ndim, const int32_t gshape[],
-                     const int32_t lshape[], const int32_t offset[],
-                     const int32_t elembyte, const int order)
-{
-  if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
-    cerr << format("Error: No such order available\n");
-  }
-
-  subarray_readwrite(fh, disp, data, ndim, gshape, lshape, offset, elembyte, +1,
-                     order);
-
-  int64_t gsize = get_size(ndim, gshape);
-  *disp += gsize * elembyte;
-}
+template <>
+void read_collective(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+                     const int32_t gshape[], const int32_t lshape[],
+                     const int32_t offset[], const int32_t elembyte,
+                     const int order);
+template <>
+void read_collective(MPI_File *fh, size_t *disp, void *data, const size_t ndim,
+                     const size_t gshape[], const size_t lshape[],
+                     const size_t offset[], const size_t elembyte,
+                     const int order);
+template <>
+void write_collective(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+                      const int32_t gshape[], const int32_t lshape[],
+                      const int32_t offset[], const int32_t elembyte,
+                      const int order);
+template <>
+void write_collective(MPI_File *fh, size_t *disp, void *data, const size_t ndim,
+                      const size_t gshape[], const size_t lshape[],
+                      const size_t offset[], const size_t elembyte,
+                      const int order);
+template <>
+void get_attribute(json &obj, string name, size_t &disp, int32_t &data);
+template <>
+void get_attribute(json &obj, string name, size_t &disp, int64_t &data);
+template <>
+void get_attribute(json &obj, string name, size_t &disp, float32 &data);
+template <>
+void get_attribute(json &obj, string name, size_t &disp, float64 &data);
+template <>
+void get_attribute(json &obj, string name, size_t &disp, int32_t length,
+                   int32_t *data);
+template <>
+void get_attribute(json &obj, string name, size_t &disp, int32_t length,
+                   int64_t *data);
+template <>
+void get_attribute(json &obj, string name, size_t &disp, int32_t length,
+                   float32 *data);
+template <>
+void get_attribute(json &obj, string name, size_t &disp, int32_t length,
+                   float64 *data);
 
 } // namespace jsonio
 

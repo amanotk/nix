@@ -147,7 +147,7 @@ TEST_CASE("Attribute")
   // check put_attribute
   //
   {
-    int disp;
+    size_t disp;
     json writer, diff;
 
     disp = 0;
@@ -186,7 +186,7 @@ TEST_CASE("Attribute")
   {
     json reader = json_to_check;
 
-    int64_t disp1, disp2;
+    size_t disp1, disp2;
     int32_t in_i32s;
     int64_t in_i64s;
     int32_t in_i32a[N];

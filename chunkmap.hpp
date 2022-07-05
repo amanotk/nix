@@ -8,11 +8,12 @@
 /// $Id$
 ///
 #include "common.hpp"
+#include "hilbert.hpp"
 #include "utils/json.hpp"
 #include "utils/mpistream.hpp"
-#include "hilbert.hpp"
-#include "mdarray.hpp"
-
+#include "xtensor/xarray.hpp"
+#include "xtensor/xio.hpp"
+#include "xtensor/xview.hpp"
 
 ///
 /// BaseChunkMap
@@ -31,16 +32,15 @@ class BaseChunkMap
 {
 protected:
   using json = nlohmann::ordered_json;
-  typedef xt::xtensor<int,1>  IntArray1D;
-  typedef xt::xtensor<int,2>  IntArray2D;
-  typedef xt::xtensor<int,3>  IntArray3D;
+  typedef xt::xtensor<int, 1> IntArray1D;
+  typedef xt::xtensor<int, 2> IntArray2D;
+  typedef xt::xtensor<int, 3> IntArray3D;
 
-  int          size;     ///< number of total chunkes
-  int          dims[3];  ///< chunk dimension
-  IntArray1D   rank;     ///< chunk id to MPI rank map
-  IntArray2D   coord;    ///< chunk id to coordinate map
-  IntArray3D   chunkid;  ///< coordiante to chunk id map
-
+  int size;           ///< number of total chunkes
+  int dims[3];        ///< chunk dimension
+  IntArray1D rank;    ///< chunk id to MPI rank map
+  IntArray2D coord;   ///< chunk id to coordinate map
+  IntArray3D chunkid; ///< coordiante to chunk id map
 
   int ilog2(int x);
 
@@ -73,7 +73,7 @@ public:
   // return process rank associated with chunk id
   int get_rank(const int id)
   {
-    if( id >= 0 && id < size ) {
+    if (id >= 0 && id < size) {
       return rank(id);
     } else {
       return MPI_PROC_NULL;
@@ -83,7 +83,7 @@ public:
   // return chunk coordinate associated with chunk id
   void get_coordinate(const int id, int &cz, int &cy, int &cx)
   {
-    if( id >= 0 && id < size ) {
+    if (id >= 0 && id < size) {
       cz = coord(id, 0);
       cy = coord(id, 1);
       cx = coord(id, 2);
@@ -97,16 +97,14 @@ public:
   // return chunk id associated with coordinate
   int get_chunkid(const int cz, const int cy, const int cx)
   {
-    if( (cz >= 0 && cz < dims[2]) &&
-        (cy >= 0 && cy < dims[1]) &&
-        (cx >= 0 && cx < dims[0]) ) {
+    if ((cz >= 0 && cz < dims[2]) && (cy >= 0 && cy < dims[1]) &&
+        (cx >= 0 && cx < dims[0])) {
       return chunkid(cz, cy, cx);
     } else {
       return -1;
     }
   }
 };
-
 
 // Local Variables:
 // c-file-style   : "gnu"

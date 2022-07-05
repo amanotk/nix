@@ -14,4 +14,4 @@ include $(BASEDIR)/compiler.mk
 .SUFFIXES : .o .cpp
 
 %.o: %.cpp
-	$(CXX) -c $(CXXFLAGS) $< -o $@
+	$(CXX) -c $(CXXFLAGS) -I$(BASEDIR) $< -o $@
