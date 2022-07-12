@@ -2,14 +2,16 @@
 include common.mk
 
 SUBDIRS =
-SRCS   = jsonio.o chunk.o chunkmap.o application.o
+SRCS   = jsonio.o sfc.o chunk.o chunkmap.o application.o
 OBJS   = $(SRCS:%.cpp=%.o)
 
-default: $(OBJS)
+default: libpk3.a
+
+libpk3.a: $(OBJS)
 	$(AR) r libpk3.a $(OBJS)
 
 clean :
-	rm -f $(OBJS) *.d
+	rm -f $(OBJS) *.a *.d
 	# clean subdirectories
 	for dir in $(SUBDIRS); do \
 		$(MAKE) clean -C $$dir; \
