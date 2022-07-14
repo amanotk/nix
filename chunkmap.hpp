@@ -51,7 +51,9 @@ public:
 
   BaseChunkMap(const int Cz, const int Cy, const int Cx);
 
-  virtual void json_dump(std::ostream &out);
+  virtual bool validate();
+
+  virtual void json_save(std::ostream &out);
 
   // set rank for chunk id
   void set_rank(const int id, const int r)
@@ -83,7 +85,7 @@ public:
 };
 
 template <>
-void BaseChunkMap<1>::get_coordinate(const int id, int &cx)
+inline void BaseChunkMap<1>::get_coordinate(const int id, int &cx)
 {
   if (id >= 0 && id < size) {
     cx = coord(id, 0);
@@ -93,7 +95,7 @@ void BaseChunkMap<1>::get_coordinate(const int id, int &cx)
 }
 
 template <>
-int BaseChunkMap<1>::get_chunkid(int cx)
+inline int BaseChunkMap<1>::get_chunkid(int cx)
 {
   if (cx >= 0 && cx < dims[0]) {
     return chunkid(cx);
@@ -103,7 +105,7 @@ int BaseChunkMap<1>::get_chunkid(int cx)
 }
 
 template <>
-void BaseChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
+inline void BaseChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
 {
   if (id >= 0 && id < size) {
     cy = coord(id, 0);
@@ -115,7 +117,7 @@ void BaseChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
 }
 
 template <>
-int BaseChunkMap<2>::get_chunkid(int cy, int cx)
+inline int BaseChunkMap<2>::get_chunkid(int cy, int cx)
 {
   if ((cy >= 0 && cy < dims[1]) && (cx >= 0 && cx < dims[0])) {
     return chunkid(cy, cx);
@@ -125,7 +127,7 @@ int BaseChunkMap<2>::get_chunkid(int cy, int cx)
 }
 
 template <>
-int BaseChunkMap<3>::get_chunkid(int cz, int cy, int cx)
+inline int BaseChunkMap<3>::get_chunkid(int cz, int cy, int cx)
 {
   if ((cz >= 0 && cz < dims[2]) && (cy >= 0 && cy < dims[1]) && (cx >= 0 && cx < dims[0])) {
     return chunkid(cz, cy, cx);
@@ -135,7 +137,7 @@ int BaseChunkMap<3>::get_chunkid(int cz, int cy, int cx)
 }
 
 template <>
-void BaseChunkMap<3>::get_coordinate(const int id, int &cz, int &cy, int &cx)
+inline void BaseChunkMap<3>::get_coordinate(const int id, int &cz, int &cy, int &cx)
 {
   if (id >= 0 && id < size) {
     cz = coord(id, 0);

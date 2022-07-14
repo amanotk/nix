@@ -14,7 +14,7 @@
   template <>                                                                                      \
   type BaseChunkMap<3>::name
 
-DEFINE_MEMBER1(, BaseChunkMap)(const int Cy, const int Cx)
+DEFINE_MEMBER1(, BaseChunkMap)(const int Cx)
 {
   size    = Cx;
   dims[0] = Cx;
@@ -93,7 +93,22 @@ DEFINE_MEMBER3(, BaseChunkMap)(const int Cz, const int Cy, const int Cx)
   sfc::get_map3d(Cz, Cy, Cx, chunkid, coord);
 }
 
-DEFINE_MEMBER1(void, json_dump)(std::ostream &out)
+DEFINE_MEMBER1(bool, validate)()
+{
+  return sfc::check_index(chunkid);
+}
+
+DEFINE_MEMBER2(bool, validate)()
+{
+  return sfc::check_index(chunkid) & sfc::check_locality2d(coord);
+}
+
+DEFINE_MEMBER3(bool, validate)()
+{
+  return sfc::check_index(chunkid) & sfc::check_locality3d(coord);
+}
+
+DEFINE_MEMBER1(void, json_save)(std::ostream &out)
 {
   json obj;
 
@@ -145,7 +160,7 @@ DEFINE_MEMBER1(void, json_dump)(std::ostream &out)
   }
 }
 
-DEFINE_MEMBER2(void, json_dump)(std::ostream &out)
+DEFINE_MEMBER2(void, json_save)(std::ostream &out)
 {
   json obj;
 
@@ -201,7 +216,7 @@ DEFINE_MEMBER2(void, json_dump)(std::ostream &out)
   }
 }
 
-DEFINE_MEMBER3(void, json_dump)(std::ostream &out)
+DEFINE_MEMBER3(void, json_save)(std::ostream &out)
 {
   json obj;
 
