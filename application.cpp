@@ -1,11 +1,12 @@
 // -*- C++ -*-
 #include "application.hpp"
 
-#define DEFINE_MEMBER(type, name)                                              \
-  template <class Chunk, class ChunkMap>                                       \
+#define DEFINE_MEMBER(type, name)                                                                  \
+  template <class Chunk, class ChunkMap>                                                           \
   type BaseApplication<Chunk, ChunkMap>::name
 
-DEFINE_MEMBER(void, setup_cmd_default)() {
+DEFINE_MEMBER(void, setup_cmd_default)()
+{
   const float64     etmax = 60 * 60 * 24;
   const float64     ptmax = common::HUGEVAL;
   const std::string fn    = "default.json";
@@ -17,7 +18,8 @@ DEFINE_MEMBER(void, setup_cmd_default)() {
   parser.add<float64>("emax", 'e', "maximum elased time [sec]", false, etmax);
 }
 
-DEFINE_MEMBER(void, parse_cmd_default)(int argc, char **argv) {
+DEFINE_MEMBER(void, parse_cmd_default)(int argc, char **argv)
+{
   parser.parse_check(argc, argv);
 
   tmax     = parser.get<float64>("tmax");
@@ -26,7 +28,8 @@ DEFINE_MEMBER(void, parse_cmd_default)(int argc, char **argv) {
   savefile = parser.get<std::string>("save");
 }
 
-DEFINE_MEMBER(void, parse_cfg_default)(std::string cfg) {
+DEFINE_MEMBER(void, parse_cfg_default)(std::string cfg)
+{
   json root;
 
   // read configuration file
@@ -68,7 +71,8 @@ DEFINE_MEMBER(void, parse_cfg_default)(std::string cfg) {
   zlim[2] = zlim[1] - zlim[0];
 }
 
-DEFINE_MEMBER(void, initialize_mpi_default)(int *argc, char ***argv) {
+DEFINE_MEMBER(void, initialize_mpi_default)(int *argc, char ***argv)
+{
   // initialize MPI
   MPI_Init(argc, argv);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
@@ -84,14 +88,16 @@ DEFINE_MEMBER(void, initialize_mpi_default)(int *argc, char ***argv) {
   mpistream::initialize(argv[0][0]);
 }
 
-DEFINE_MEMBER(void, finalize_mpi_default)() {
+DEFINE_MEMBER(void, finalize_mpi_default)()
+{
   // release stdout/stderr
   mpistream::finalize();
 
   MPI_Finalize();
 }
 
-DEFINE_MEMBER(, BaseApplication)(int argc, char **argv) {
+DEFINE_MEMBER(, BaseApplication)(int argc, char **argv)
+{
   // setup command line parser
   setup_cmd_default();
 
@@ -120,30 +126,37 @@ DEFINE_MEMBER(, BaseApplication)(int argc, char **argv) {
   recvbuf.resize(bufsize);
 }
 
-DEFINE_MEMBER(void, load)() {
+DEFINE_MEMBER(void, load)()
+{
   if (!loadfile.empty()) {
     std::cout << tfm::format("load snapshot from %s\n", loadfile.c_str());
   }
   std::cout << tfm::format("no load file specified\n");
 }
 
-DEFINE_MEMBER(void, save)() {
+DEFINE_MEMBER(void, save)()
+{
   if (!savefile.empty()) {
     std::cout << tfm::format("save snapshot to %s\n", savefile.c_str());
   }
   std::cout << tfm::format("no save file specified\n");
 }
 
-DEFINE_MEMBER(void, setup)() { std::cout << tfm::format("setup() called\n"); }
+DEFINE_MEMBER(void, setup)()
+{
+  std::cout << tfm::format("setup() called\n");
+}
 
-DEFINE_MEMBER(void, initialize)() {
+DEFINE_MEMBER(void, initialize)()
+{
   std::cout << tfm::format("initialize() called\n");
 
   // load snapshot
   this->load();
 }
 
-DEFINE_MEMBER(void, finalize)() {
+DEFINE_MEMBER(void, finalize)()
+{
   std::cout << tfm::format("finalize() called\n");
 
   // save snapshot
@@ -153,21 +166,27 @@ DEFINE_MEMBER(void, finalize)() {
   finalize_mpi_default();
 }
 
-DEFINE_MEMBER(void, diagnostic)() { return; }
+DEFINE_MEMBER(void, diagnostic)()
+{
+  return;
+}
 
-DEFINE_MEMBER(void, push)() {
+DEFINE_MEMBER(void, push)()
+{
   curtime += delt;
   curstep++;
 }
 
-DEFINE_MEMBER(bool, is_push_needed)() {
+DEFINE_MEMBER(bool, is_push_needed)()
+{
   if (curtime < tmax) {
     return true;
   }
   return false;
 }
 
-DEFINE_MEMBER(float64, available_etime)() {
+DEFINE_MEMBER(float64, available_etime)()
+{
   float64 etime;
 
   if (thisrank == 0) {
@@ -178,7 +197,8 @@ DEFINE_MEMBER(float64, available_etime)() {
   return emax - etime;
 }
 
-DEFINE_MEMBER(void, calc_workload)() {
+DEFINE_MEMBER(void, calc_workload)()
+{
   const int nc = cdims[3];
   float64   sendbuf[nc];
 
@@ -195,11 +215,11 @@ DEFINE_MEMBER(void, calc_workload)() {
   }
 
   // global workload
-  MPI_Allreduce(sendbuf, workload.get(), nc, MPI_REAL8, MPI_SUM,
-                MPI_COMM_WORLD);
+  MPI_Allreduce(sendbuf, workload.get(), nc, MPI_REAL8, MPI_SUM, MPI_COMM_WORLD);
 }
 
-DEFINE_MEMBER(void, initialize_chunkmap)() {
+DEFINE_MEMBER(void, initialize_chunkmap)()
+{
   const int nc = cdims[3];
   const int mc = nc / nprocess;
 
@@ -227,8 +247,7 @@ DEFINE_MEMBER(void, initialize_chunkmap)() {
   // initialize local chunkvec
   //
   {
-    int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1],
-                   ndims[2] / cdims[2]};
+    int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
     int id      = thisrank * mc;
 
     chunkvec.resize(mc);
@@ -249,7 +268,8 @@ DEFINE_MEMBER(void, initialize_chunkmap)() {
   }
 }
 
-DEFINE_MEMBER(void, rebuild_chunkmap)() {
+DEFINE_MEMBER(void, rebuild_chunkmap)()
+{
   const int nc = cdims[0] * cdims[1] * cdims[2];
   int       rank[nc];
 
@@ -273,9 +293,9 @@ DEFINE_MEMBER(void, rebuild_chunkmap)() {
   set_chunk_neighbors();
 }
 
-DEFINE_MEMBER(void, sendrecv_chunk)(int newrank[]) {
-  const int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1],
-                       ndims[2] / cdims[2]};
+DEFINE_MEMBER(void, sendrecv_chunk)(int newrank[])
+{
+  const int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
   const int ncmax   = std::numeric_limits<int>::max();
   const int nc      = cdims[0] * cdims[1] * cdims[2];
   const int spos_l  = 0;
@@ -338,14 +358,10 @@ DEFINE_MEMBER(void, sendrecv_chunk)(int newrank[]) {
     rbuf_l = recvbuf.get(rpos_l);
     rbuf_r = recvbuf.get(rpos_r);
 
-    MPI_Isend(sbuf_l, sbufsize_l, MPI_BYTE, rank_l, 1, MPI_COMM_WORLD,
-              &request[0]);
-    MPI_Isend(sbuf_r, sbufsize_r, MPI_BYTE, rank_r, 2, MPI_COMM_WORLD,
-              &request[1]);
-    MPI_Irecv(rbuf_l, rbufsize_l, MPI_BYTE, rank_l, 2, MPI_COMM_WORLD,
-              &request[2]);
-    MPI_Irecv(rbuf_r, rbufsize_r, MPI_BYTE, rank_r, 1, MPI_COMM_WORLD,
-              &request[3]);
+    MPI_Isend(sbuf_l, sbufsize_l, MPI_BYTE, rank_l, 1, MPI_COMM_WORLD, &request[0]);
+    MPI_Isend(sbuf_r, sbufsize_r, MPI_BYTE, rank_r, 2, MPI_COMM_WORLD, &request[1]);
+    MPI_Irecv(rbuf_l, rbufsize_l, MPI_BYTE, rank_l, 2, MPI_COMM_WORLD, &request[2]);
+    MPI_Irecv(rbuf_r, rbufsize_r, MPI_BYTE, rank_r, 1, MPI_COMM_WORLD, &request[3]);
 
     MPI_Waitall(4, request, status);
     MPI_Get_count(&status[2], MPI_BYTE, &rbufcnt_l);
@@ -383,9 +399,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(int newrank[]) {
   //
   {
     std::sort(chunkvec.begin(), chunkvec.end(),
-              [](const PtrChunk &x, const PtrChunk &y) {
-                return x->get_id() < y->get_id();
-              });
+              [](const PtrChunk &x, const PtrChunk &y) { return x->get_id() < y->get_id(); });
 
     // reset numchunk
     numchunk = 0;
@@ -401,7 +415,8 @@ DEFINE_MEMBER(void, sendrecv_chunk)(int newrank[]) {
   }
 }
 
-DEFINE_MEMBER(void, set_chunk_neighbors)() {
+DEFINE_MEMBER(void, set_chunk_neighbors)()
+{
   for (int i = 0; i < numchunk; i++) {
     int ix, iy, iz;
     int id = chunkvec[i]->get_id();
@@ -434,7 +449,8 @@ DEFINE_MEMBER(void, set_chunk_neighbors)() {
   }
 }
 
-DEFINE_MEMBER(void, print_info)(std::ostream &out, int verbose) {
+DEFINE_MEMBER(void, print_info)(std::ostream &out, int verbose)
+{
   out << tfm::format("\n"
                      "----- <<< BEGIN INFORMATION >>> -----"
                      "\n"
@@ -458,13 +474,13 @@ DEFINE_MEMBER(void, print_info)(std::ostream &out, int verbose) {
 
     for (int i = 0; i < numchunk; i++) {
       lsum += chunkvec[i]->get_load();
-      out << tfm::format("   chunk[%.8d]:  workload = %10.4f\n",
-                         chunkvec[i]->get_id(), chunkvec[i]->get_load());
+      out << tfm::format("   chunk[%.8d]:  workload = %10.4f\n", chunkvec[i]->get_id(),
+                         chunkvec[i]->get_load());
     }
 
     out << "\n"
-        << tfm::format("*** load of %12.8f %% (ideally %12.8f %%)\n",
-                       lsum / gsum * 100, 1.0 / nprocess * 100);
+        << tfm::format("*** load of %12.8f %% (ideally %12.8f %%)\n", lsum / gsum * 100,
+                       1.0 / nprocess * 100);
   }
 
   out << "\n"
@@ -472,7 +488,8 @@ DEFINE_MEMBER(void, print_info)(std::ostream &out, int verbose) {
          "\n\n";
 }
 
-DEFINE_MEMBER(int, main)(std::ostream &out) {
+DEFINE_MEMBER(int, main)(std::ostream &out)
+{
   //
   // + print initial info
   // + setup solvers

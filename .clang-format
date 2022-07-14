@@ -1,4 +1,6 @@
 BasedOnStyle: LLVM
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
 #AllowShortEnumsOnASingleLine: false

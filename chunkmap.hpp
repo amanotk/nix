@@ -8,11 +8,12 @@
 /// $Id$
 ///
 #include "common.hpp"
-#include "hilbert.hpp"
+#include "sfc.hpp"
 #include "utils/json.hpp"
 #include "utils/mpistream.hpp"
 #include "xtensor/xarray.hpp"
 #include "xtensor/xio.hpp"
+#include "xtensor/xsort.hpp"
 #include "xtensor/xview.hpp"
 
 ///
@@ -28,39 +29,27 @@
 /// coordinate. Mapping between chunk ID and cartesian coordinate may be
 /// calculated via get_chunk() and get_coordinate() methods.
 ///
+template <int N>
 class BaseChunkMap
 {
 protected:
   using json = nlohmann::ordered_json;
   typedef xt::xtensor<int, 1> IntArray1D;
   typedef xt::xtensor<int, 2> IntArray2D;
-  typedef xt::xtensor<int, 3> IntArray3D;
+  typedef xt::xtensor<int, N> IntArrayND;
 
-  int size;           ///< number of total chunkes
-  int dims[3];        ///< chunk dimension
+  int        size;    ///< number of total chunkes
+  int        dims[3]; ///< chunk dimension
   IntArray1D rank;    ///< chunk id to MPI rank map
   IntArray2D coord;   ///< chunk id to coordinate map
-  IntArray3D chunkid; ///< coordiante to chunk id map
-
-  int ilog2(int x);
-
-  void build_mapping_1d(int dims[3], int dirs[3]);
-
-  void build_mapping_2d(int dims[3], int dirs[3]);
-
-  void build_mapping_3d(int dims[3], int dirs[3]);
-
-  void check_dimension_2d(const int dims[3], const int dirs[3]);
-
-  void check_dimension_3d(const int dims[3], const int dirs[3]);
-
-  void sort_dimension(int dims[3], int dirs[3]);
+  IntArrayND chunkid; ///< coordiante to chunk id map
 
 public:
-  // constructor
-  BaseChunkMap(const int cdims[3]);
+  BaseChunkMap(const int Cx);
 
-  virtual void build_mapping(int dims[3], int dirs[3]);
+  BaseChunkMap(const int Cy, const int Cx);
+
+  BaseChunkMap(const int Cz, const int Cy, const int Cx);
 
   virtual void json_dump(std::ostream &out);
 
@@ -80,31 +69,84 @@ public:
     }
   }
 
-  // return chunk coordinate associated with chunk id
-  void get_coordinate(const int id, int &cz, int &cy, int &cx)
-  {
-    if (id >= 0 && id < size) {
-      cz = coord(id, 0);
-      cy = coord(id, 1);
-      cx = coord(id, 2);
-    } else {
-      cz = -1;
-      cy = -1;
-      cx = -1;
-    }
-  }
+  void get_coordinate(const int id, int &cx);
 
-  // return chunk id associated with coordinate
-  int get_chunkid(const int cz, const int cy, const int cx)
-  {
-    if ((cz >= 0 && cz < dims[2]) && (cy >= 0 && cy < dims[1]) &&
-        (cx >= 0 && cx < dims[0])) {
-      return chunkid(cz, cy, cx);
-    } else {
-      return -1;
-    }
-  }
+  void get_coordinate(const int id, int &cy, int &cx);
+
+  void get_coordinate(const int id, int &cz, int &cy, int &cx);
+
+  int get_chunkid(const int cx);
+
+  int get_chunkid(const int cy, const int cx);
+
+  int get_chunkid(const int cz, const int cy, const int cx);
 };
+
+template <>
+void BaseChunkMap<1>::get_coordinate(const int id, int &cx)
+{
+  if (id >= 0 && id < size) {
+    cx = coord(id, 0);
+  } else {
+    cx = -1;
+  }
+}
+
+template <>
+int BaseChunkMap<1>::get_chunkid(int cx)
+{
+  if (cx >= 0 && cx < dims[0]) {
+    return chunkid(cx);
+  } else {
+    return -1;
+  }
+}
+
+template <>
+void BaseChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
+{
+  if (id >= 0 && id < size) {
+    cy = coord(id, 0);
+    cx = coord(id, 1);
+  } else {
+    cy = -1;
+    cx = -1;
+  }
+}
+
+template <>
+int BaseChunkMap<2>::get_chunkid(int cy, int cx)
+{
+  if ((cy >= 0 && cy < dims[1]) && (cx >= 0 && cx < dims[0])) {
+    return chunkid(cy, cx);
+  } else {
+    return -1;
+  }
+}
+
+template <>
+int BaseChunkMap<3>::get_chunkid(int cz, int cy, int cx)
+{
+  if ((cz >= 0 && cz < dims[2]) && (cy >= 0 && cy < dims[1]) && (cx >= 0 && cx < dims[0])) {
+    return chunkid(cz, cy, cx);
+  } else {
+    return -1;
+  }
+}
+
+template <>
+void BaseChunkMap<3>::get_coordinate(const int id, int &cz, int &cy, int &cx)
+{
+  if (id >= 0 && id < size) {
+    cz = coord(id, 0);
+    cy = coord(id, 1);
+    cx = coord(id, 2);
+  } else {
+    cz = -1;
+    cy = -1;
+    cx = -1;
+  }
+}
 
 // Local Variables:
 // c-file-style   : "gnu"

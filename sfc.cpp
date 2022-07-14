@@ -127,7 +127,7 @@ bool check_locality2d(array2d &coord, const int distmin)
     int iy = coord(id, 1);
     dx = dx - ix;
     dy = dy - iy;
-    status = status & (dx * dx + dy * dy <= distmin);
+    status = status & (dx * dx + dy * dy <= distmin * distmin);
     dx = ix;
     dy = iy;
   }
@@ -150,7 +150,7 @@ bool check_locality3d(array2d &coord, const int distmin)
     dx = dx - ix;
     dy = dy - iy;
     dz = dz - iz;
-    status = status & (dx * dx + dy * dy + dz * dz <= distmin);
+    status = status & (dx * dx + dy * dy + dz * dz <= distmin * distmin);
     dx = ix;
     dy = iy;
     dz = iz;
