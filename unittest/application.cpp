@@ -9,8 +9,9 @@
 #include "chunk.hpp"
 #include "chunkmap.hpp"
 
-typedef BaseApplication<BaseChunk<3>,BaseChunkMap> T_app;
-
+using Chunk    = BaseChunk<3>;
+using ChunkMap = BaseChunkMap<3>;
+using T_app    = BaseApplication<Chunk, ChunkMap>;
 
 int main(int argc, char **argv)
 {

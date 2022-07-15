@@ -28,15 +28,21 @@ protected:
   int myid;                   ///< chunk ID
   int nbid[NB_SIZE[N - 1]];   ///< neighboring chunk ID
   int nbrank[NB_SIZE[N - 1]]; ///< neighboring chunk MPI rank
+  int shape[N];               ///< number of grids
   float64 load;               ///< current load
 
   int pack_base(const int flag, char *buffer);
 
   int unpack_base(const int flag, char *buffer);
 
+  virtual void initialize(const int dims[N], const int id);
+
 public:
+  // default constructor
+  BaseChunk();
+
   // constructor
-  BaseChunk(const int id = 0);
+  BaseChunk(const int dims[N], const int id = 0);
 
   // destructor
   virtual ~BaseChunk();
@@ -53,7 +59,7 @@ public:
   // unpack
   virtual int unpack(const int flag, char *buffer);
 
-  // set id
+  // set ID
   void set_id(const int id)
   {
     assert( !(tagmask & id) ); // ID must be < 2^(32-DIRTAG_BIT)
@@ -61,7 +67,7 @@ public:
     myid = id;
   }
 
-  // return id
+  // return ID
   int get_id()
   {
     return myid;
@@ -74,18 +80,46 @@ public:
   }
 
   void set_nb_id(const int dirx, const int id);
+
   void set_nb_id(const int diry, const int dirx, const int id);
+
   void set_nb_id(const int dirz, const int diry, const int dirx, const int id);
+
+  int get_nb_id(const int dirx);
+
+  int get_nb_id(const int diry, const int dirx);
+
+  int get_nb_id(const int dirz, const int diry, const int dirx);
+
   void set_nb_rank(const int dirx, const int rank);
+
   void set_nb_rank(const int diry, const int dirx, const int rank);
-  void set_nb_rank(const int dirz, const int diry, const int dirx,
-                   const int rank);
+
+  void set_nb_rank(const int dirz, const int diry, const int dirx, const int rank);
+
+  int get_nb_rank(const int dirx);
+
+  int get_nb_rank(const int diry, const int dirx);
+
+  int get_nb_rank(const int dirz, const int diry, const int dirx);
+
   int get_sndtag(const int dirx);
+
   int get_sndtag(const int diry, const int dirx);
+
   int get_sndtag(const int dirz, const int diry, const int dirx);
+
   int get_rcvtag(const int dirx);
+
   int get_rcvtag(const int diry, const int dirx);
+
   int get_rcvtag(const int dirz, const int diry, const int dirx);
+
+  // get maximum ID
+  static int get_max_id()
+  {
+    return 1 << (32 - DIRTAG_BIT) - 1;
+  }
 };
 
 template <int N>
@@ -116,6 +150,24 @@ inline void BaseChunk<3>::set_nb_id(const int dirz, const int diry,
 }
 
 template <>
+inline int BaseChunk<1>::get_nb_id(const int dirx)
+{
+  return nbid[(dirx + 1)];
+}
+
+template <>
+inline int BaseChunk<2>::get_nb_id(const int diry, const int dirx)
+{
+  return nbid[3 * (diry + 1) + (dirx + 1)];
+}
+
+template <>
+inline int BaseChunk<3>::get_nb_id(const int dirz, const int diry, const int dirx)
+{
+  return nbid[9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1)];
+}
+
+template <>
 inline void BaseChunk<1>::set_nb_rank(const int dirx, const int rank)
 {
   nbrank[(dirx + 1)] = rank;
@@ -133,6 +185,24 @@ inline void BaseChunk<3>::set_nb_rank(const int dirz, const int diry,
                                       const int dirx, const int rank)
 {
   nbrank[9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1)] = rank;
+}
+
+template <>
+inline int BaseChunk<1>::get_nb_rank(const int dirx)
+{
+  return nbrank[(dirx + 1)];
+}
+
+template <>
+inline int BaseChunk<2>::get_nb_rank(const int diry, const int dirx)
+{
+  return nbrank[3 * (diry + 1) + (dirx + 1)];
+}
+
+template <>
+inline int BaseChunk<3>::get_nb_rank(const int dirz, const int diry, const int dirx)
+{
+  return nbrank[9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1)];
 }
 
 template <>

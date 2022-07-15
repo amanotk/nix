@@ -2,7 +2,7 @@
 include common.mk
 
 SUBDIRS =
-SRCS   = jsonio.o sfc.o chunk.o chunkmap.o application.o
+SRCS   = jsonio.o sfc.o chunk.o chunkmap.o
 OBJS   = $(SRCS:%.cpp=%.o)
 
 default: libpk3.a

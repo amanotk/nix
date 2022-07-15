@@ -93,6 +93,21 @@ DEFINE_MEMBER3(, BaseChunkMap)(const int Cz, const int Cy, const int Cx)
   sfc::get_map3d(Cz, Cy, Cx, chunkid, coord);
 }
 
+DEFINE_MEMBER1(, BaseChunkMap)(const int dims[1])
+: BaseChunkMap<1>(dims[0])
+{
+}
+
+DEFINE_MEMBER2(, BaseChunkMap)(const int dims[2])
+: BaseChunkMap<2>(dims[0], dims[1])
+{
+}
+
+DEFINE_MEMBER3(, BaseChunkMap)(const int dims[3])
+: BaseChunkMap<3>(dims[0], dims[1], dims[2])
+{
+}
+
 DEFINE_MEMBER1(bool, validate)()
 {
   return sfc::check_index(chunkid);

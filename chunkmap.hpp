@@ -51,6 +51,8 @@ public:
 
   BaseChunkMap(const int Cz, const int Cy, const int Cx);
 
+  BaseChunkMap(const int dims[N]);
+
   virtual bool validate();
 
   virtual void json_save(std::ostream &out);

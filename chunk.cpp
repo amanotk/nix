@@ -43,10 +43,12 @@ DEFINE_MEMBER(int, unpack_base)(const int flag, char *buffer)
   return buffer - buffer0;
 }
 
-DEFINE_MEMBER(, BaseChunk)(const int id)
+
+DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
 {
   int shift;
 
+  // endian flag
   if (get_endian_flag() == 1) {
     shift = 32 - DIRTAG_BIT;
   } else {
@@ -62,7 +64,23 @@ DEFINE_MEMBER(, BaseChunk)(const int id)
   // set ID
   set_id(id);
 
+  // set shape
+  for(int i=0; i < N ;i++) {
+    shape[i] = dims[i];
+  }
+
   initialize_load();
+}
+
+DEFINE_MEMBER(, BaseChunk)()
+{
+  const int dims[N] = {};
+  initialize(dims, 0);
+}
+
+DEFINE_MEMBER(, BaseChunk)(const int dims[N], const int id)
+{
+  initialize(dims, id);
 }
 
 DEFINE_MEMBER(, ~BaseChunk)()
