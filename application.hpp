@@ -137,9 +137,9 @@ protected:
   {
     // initialize MPI
     if (mpi_init_with_nullptr == true) {
-      MPI_Init(argc, argv);
-    } else {
       MPI_Init(nullptr, nullptr);
+    } else {
+      MPI_Init(argc, argv);
     }
     MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
     MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);

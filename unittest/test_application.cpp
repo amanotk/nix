@@ -15,7 +15,7 @@ class TestApplication : public BaseApplication<Chunk, ChunkMap>
 public:
   TestApplication()
   {
-    mpi_init_with_nullptr = false;
+    mpi_init_with_nullptr = true;
   }
 
   virtual void rebuild_chunkmap() override
