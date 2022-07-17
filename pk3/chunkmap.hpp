@@ -8,13 +8,13 @@
 /// $Id$
 ///
 #include "common.hpp"
+#include "json.hpp"
 #include "sfc.hpp"
-#include "utils/json.hpp"
-#include "utils/mpistream.hpp"
 #include "xtensor/xarray.hpp"
 #include "xtensor/xio.hpp"
 #include "xtensor/xsort.hpp"
 #include "xtensor/xview.hpp"
+#include <mpi.h>
 
 ///
 /// BaseChunkMap

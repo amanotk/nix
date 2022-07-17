@@ -1,11 +1,11 @@
 // -*- C++ -*-
 
-#include "chunkmap.hpp"
-#include "json.hpp"
+#include "pk3/chunkmap.hpp"
+#include "pk3/json.hpp"
 #include <iostream>
 #include <fstream>
 
-#include "catch.hpp"
+#include "pk3/catch.hpp"
 
 //
 // ChunkMap in 1D

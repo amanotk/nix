@@ -4,11 +4,11 @@
 
 #include "balancer.hpp"
 #include "buffer.hpp"
-#include "utils/cmdline.hpp"
-#include "utils/common.hpp"
-#include "utils/json.hpp"
-#include "utils/mpistream.hpp"
-#include "utils/tinyformat.hpp"
+#include "cmdline.hpp"
+#include "common.hpp"
+#include "json.hpp"
+#include "mpistream.hpp"
+#include "tinyformat.hpp"
 
 #define LOGPRINT(fmt, ...) tfm::format(std::cout, "Log: " fmt, ##__VA_ARGS__);
 

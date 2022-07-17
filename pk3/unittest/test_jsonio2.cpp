@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-#include "jsonio.hpp"
+#include "pk3/jsonio.hpp"
 #include <fstream>
 #include <iostream>
 #include <xtensor/xadapt.hpp>
@@ -8,7 +8,7 @@
 #include <xtensor/xio.hpp>
 #include <xtensor/xview.hpp>
 
-#include "catch.hpp"
+#include "pk3/catch.hpp"
 
 using jsonio::float32;
 using jsonio::float64;

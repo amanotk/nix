@@ -1,22 +1,22 @@
 # -*- Makefile -*-
-include ../common.mk
+include ../../common.mk
 
 .PHONY: default clean cleanall
 
 ### target
 LIBS    := $(BASEDIR)/libpk3.a
-SRCS    := test_serial.cpp test_parallel.cpp test_jsonio1.cpp test_jsonio2.cpp test_sfc.cpp test_chunk.cpp test_chunkmap.cpp test_application.cpp
+SRCS    := test_serial.cpp test_parallel.cpp test_jsonio1.cpp test_jsonio2.cpp \
+	test_sfc.cpp test_chunk.cpp test_chunkmap.cpp test_application.cpp
 
 
 ### OBJS/DEPS
-EXES    := $(SRCS:%.cpp=%)
+EXES    := test_jsonio1 test_jsonio2 test_sfc test_chunk test_chunkmap test_application
 OBJS    := $(SRCS:%.cpp=%.o)
 DEPS    := $(SRCS:%.cpp=%.d)
 
 
 ### default
-#default: $(EXES)
-default: test_jsonio1 test_jsonio2 test_sfc test_chunk test_chunkmap test_application
+default: $(EXES)
 
 # individual executables
 test_jsonio1: test_serial.o test_jsonio1.o
@@ -37,18 +37,12 @@ test_chunkmap: test_serial.o test_chunkmap.o
 test_application: test_serial.o test_application.o
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
 
-chunkmap: chunkmap.o
-	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
-
-hilbert: hilbert.o
-	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
-
 ### clean
 clean:
-	rm -f *.o *.d *.out
+	rm -f *.o *.d *.out *.stdout *.stderr
 
 cleanall:
-	rm -f *.o *.d *.out *.dat
+	rm -f *.o *.d *.out *.stdout *.stderr
 	rm -f $(EXES)
 
 

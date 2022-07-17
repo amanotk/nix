@@ -5,10 +5,8 @@
 ///
 /// Chunk
 ///
-/// $Id$
-///
-#include "utils/common.hpp"
-#include "utils/mpistream.hpp"
+#include "common.hpp"
+#include <mpi.h>
 
 static constexpr int DIRTAG_BIT = 5;
 static constexpr int DIRTAG_SIZE = 1 << DIRTAG_BIT;

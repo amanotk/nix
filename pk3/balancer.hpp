@@ -7,7 +7,7 @@
 ///
 /// $Id$
 ///
-#include "utils/common.hpp"
+#include "common.hpp"
 
 ///
 /// Definition of BaseBalancer

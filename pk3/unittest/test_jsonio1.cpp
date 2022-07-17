@@ -1,9 +1,9 @@
 // -*- C++ -*-
 
-#include "jsonio.hpp"
+#include "pk3/jsonio.hpp"
 #include <iostream>
 
-#include "catch.hpp"
+#include "pk3/catch.hpp"
 
 static const auto json_to_check = R"(
 {

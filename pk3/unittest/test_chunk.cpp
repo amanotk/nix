@@ -1,9 +1,9 @@
 // -*- C++ -*-
 
-#include "chunk.hpp"
+#include "pk3/chunk.hpp"
 #include <iostream>
 
-#include "catch.hpp"
+#include "pk3/catch.hpp"
 
 //
 // BaseChunk<1>

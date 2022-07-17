@@ -49,7 +49,7 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
   int shift;
 
   // endian flag
-  if (get_endian_flag() == 1) {
+  if (common::get_endian_flag() == 1) {
     shift = 32 - DIRTAG_BIT;
   } else {
     shift = 0;

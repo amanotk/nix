@@ -1,5 +1,5 @@
 # -*- Makefile -*-
-include common.mk
+include ../common.mk
 
 SUBDIRS =
 SRCS   = jsonio.o sfc.o chunk.o chunkmap.o
