@@ -41,20 +41,35 @@ void get_map1d(size_t Nx, array1d &index, array2d &coord)
 
 void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord)
 {
-  // dimensions must be even
-  assert(Nx % 2 == 0);
-  assert(Ny % 2 == 0);
-
   // calculate coordiante to ID map
-  int id = -1;
-  int x = 0;
-  int y = 0;
-  push2d(index, id, x, y, 0, 0);
+  if( Ny != 1 && Nx != 1 ) {
+    // 2D mapping
+    assert(Nx % 2 == 0);
+    assert(Ny % 2 == 0);
 
-  if (Nx >= Ny) {
-    gilbert2d(index, id, x, y, Nx, 0, 0, Ny);
+    int id = -1;
+    int x = 0;
+    int y = 0;
+    push2d(index, id, x, y, 0, 0);
+
+    if (Nx >= Ny) {
+      gilbert2d(index, id, x, y, Nx, 0, 0, Ny);
+    } else {
+      gilbert2d(index, id, x, y, 0, Ny, Nx, 0);
+    }
+  } else if ( Ny == 1 && Nx != 1 ) {
+    // 1D mapping along x
+    array1d index1d = xt::zeros<int>({Nx});
+    get_map1d(Nx, index1d, coord);
+    xt::view(index, 1, xt::all()) = index1d;
+  } else if ( Ny != 1 && Nx == 1 ) {
+    // 1D mapping along y
+    array1d index1d = xt::zeros<int>({Ny});
+    get_map1d(Ny, index1d, coord);
+    xt::view(index, xt::all(), 1) = index1d;
   } else {
-    gilbert2d(index, id, x, y, 0, Ny, Nx, 0);
+    // Nx = Ny = 1
+    index(0, 0) = 0;
   }
 
   // calculate ID to coordiante map
@@ -69,24 +84,59 @@ void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord)
 
 void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d &index, array2d &coord)
 {
-  // dimensions must be even
-  assert(Nx % 2 == 0);
-  assert(Ny % 2 == 0);
-  assert(Nz % 2 == 0);
-
   // calculate coordiante to ID map
-  int id = -1;
-  int x = 0;
-  int y = 0;
-  int z = 0;
-  push3d(index, id, x, y, z, 0, 0, 0);
+  if( Nz != 1 && Ny != 1 && Nx != 1 ) {
+    // 3D mapping
+    assert(Nx % 2 == 0);
+    assert(Ny % 2 == 0);
+    assert(Nz % 2 == 0);
 
-  if (Nx >= Ny && Nx >= Nz) {
-    gilbert3d(index, id, x, y, z, Nx, 0, 0, 0, Ny, 0, 0, 0, Nz);
-  } else if (Ny >= Nx && Ny >= Nz) {
-    gilbert3d(index, id, x, y, z, 0, Ny, 0, Nx, 0, 0, 0, 0, Nz);
-  } else if (Nz >= Nx && Nz >= Ny) {
-    gilbert3d(index, id, x, y, z, 0, 0, Nz, Nx, 0, 0, 0, Ny, 0);
+    int id = -1;
+    int x = 0;
+    int y = 0;
+    int z = 0;
+    push3d(index, id, x, y, z, 0, 0, 0);
+
+    if (Nx >= Ny && Nx >= Nz) {
+      gilbert3d(index, id, x, y, z, Nx, 0, 0, 0, Ny, 0, 0, 0, Nz);
+    } else if (Ny >= Nx && Ny >= Nz) {
+      gilbert3d(index, id, x, y, z, 0, Ny, 0, Nx, 0, 0, 0, 0, Nz);
+    } else if (Nz >= Nx && Nz >= Ny) {
+      gilbert3d(index, id, x, y, z, 0, 0, Nz, Nx, 0, 0, 0, Ny, 0);
+    }
+  } else if ( Nz == 1 && Ny == 1 && Nx != 1 ) {
+    // 1D mapping along x
+    array1d index1d = xt::zeros<int>({Nx});
+    get_map1d(Nx, index1d, coord);
+    xt::view(index, 1, 1, xt::all()) = index1d;
+  } else if ( Nz == 1 && Ny != 1 && Nx == 1 ) {
+    // 1D mapping along y
+    array1d index1d = xt::zeros<int>({Ny});
+    get_map1d(Ny, index1d, coord);
+    xt::view(index, 1, xt::all(), 1) = index1d;
+  } else if ( Nz != 1 && Ny == 1 && Nx == 1 ) {
+    // 1D mapping along z
+    array1d index1d = xt::zeros<int>({Nz});
+    get_map1d(Nz, index1d, coord);
+    xt::view(index, xt::all(), 1, 1) = index1d;
+  } else if ( Nz == 1 && Ny != 1 && Nx != 1 ) {
+    // 2D mapping along x, y
+    array2d index2d = xt::zeros<int>({Ny, Nx});
+    get_map2d(Ny, Nx, index2d, coord);
+    xt::view(index, 1, xt::all(), xt::all()) = index2d;
+  } else if ( Nz != 1 && Ny == 1 && Nx != 1 ) {
+    // 2D mapping along x, z
+    array2d index2d = xt::zeros<int>({Nz, Nx});
+    get_map2d(Nz, Nx, index2d, coord);
+    xt::view(index, xt::all(), 1, xt::all()) = index2d;
+  } else if ( Nz != 1 && Ny != 1 && Nx == 1 ) {
+    // 2D mapping along y, z
+    array2d index2d = xt::zeros<int>({Nz, Ny});
+    get_map2d(Nz, Ny, index2d, coord);
+    xt::view(index, xt::all(), xt::all(), 1) = index2d;
+  } else {
+    // Nx = Ny = Nz = 1
+    index(0, 0, 0) = 0;
   }
 
   // calculate ID to coordinate map
