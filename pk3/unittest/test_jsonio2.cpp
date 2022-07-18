@@ -114,7 +114,7 @@ bool is_array_equal(const int N, T x[], T y[])
 //
 // read_single
 //
-TEST_CASE("SingleRead")
+TEST_CASE("ReadSingle")
 {
   init_array_ordered(N, i32a);
   init_array_ordered(N, i64a);
@@ -164,7 +164,7 @@ TEST_CASE("SingleRead")
 //
 // write_single
 //
-TEST_CASE("SingleWrite")
+TEST_CASE("WriteSingle")
 {
   init_array_ordered(N, i32a);
   init_array_ordered(N, i64a);
@@ -213,9 +213,9 @@ TEST_CASE("SingleWrite")
 }
 
 //
-// read_collective
+// read_contiguous
 //
-TEST_CASE("CollectiveRead1")
+TEST_CASE("ReadContiguous")
 {
   init_array_ordered(N, i32a);
   init_array_ordered(N, i64a);
@@ -273,9 +273,9 @@ TEST_CASE("CollectiveRead1")
 }
 
 //
-// write_collective
+// write_contiguous
 //
-TEST_CASE("CollectiveWrite1")
+TEST_CASE("WriteContiguous")
 {
   init_array_ordered(N, i32a);
   init_array_ordered(N, i64a);
@@ -289,7 +289,7 @@ TEST_CASE("CollectiveWrite1")
 
     int thisrank = get_thisrank();
     int nprocess = get_nprocess();
-    ;
+
     std::vector<int> boundary(nprocess + 1);
 
     for (int i = 0; i < nprocess + 1; i++) {
@@ -335,9 +335,159 @@ TEST_CASE("CollectiveWrite1")
 }
 
 //
-// read_collective for multidimensional array
+// read_contiguous_at
 //
-TEST_CASE("CollectiveRead2")
+TEST_CASE("ReadContiguousAt")
+{
+  init_array_ordered(N, i32a);
+  init_array_ordered(N, i64a);
+  init_array_ordered(N, f32a);
+  init_array_ordered(N, f64a);
+
+  // write to file
+  {
+    std::ofstream ofs(filename, std::ios::out | std::ios::binary);
+    ofs.write(reinterpret_cast<char *>(i32a), sizeof(int32_t) * N);
+    ofs.write(reinterpret_cast<char *>(i64a), sizeof(int64_t) * N);
+    ofs.write(reinterpret_cast<char *>(f32a), sizeof(float32) * N);
+    ofs.write(reinterpret_cast<char *>(f64a), sizeof(float64) * N);
+    ofs.close();
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // read and check results
+  {
+    MPI_File    fh;
+    MPI_Request req[4];
+    size_t      disp0, disp;
+    int32_t     in_i32a[N];
+    int64_t     in_i64a[N];
+    float32     in_f32a[N];
+    float64     in_f64a[N];
+
+    int              thisrank = get_thisrank();
+    int              nprocess = get_nprocess();
+    std::vector<int> boundary(nprocess + 1);
+
+    for (int i = 0; i < nprocess + 1; i++) {
+      boundary[i] = N / nprocess * i;
+    }
+    int p = boundary[thisrank];
+    int s = boundary[thisrank + 1] - boundary[thisrank];
+
+    jsonio::open_file(filename, &fh, &disp0, "r");
+
+    disp = disp0 + p * sizeof(int32_t);
+    jsonio::read_contiguous_at(&fh, &disp, &in_i32a[p], s, sizeof(int32_t), &req[0]);
+
+    disp0 = disp0 + N * sizeof(int32_t);
+    disp  = disp0 + p * sizeof(int64_t);
+    jsonio::read_contiguous_at(&fh, &disp, &in_i64a[p], s, sizeof(int64_t), &req[1]);
+
+    disp0 = disp0 + N * sizeof(int64_t);
+    disp  = disp0 + p * sizeof(float32);
+    jsonio::read_contiguous_at(&fh, &disp, &in_f32a[p], s, sizeof(float32), &req[2]);
+
+    disp0 = disp0 + N * sizeof(float32);
+    disp  = disp0 + p * sizeof(float64);
+    jsonio::read_contiguous_at(&fh, &disp, &in_f64a[p], s, sizeof(float64), &req[3]);
+
+    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
+    jsonio::close_file(&fh);
+
+    REQUIRE(is_array_equal(s, &i32a[p], &in_i32a[p]));
+    REQUIRE(is_array_equal(s, &i64a[p], &in_i64a[p]));
+    REQUIRE(is_array_equal(s, &f32a[p], &in_f32a[p]));
+    REQUIRE(is_array_equal(s, &f64a[p], &in_f64a[p]));
+  }
+
+  // delete
+  if (get_thisrank() == 0) {
+    REQUIRE(std::remove(filename) == 0);
+  }
+}
+
+//
+// write_contiguous_at
+//
+TEST_CASE("WriteContiguousAt")
+{
+  init_array_ordered(N, i32a);
+  init_array_ordered(N, i64a);
+  init_array_ordered(N, f32a);
+  init_array_ordered(N, f64a);
+
+  // write to file
+  {
+    MPI_File    fh;
+    MPI_Request req[4];
+    size_t      disp0, disp;
+
+    int thisrank = get_thisrank();
+    int nprocess = get_nprocess();
+
+    std::vector<int> boundary(nprocess + 1);
+
+    for (int i = 0; i < nprocess + 1; i++) {
+      boundary[i] = N / nprocess * i;
+    }
+    int p = boundary[thisrank];
+    int s = boundary[thisrank + 1] - boundary[thisrank];
+
+    jsonio::open_file(filename, &fh, &disp0, "w");
+
+    disp = disp0 + p * sizeof(int32_t);
+    jsonio::write_contiguous_at(&fh, &disp, &i32a[p], s, sizeof(int32_t), &req[0]);
+
+    disp0 = disp0 + N * sizeof(int32_t);
+    disp  = disp0 + p * sizeof(int64_t);
+    jsonio::write_contiguous_at(&fh, &disp, &i64a[p], s, sizeof(int64_t), &req[1]);
+
+    disp0 = disp0 + N * sizeof(int64_t);
+    disp  = disp0 + p * sizeof(float32);
+    jsonio::write_contiguous_at(&fh, &disp, &f32a[p], s, sizeof(float32), &req[2]);
+
+    disp0 = disp0 + N * sizeof(float32);
+    disp  = disp0 + p * sizeof(float64);
+    jsonio::write_contiguous_at(&fh, &disp, &f64a[p], s, sizeof(float64), &req[3]);
+
+    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
+    jsonio::close_file(&fh);
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // read and check results
+  {
+    int32_t in_i32a[N];
+    int64_t in_i64a[N];
+    float32 in_f32a[N];
+    float64 in_f64a[N];
+
+    std::ifstream ifs(filename, std::ios::in | std::ios::binary);
+    ifs.read(reinterpret_cast<char *>(in_i32a), sizeof(int32_t) * N);
+    ifs.read(reinterpret_cast<char *>(in_i64a), sizeof(int64_t) * N);
+    ifs.read(reinterpret_cast<char *>(in_f32a), sizeof(float32) * N);
+    ifs.read(reinterpret_cast<char *>(in_f64a), sizeof(float64) * N);
+    ifs.close();
+
+    REQUIRE(is_array_equal(N, i32a, in_i32a));
+    REQUIRE(is_array_equal(N, i64a, in_i64a));
+    REQUIRE(is_array_equal(N, f32a, in_f32a));
+    REQUIRE(is_array_equal(N, f64a, in_f64a));
+  }
+
+  // delete
+  if (get_thisrank() == 0) {
+    REQUIRE(std::remove(filename) == 0);
+  }
+}
+
+//
+// read_subarray
+//
+TEST_CASE("ReadSubarray")
 {
   init_array_ordered(N, i32a);
   init_array_ordered(N, i64a);
@@ -415,9 +565,9 @@ TEST_CASE("CollectiveRead2")
 }
 
 //
-// write_collective for multidimensional array
+// write_subarray
 //
-TEST_CASE("CollectiveWrite2")
+TEST_CASE("WriteSubarray")
 {
   init_array_ordered(N, i32a);
   init_array_ordered(N, i64a);

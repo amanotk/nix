@@ -23,11 +23,15 @@ using std::string;
 using tfm::format;
 using json = nlohmann::ordered_json;
 
-void hindexed_readwrite(MPI_File *fh, size_t *disp, void *data, const size_t offset,
-                        const size_t size, const int32_t elembyte, const int32_t packbyte,
-                        const int mode);
+void readwrite_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t offset,
+                          const size_t size, const int32_t elembyte, const int32_t packbyte,
+                          const int mode);
 
-void subarray_readwrite(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+void readwrite_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_t size,
+                             const int32_t elembyte, const int32_t packbyte, MPI_Request *req,
+                             const int mode);
+
+void readwrite_subarray(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
                         const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
                         const int32_t elembyte, const int mode, const int order);
 
@@ -44,6 +48,12 @@ void read_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
 
 void write_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
                       const int32_t elembyte, const int32_t packbyte = -1);
+
+void read_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_t size,
+                        const int32_t elembyte, MPI_Request *req);
+
+void write_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_t size,
+                         const int32_t elembyte, MPI_Request *req);
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
 void read_subarray(MPI_File *fh, size_t *disp, void *data, const T1 ndim, const T2 gshape[],
@@ -67,7 +77,7 @@ void read_subarray(MPI_File *fh, size_t *disp, void *data, const T1 ndim, const 
     size *= gshape[i];
   }
 
-  subarray_readwrite(fh, disp, data, nd, gs, ls, os, eb, +1, order);
+  readwrite_subarray(fh, disp, data, nd, gs, ls, os, eb, +1, order);
   *disp += size * elembyte;
 }
 
@@ -93,7 +103,7 @@ void write_subarray(MPI_File *fh, size_t *disp, void *data, const T1 ndim, const
     size *= gshape[i];
   }
 
-  subarray_readwrite(fh, disp, data, nd, gs, ls, os, eb, -1, order);
+  readwrite_subarray(fh, disp, data, nd, gs, ls, os, eb, -1, order);
   *disp += size * elembyte;
 }
 

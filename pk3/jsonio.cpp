@@ -45,9 +45,9 @@ void calculate_global_offset(size_t lsize, size_t *offset, size_t *gsize)
 }
 
 // collective raed/write with hindexed type
-void hindexed_readwrite(MPI_File *fh, size_t *disp, void *data, const size_t offset,
-                        const size_t size, const int32_t elembyte, const int32_t packbyte,
-                        const int mode)
+void readwrite_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t offset,
+                          const size_t size, const int32_t elembyte, const int32_t packbyte,
+                          const int mode)
 {
   MPI_Status   status;
   MPI_Datatype ptype, ftype;
@@ -82,8 +82,41 @@ void hindexed_readwrite(MPI_File *fh, size_t *disp, void *data, const size_t off
   MPI_Type_free(&ftype);
 }
 
+// non-collective read/write
+void readwrite_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_t size,
+                             const int32_t elembyte, const int32_t packbyte, MPI_Request *req,
+                             const int mode)
+{
+  MPI_Offset   pos;
+  MPI_Datatype ptype;
+  int32_t      psize;
+
+  // seek to given position
+  MPI_File_seek(*fh, *disp, MPI_SEEK_SET);
+  MPI_File_get_position(*fh, &pos);
+
+  psize = static_cast<int32_t>(size * elembyte / packbyte);
+  MPI_Type_contiguous(packbyte, MPI_BYTE, &ptype);
+  MPI_Type_commit(&ptype);
+
+  switch (mode) {
+  case +1:
+    // read
+    MPI_File_iread_at(*fh, pos, data, psize, ptype, req);
+    break;
+  case -1:
+    // write
+    MPI_File_iwrite_at(*fh, pos, data, psize, ptype, req);
+    break;
+  default:
+    cerr << format("Error: No such mode available\n");
+  }
+
+  MPI_Type_free(&ptype);
+}
+
 // collective raed/write with subarray type
-void subarray_readwrite(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+void readwrite_subarray(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
                         const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
                         const int32_t elembyte, const int mode, const int order)
 {
@@ -210,7 +243,7 @@ void read_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
   calculate_global_offset(size, &offset, &gsize);
 
   // read from disk
-  hindexed_readwrite(fh, disp, data, offset, size, elembyte, pbyte, +1);
+  readwrite_contiguous(fh, disp, data, offset, size, elembyte, pbyte, +1);
 
   *disp += gsize * elembyte;
 }
@@ -231,9 +264,21 @@ void write_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
   calculate_global_offset(size, &offset, &gsize);
 
   // write to disk
-  hindexed_readwrite(fh, disp, data, offset, size, elembyte, pbyte, -1);
+  readwrite_contiguous(fh, disp, data, offset, size, elembyte, pbyte, -1);
 
   *disp += gsize * elembyte;
+}
+
+void read_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_t size,
+                        const int32_t elembyte, MPI_Request *req)
+{
+  readwrite_contiguous_at(fh, disp, data, size, elembyte, elembyte, req, +1);
+}
+
+void write_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_t size,
+                         const int32_t elembyte, MPI_Request *req)
+{
+  readwrite_contiguous_at(fh, disp, data, size, elembyte, elembyte, req, -1);
 }
 
 template <>
