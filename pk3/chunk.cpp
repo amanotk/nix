@@ -1,8 +1,8 @@
 // -*- C++ -*-
 #include "chunk.hpp"
 
-#define DEFINE_MEMBER(type, name)                                              \
-  template <int N>                                                             \
+#define DEFINE_MEMBER(type, name)                                                                  \
+  template <int N>                                                                                 \
   type BaseChunk<N>::name
 
 DEFINE_MEMBER(int, pack_base)(const int flag, char *buffer)
@@ -43,7 +43,6 @@ DEFINE_MEMBER(int, unpack_base)(const int flag, char *buffer)
   return buffer - buffer0;
 }
 
-
 DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
 {
   int shift;
@@ -56,7 +55,7 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
   }
 
   // set directional message tag
-  tagmask = (DIRTAG_SIZE-1) << shift;
+  tagmask = (DIRTAG_SIZE - 1) << shift;
   for (int i = 0; i < DIRTAG_SIZE; i++) {
     dirtag[i] = i << shift;
   }
@@ -65,8 +64,9 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
   set_id(id);
 
   // set shape
-  for(int i=0; i < N ;i++) {
-    shape[i] = dims[i];
+  for (int i = 0; i < N; i++) {
+    shape[i]  = dims[i];
+    offset[i] = 0;
   }
 
   initialize_load();
@@ -89,8 +89,8 @@ DEFINE_MEMBER(, ~BaseChunk)()
 
 DEFINE_MEMBER(void, initialize_load)()
 {
-  static std::random_device rd;
-  static std::mt19937 mt(rd());
+  static std::random_device                      rd;
+  static std::mt19937                            mt(rd());
   static std::uniform_real_distribution<float64> rand(0.75, +1.25);
 
   load = rand(mt);
@@ -98,8 +98,8 @@ DEFINE_MEMBER(void, initialize_load)()
 
 DEFINE_MEMBER(float64, get_load)()
 {
-  static std::random_device rd;
-  static std::mt19937 mt(rd());
+  static std::random_device                      rd;
+  static std::mt19937                            mt(rd());
   static std::uniform_real_distribution<float64> rand(0.75, +1.25);
 
   load = rand(mt);

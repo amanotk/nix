@@ -10,7 +10,7 @@
 #include "mpistream.hpp"
 #include "tinyformat.hpp"
 
-#define LOGPRINT(fmt, ...) tfm::format(std::cout, "Log: " fmt, ##__VA_ARGS__);
+#define LOGPRINT(out, fmt, ...) tfm::format(out, "Log: " fmt, ##__VA_ARGS__);
 
 ///
 /// Definition of BaseApplication Class
@@ -193,7 +193,7 @@ public:
 
   virtual void initialize(int argc, char **argv)
   {
-    LOGPRINT("Function %s called\n", __func__);
+    LOGPRINT(std::cout, "Function %s called\n", __func__);
 
     // setup command line parser
     setup_cmd_default();
@@ -231,22 +231,22 @@ public:
   virtual void load()
   {
     if (!loadfile.empty()) {
-      LOGPRINT("Load snapshot from %s\n", loadfile.c_str());
+      LOGPRINT(std::cout, "Load snapshot from %s\n", loadfile.c_str());
     }
-    LOGPRINT("No load file specified\n");
+    LOGPRINT(std::cout, "No load file specified\n");
   }
 
   virtual void save()
   {
     if (!savefile.empty()) {
-      LOGPRINT("Save snapshot to %s\n", savefile.c_str());
+      LOGPRINT(std::cout, "Save snapshot to %s\n", savefile.c_str());
     }
-    LOGPRINT("No save file specified\n");
+    LOGPRINT(std::cout, "No save file specified\n");
   }
 
   virtual void setup()
   {
-    LOGPRINT("Function %s called\n", __func__);
+    LOGPRINT(std::cout, "Function %s called\n", __func__);
 
     // load snapshot
     this->load();
@@ -254,7 +254,7 @@ public:
 
   virtual void finalize()
   {
-    LOGPRINT("Function %s called\n", __func__);
+    LOGPRINT(std::cout, "Function %s called\n", __func__);
 
     // save snapshot
     this->save();
@@ -265,7 +265,7 @@ public:
 
   virtual void diagnostic()
   {
-    LOGPRINT("Function %s called\n", __func__);
+    LOGPRINT(std::cout, "Function %s called\n", __func__);
   }
 
   virtual void push()
@@ -297,22 +297,20 @@ public:
   virtual void calc_workload()
   {
     const int nc = cdims[3];
-    float64   sendbuf[nc];
 
     // calculate global workload per chunk
     for (int i = 0; i < nc; i++) {
-      sendbuf[i]  = 0.0;
       workload[i] = 0.0;
     }
 
     // local workload
     for (int i = 0; i < numchunk; i++) {
-      int id      = chunkvec[i]->get_id();
-      sendbuf[id] = chunkvec[i]->get_load();
+      int id       = chunkvec[i]->get_id();
+      workload[id] = chunkvec[i]->get_load();
     }
 
     // global workload
-    MPI_Allreduce(sendbuf, workload.get(), nc, MPI_REAL8, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, workload.get(), nc, MPI_REAL8, MPI_SUM, MPI_COMM_WORLD);
   }
 
   virtual void initialize_chunkmap()
@@ -367,7 +365,7 @@ public:
 
   virtual void rebuild_chunkmap()
   {
-    const int nc = cdims[0] * cdims[1] * cdims[2];
+    const int nc = cdims[3];
     int       rank[nc];
 
     // calculate global workload
@@ -575,12 +573,11 @@ public:
 
   virtual void print_info(std::ostream &out, int verbose = 0)
   {
-    out << tfm::format("\n"
-                       "----- <<< BEGIN INFORMATION >>> -----"
-                       "\n"
-                       "number of processes : %4d\n"
-                       "this rank           : %4d\n",
-                       nprocess, thisrank);
+    LOGPRINT(out, "\n");
+    LOGPRINT(out, "----- <<< BEGIN INFORMATION >>> -----");
+    LOGPRINT(out, "\n");
+    LOGPRINT(out, "Number of processes : %4d\n", nprocess);
+    LOGPRINT(out, "This rank           : %4d\n", thisrank);
 
     // local chunk
     if (verbose >= 1) {
@@ -594,22 +591,24 @@ public:
         gsum += workload[i];
       }
 
-      out << tfm::format("\n--- %-8d local chunkes ---\n", numchunk);
+      LOGPRINT(out, "\n");
+      LOGPRINT(out, "--- %-8d local chunkes ---\n", numchunk);
 
       for (int i = 0; i < numchunk; i++) {
-        lsum += chunkvec[i]->get_load();
-        out << tfm::format("   chunk[%.8d]:  workload = %10.4f\n", chunkvec[i]->get_id(),
-                           chunkvec[i]->get_load());
+        int id = chunkvec[i]->get_id();
+        lsum += workload[id];
+        LOGPRINT(out, "   chunk[%.8d]:  workload = %10.4f\n", id, workload[id]);
       }
 
-      out << "\n"
-          << tfm::format("*** load of %12.8f %% (ideally %12.8f %%)\n", lsum / gsum * 100,
-                         1.0 / nprocess * 100);
+      LOGPRINT(out, "\n");
+      LOGPRINT(out, "*** load of %12.8f %% (ideally %12.8f %%)\n", lsum / gsum * 100,
+               1.0 / nprocess * 100);
     }
 
-    out << "\n"
-           "----- <<< END INFORMATION >>> -----"
-           "\n\n";
+    LOGPRINT(out, "\n");
+    LOGPRINT(out, "----- <<< END INFORMATION >>> -----\n");
+    LOGPRINT(out, "\n");
+    LOGPRINT(out, "\n");
   }
 
   virtual int main(std::ostream &out)
