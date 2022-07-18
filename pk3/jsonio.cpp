@@ -45,18 +45,17 @@ void calculate_global_offset(size_t lsize, size_t *offset, size_t *gsize)
 }
 
 // collective raed/write with hindexed type
-void hindexed_readwrite(MPI_File *fh, size_t *disp, void *data,
-                        const size_t offset, const size_t size,
-                        const int32_t elembyte, const int32_t packbyte,
+void hindexed_readwrite(MPI_File *fh, size_t *disp, void *data, const size_t offset,
+                        const size_t size, const int32_t elembyte, const int32_t packbyte,
                         const int mode)
 {
-  MPI_Status status;
+  MPI_Status   status;
   MPI_Datatype ptype, ftype;
-  MPI_Aint packed_offset[1];
-  int32_t packed_size[1];
+  MPI_Aint     packed_offset[1];
+  int32_t      packed_size[1];
 
   packed_offset[0] = elembyte * offset;
-  packed_size[0] = static_cast<int32_t>(size * elembyte / packbyte);
+  packed_size[0]   = static_cast<int32_t>(size * elembyte / packbyte);
 
   MPI_Type_contiguous(packbyte, MPI_BYTE, &ptype);
   MPI_Type_commit(&ptype);
@@ -84,14 +83,13 @@ void hindexed_readwrite(MPI_File *fh, size_t *disp, void *data,
 }
 
 // collective raed/write with subarray type
-void subarray_readwrite(MPI_File *fh, size_t *disp, void *data,
-                        const int32_t ndim, const int32_t gshape[],
-                        const int32_t lshape[], const int32_t offset[],
+void subarray_readwrite(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+                        const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
                         const int32_t elembyte, const int mode, const int order)
 {
   MPI_Datatype ptype, ftype;
-  MPI_Status status;
-  int count = get_size(ndim, lshape);
+  MPI_Status   status;
+  int          count = get_size(ndim, lshape);
 
   MPI_Type_contiguous(elembyte, MPI_BYTE, &ptype);
   MPI_Type_commit(&ptype);
@@ -118,16 +116,14 @@ void subarray_readwrite(MPI_File *fh, size_t *disp, void *data,
   MPI_Type_free(&ftype);
 }
 
-void open_file(const char *filename, MPI_File *fh, size_t *disp,
-               const char *mode)
+void open_file(const char *filename, MPI_File *fh, size_t *disp, const char *mode)
 {
   int status;
 
   switch (mode[0]) {
   case 'r':
     // read only
-    status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_RDONLY,
-                           MPI_INFO_NULL, fh);
+    status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, fh);
     if (status != MPI_SUCCESS) {
       cerr << format("Error: failed to open file: %s\n", filename);
     }
@@ -140,9 +136,8 @@ void open_file(const char *filename, MPI_File *fh, size_t *disp,
   case 'w':
     // write only
     status = MPI_File_delete(filename, MPI_INFO_NULL);
-    status =
-        MPI_File_open(MPI_COMM_WORLD, filename,
-                      MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, fh);
+    status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE,
+                           MPI_INFO_NULL, fh);
     if (status != MPI_SUCCESS) {
       cerr << format("Error: failed to open file: %s\n", filename);
     }
@@ -154,9 +149,8 @@ void open_file(const char *filename, MPI_File *fh, size_t *disp,
     break;
   case 'a':
     // append
-    status =
-        MPI_File_open(MPI_COMM_WORLD, filename,
-                      MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, fh);
+    status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE,
+                           MPI_INFO_NULL, fh);
     if (status != MPI_SUCCESS) {
       cerr << format("Error: failed to open file: %s\n", filename);
     }
@@ -200,10 +194,10 @@ void write_single(MPI_File *fh, size_t *disp, void *data, const size_t size)
   *disp += size;
 }
 
-void read_collective(MPI_File *fh, size_t *disp, void *data, const size_t size,
+void read_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
                      const int32_t elembyte, const int32_t packbyte)
 {
-  size_t gsize, offset;
+  size_t  gsize, offset;
   int32_t pbyte;
 
   if (packbyte < 0) {
@@ -221,10 +215,10 @@ void read_collective(MPI_File *fh, size_t *disp, void *data, const size_t size,
   *disp += gsize * elembyte;
 }
 
-void write_collective(MPI_File *fh, size_t *disp, void *data, const size_t size,
+void write_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
                       const int32_t elembyte, const int32_t packbyte)
 {
-  size_t gsize, offset;
+  size_t  gsize, offset;
   int32_t pbyte;
 
   if (packbyte < 0) {
@@ -243,25 +237,21 @@ void write_collective(MPI_File *fh, size_t *disp, void *data, const size_t size,
 }
 
 template <>
-void read_collective(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
-                     const int32_t gshape[], const int32_t lshape[],
-                     const int32_t offset[], const int32_t elembyte,
-                     const int order);
+void read_subarray(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+                   const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
+                   const int32_t elembyte, const int order);
 template <>
-void read_collective(MPI_File *fh, size_t *disp, void *data, const size_t ndim,
-                     const size_t gshape[], const size_t lshape[],
-                     const size_t offset[], const size_t elembyte,
-                     const int order);
+void read_subarray(MPI_File *fh, size_t *disp, void *data, const size_t ndim, const size_t gshape[],
+                   const size_t lshape[], const size_t offset[], const size_t elembyte,
+                   const int order);
 template <>
-void write_collective(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
-                      const int32_t gshape[], const int32_t lshape[],
-                      const int32_t offset[], const int32_t elembyte,
-                      const int order);
+void write_subarray(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+                    const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
+                    const int32_t elembyte, const int order);
 template <>
-void write_collective(MPI_File *fh, size_t *disp, void *data, const size_t ndim,
-                      const size_t gshape[], const size_t lshape[],
-                      const size_t offset[], const size_t elembyte,
-                      const int order);
+void write_subarray(MPI_File *fh, size_t *disp, void *data, const size_t ndim,
+                    const size_t gshape[], const size_t lshape[], const size_t offset[],
+                    const size_t elembyte, const int order);
 template <>
 void get_attribute(json &obj, string name, size_t &disp, int32_t &data);
 template <>
@@ -271,17 +261,13 @@ void get_attribute(json &obj, string name, size_t &disp, float32 &data);
 template <>
 void get_attribute(json &obj, string name, size_t &disp, float64 &data);
 template <>
-void get_attribute(json &obj, string name, size_t &disp, int32_t length,
-                   int32_t *data);
+void get_attribute(json &obj, string name, size_t &disp, int32_t length, int32_t *data);
 template <>
-void get_attribute(json &obj, string name, size_t &disp, int32_t length,
-                   int64_t *data);
+void get_attribute(json &obj, string name, size_t &disp, int32_t length, int64_t *data);
 template <>
-void get_attribute(json &obj, string name, size_t &disp, int32_t length,
-                   float32 *data);
+void get_attribute(json &obj, string name, size_t &disp, int32_t length, float32 *data);
 template <>
-void get_attribute(json &obj, string name, size_t &disp, int32_t length,
-                   float64 *data);
+void get_attribute(json &obj, string name, size_t &disp, int32_t length, float64 *data);
 
 } // namespace jsonio
 
