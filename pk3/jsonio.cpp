@@ -1,14 +1,11 @@
 // -*- C++ -*-
 
 #include "jsonio.hpp"
-#include "tinyformat.hpp"
+
+#include "debug.hpp"
 
 namespace jsonio
 {
-using std::cerr;
-using std::endl;
-using tfm::format;
-
 template <typename T_int>
 T_int get_size(const int32_t ndim, const T_int shape[])
 {
@@ -27,9 +24,9 @@ void calculate_global_offset(size_t lsize, size_t *offset, size_t *gsize)
   MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
   MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
 
-  size_t *buffer = new size_t[nprocess];
+  std::unique_ptr<size_t[]> buffer = std::make_unique<size_t[]>(nprocess);
 
-  MPI_Allgather(&lsize, 1, MPI_INT64_T, buffer, 1, MPI_INT64_T, MPI_COMM_WORLD);
+  MPI_Allgather(&lsize, 1, MPI_INT64_T, buffer.get(), 1, MPI_INT64_T, MPI_COMM_WORLD);
 
   *offset = 0;
   for (int i = 1; i <= thisrank; i++) {
@@ -40,8 +37,6 @@ void calculate_global_offset(size_t lsize, size_t *offset, size_t *gsize)
   for (int i = 0; i < nprocess; i++) {
     *gsize += buffer[i];
   }
-
-  delete[] buffer;
 }
 
 // collective raed/write with hindexed type
@@ -75,7 +70,7 @@ void readwrite_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t o
     MPI_File_write_all(*fh, data, packed_size[0], ptype, &status);
     break;
   default:
-    cerr << format("Error: No such mode available\n");
+    ERRORPRINT("No such mode available\n");
   }
 
   MPI_Type_free(&ptype);
@@ -109,7 +104,7 @@ void readwrite_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_
     MPI_File_iwrite_at(*fh, pos, data, psize, ptype, req);
     break;
   default:
-    cerr << format("Error: No such mode available\n");
+    ERRORPRINT("No such mode available\n");
   }
 
   MPI_Type_free(&ptype);
@@ -142,7 +137,7 @@ void readwrite_subarray(MPI_File *fh, size_t *disp, void *data, const int32_t nd
     MPI_File_write_all(*fh, data, count, ptype, &status);
     break;
   default:
-    cerr << format("Error: No such mode available\n");
+    ERRORPRINT("No such mode available\n");
   }
 
   MPI_Type_free(&ptype);
@@ -158,7 +153,7 @@ void open_file(const char *filename, MPI_File *fh, size_t *disp, const char *mod
     // read only
     status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, fh);
     if (status != MPI_SUCCESS) {
-      cerr << format("Error: failed to open file: %s\n", filename);
+      ERRORPRINT("Failed to open file: %s\n", filename);
     }
 
     // set pointer to the beggining
@@ -172,7 +167,7 @@ void open_file(const char *filename, MPI_File *fh, size_t *disp, const char *mod
     status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE,
                            MPI_INFO_NULL, fh);
     if (status != MPI_SUCCESS) {
-      cerr << format("Error: failed to open file: %s\n", filename);
+      ERRORPRINT("Failed to open file: %s\n", filename);
     }
 
     // set pointer to the beggining
@@ -185,7 +180,7 @@ void open_file(const char *filename, MPI_File *fh, size_t *disp, const char *mod
     status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE,
                            MPI_INFO_NULL, fh);
     if (status != MPI_SUCCESS) {
-      cerr << format("Error: failed to open file: %s\n", filename);
+      ERRORPRINT("Failed to open file: %s\n", filename);
     }
 
     // set pointer to the end
@@ -197,7 +192,7 @@ void open_file(const char *filename, MPI_File *fh, size_t *disp, const char *mod
 
     break;
   default:
-    cerr << format("Error: No such mode available\n");
+    ERRORPRINT("No such mode available\n");
   }
 }
 

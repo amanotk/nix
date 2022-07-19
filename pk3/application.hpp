@@ -10,7 +10,7 @@
 #include "mpistream.hpp"
 #include "tinyformat.hpp"
 
-#define LOGPRINT(out, fmt, ...) tfm::format(out, "Log: " fmt, ##__VA_ARGS__);
+#include "debug.hpp"
 
 ///
 /// Definition of BaseApplication Class
@@ -193,7 +193,7 @@ public:
 
   virtual void initialize(int argc, char **argv)
   {
-    LOGPRINT(std::cout, "Function %s called\n", __func__);
+    LOGPRINT1(std::cout, "Function %s called\n", __func__);
 
     // setup command line parser
     setup_cmd_default();
@@ -231,22 +231,22 @@ public:
   virtual void load()
   {
     if (!loadfile.empty()) {
-      LOGPRINT(std::cout, "Load snapshot from %s\n", loadfile.c_str());
+      LOGPRINT1(std::cout, "Load snapshot from %s\n", loadfile.c_str());
     }
-    LOGPRINT(std::cout, "No load file specified\n");
+    LOGPRINT1(std::cout, "No load file specified\n");
   }
 
   virtual void save()
   {
     if (!savefile.empty()) {
-      LOGPRINT(std::cout, "Save snapshot to %s\n", savefile.c_str());
+      LOGPRINT1(std::cout, "Save snapshot to %s\n", savefile.c_str());
     }
-    LOGPRINT(std::cout, "No save file specified\n");
+    LOGPRINT1(std::cout, "No save file specified\n");
   }
 
   virtual void setup()
   {
-    LOGPRINT(std::cout, "Function %s called\n", __func__);
+    LOGPRINT1(std::cout, "Function %s called\n", __func__);
 
     // load snapshot
     this->load();
@@ -254,7 +254,7 @@ public:
 
   virtual void finalize()
   {
-    LOGPRINT(std::cout, "Function %s called\n", __func__);
+    LOGPRINT1(std::cout, "Function %s called\n", __func__);
 
     // save snapshot
     this->save();
@@ -265,7 +265,9 @@ public:
 
   virtual void diagnostic()
   {
-    LOGPRINT(std::cout, "Function %s called\n", __func__);
+    LOGPRINT1(std::cout, "Function %s called\n", __func__);
+
+    print_info(std::cout, 1);
   }
 
   virtual void push()
@@ -320,10 +322,9 @@ public:
 
     // error check
     if (nc % nprocess != 0) {
-      std::cerr << tfm::format("Error: "
-                               "number of chunk %8d, "
-                               "number of process %8d\n",
-                               nc, nprocess);
+      ERRORPRINT("number of chunk   = %8d\n"
+                 "number of process = %8d\n",
+                 nc, nprocess);
       finalize_mpi_default();
       exit(-1);
     }
@@ -456,10 +457,10 @@ public:
         continue;
       } else {
         // something wrong
-        std::cerr << tfm::format("Error: chunk ID = %4d; "
-                                 "current rank = %4d; "
-                                 "newrank = %4d\n",
-                                 id, thisrank, newrank[id]);
+        ERRORPRINT("chunk ID     = %4d\n"
+                   "current rank = %4d\n"
+                   "newrank      = %4d\n",
+                   id, thisrank, newrank[id]);
       }
     }
 
@@ -573,11 +574,11 @@ public:
 
   virtual void print_info(std::ostream &out, int verbose = 0)
   {
-    LOGPRINT(out, "\n");
-    LOGPRINT(out, "----- <<< BEGIN INFORMATION >>> -----");
-    LOGPRINT(out, "\n");
-    LOGPRINT(out, "Number of processes : %4d\n", nprocess);
-    LOGPRINT(out, "This rank           : %4d\n", thisrank);
+    LOGPRINT0(out, "\n");
+    LOGPRINT0(out, "----- <<< BEGIN INFORMATION >>> -----");
+    LOGPRINT0(out, "\n");
+    LOGPRINT0(out, "Number of processes : %4d\n", nprocess);
+    LOGPRINT0(out, "This rank           : %4d\n", thisrank);
 
     // local chunk
     if (verbose >= 1) {
@@ -591,38 +592,35 @@ public:
         gsum += workload[i];
       }
 
-      LOGPRINT(out, "\n");
-      LOGPRINT(out, "--- %-8d local chunkes ---\n", numchunk);
+      LOGPRINT0(out, "\n");
+      LOGPRINT0(out, "--- %-8d local chunkes ---\n", numchunk);
 
       for (int i = 0; i < numchunk; i++) {
         int id = chunkvec[i]->get_id();
         lsum += workload[id];
-        LOGPRINT(out, "   chunk[%.8d]:  workload = %10.4f\n", id, workload[id]);
+        LOGPRINT0(out, "   chunk[%.8d]:  workload = %10.4f\n", id, workload[id]);
       }
 
-      LOGPRINT(out, "\n");
-      LOGPRINT(out, "*** load of %12.8f %% (ideally %12.8f %%)\n", lsum / gsum * 100,
-               1.0 / nprocess * 100);
+      LOGPRINT0(out, "\n");
+      LOGPRINT0(out, "*** load of %12.8f %% (ideally %12.8f %%)\n", lsum / gsum * 100,
+                1.0 / nprocess * 100);
     }
 
-    LOGPRINT(out, "\n");
-    LOGPRINT(out, "----- <<< END INFORMATION >>> -----\n");
-    LOGPRINT(out, "\n");
-    LOGPRINT(out, "\n");
+    LOGPRINT0(out, "\n");
+    LOGPRINT0(out, "----- <<< END INFORMATION >>> -----\n");
+    LOGPRINT0(out, "\n");
+    LOGPRINT0(out, "\n");
   }
 
   virtual int main(std::ostream &out)
   {
-    // initialize
-    initialize(cl_argc, cl_argv);
 
     //
-    // + print initial info
-    // + setup solvers
-    // + setup initial condition or load a previous snapshot
+    // + initialize object
+    // + setup
     // + output diagnostic if needed
     //
-    print_info(out, 1);
+    initialize(cl_argc, cl_argv);
     setup();
     diagnostic();
 
@@ -643,9 +641,6 @@ public:
 
       // rebuild chankmap if needed
       rebuild_chunkmap();
-
-      // print info
-      print_info(out, 1);
     }
 
     //

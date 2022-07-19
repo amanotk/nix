@@ -8,12 +8,10 @@ LIBS    := $(BASEDIR)/libpk3.a
 SRCS    := test_serial.cpp test_parallel.cpp test_jsonio1.cpp test_jsonio2.cpp \
 	test_sfc.cpp test_chunk.cpp test_chunkmap.cpp test_application.cpp
 
-
 ### OBJS/DEPS
 EXES    := test_jsonio1 test_jsonio2 test_sfc test_chunk test_chunkmap test_application
 OBJS    := $(SRCS:%.cpp=%.o)
 DEPS    := $(SRCS:%.cpp=%.d)
-
 
 ### default
 default: $(EXES)
@@ -44,7 +42,6 @@ clean:
 cleanall:
 	rm -f *.o *.d *.out *.stdout *.stderr
 	rm -f $(EXES)
-
 
 ### dependency
 -include $(DEPS)
