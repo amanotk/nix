@@ -52,8 +52,8 @@ TEST_CASE("BsseChunk1")
   //
   INFO("pack/unpack");
   {
-    int byte1 = chunk[2].pack(0, buffer);
-    int byte2 = unpack_chunk.unpack(0, buffer);
+    int byte1 = chunk[2].pack(BaseChunk<1>::PackAll, buffer);
+    int byte2 = unpack_chunk.unpack(BaseChunk<1>::PackAll, buffer);
 
     REQUIRE(byte1 == byte2);
     REQUIRE(chunk[2].get_id() == unpack_chunk.get_id());
@@ -133,8 +133,8 @@ TEST_CASE("BsseChunk2")
   //
   INFO("pack/unpack");
   {
-    int byte1 = chunk[2][2].pack(0, buffer);
-    int byte2 = unpack_chunk.unpack(0, buffer);
+    int byte1 = chunk[2][2].pack(BaseChunk<2>::PackAll, buffer);
+    int byte2 = unpack_chunk.unpack(BaseChunk<2>::PackAll, buffer);
 
     REQUIRE(byte1 == byte2);
     REQUIRE(chunk[2][2].get_id() == unpack_chunk.get_id());
@@ -280,8 +280,8 @@ TEST_CASE("BsseChunk3")
   //
   INFO("pack/unpack");
   {
-    int byte1 = chunk[2][2][2].pack(0, buffer);
-    int byte2 = unpack_chunk.unpack(0, buffer);
+    int byte1 = chunk[2][2][2].pack(BaseChunk<3>::PackAll, buffer);
+    int byte2 = unpack_chunk.unpack(BaseChunk<3>::PackAll, buffer);
 
     REQUIRE(byte1 == byte2);
     REQUIRE(chunk[2][2][2].get_id() == unpack_chunk.get_id());

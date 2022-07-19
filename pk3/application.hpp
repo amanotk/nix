@@ -426,6 +426,20 @@ public:
     const int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
     const int ncmax   = Chunk::get_max_id();
     const int nc      = cdims[0] * cdims[1] * cdims[2];
+
+    //
+    // check buffer size and reallocate if necessary
+    //
+    {
+      int bufsize = 0;
+      for (int i = 0; i < numchunk; i++) {
+        bufsize = std::max(bufsize, chunkvec[i]->pack(Chunk::PackAllQuery, nullptr));
+      }
+
+      sendbuf.resize(bufsize);
+      recvbuf.resize(bufsize);
+    }
+
     const int spos_l  = 0;
     const int spos_r  = sendbuf.size / 2;
     const int rpos_l  = 0;
@@ -444,12 +458,12 @@ public:
 
       if (newrank[id] == thisrank - 1) {
         // send to left
-        int size = chunkvec[i]->pack(0, sbuf_l);
+        int size = chunkvec[i]->pack(Chunk::PackAll, sbuf_l);
         sbuf_l += size;
         chunkvec[i]->set_id(ncmax); // to be removed
       } else if (newrank[id] == thisrank + 1) {
         // send to right
-        int size = chunkvec[i]->pack(0, sbuf_r);
+        int size = chunkvec[i]->pack(Chunk::PackAll, sbuf_r);
         sbuf_r += size;
         chunkvec[i]->set_id(ncmax); // to be removed
       } else if (newrank[id] == thisrank) {
@@ -502,7 +516,7 @@ public:
 
         while ((rbuf_l - rbuf_l0) < rbufcnt_l) {
           PtrChunk p(new Chunk(dims, 0));
-          size = p->unpack(0, rbuf_l);
+          size = p->unpack(Chunk::PackAll, rbuf_l);
           chunkvec.push_back(std::move(p));
           rbuf_l += size;
         }
@@ -515,7 +529,7 @@ public:
 
         while ((rbuf_r - rbuf_r0) < rbufcnt_r) {
           PtrChunk p(new Chunk(dims, 0));
-          size = p->unpack(0, rbuf_r);
+          size = p->unpack(Chunk::PackAll, rbuf_r);
           chunkvec.push_back(std::move(p));
           rbuf_r += size;
         }

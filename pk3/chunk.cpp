@@ -5,42 +5,76 @@
   template <int N>                                                                                 \
   type BaseChunk<N>::name
 
-DEFINE_MEMBER(int, pack_base)(const int flag, char *buffer)
+DEFINE_MEMBER(int, pack_base)(const int mode, void *buffer)
 {
-  char *buffer0 = buffer;
+  int   count = 0;
+  char *ptr0  = static_cast<char *>(buffer);
+  char *ptr   = ptr0;
 
-  std::memcpy(buffer, &myid, sizeof(int));
-  buffer += sizeof(int);
+  switch (mode) {
+  case PackAll:
+    std::memcpy(ptr, &myid, sizeof(int));
+    ptr += sizeof(int);
 
-  std::memcpy(buffer, &nbid[0], sizeof(int) * nbsize);
-  buffer += sizeof(int) * nbsize;
+    std::memcpy(ptr, &nbid[0], sizeof(int) * nbsize);
+    ptr += sizeof(int) * nbsize;
 
-  std::memcpy(buffer, &nbrank[0], sizeof(int) * nbsize);
-  buffer += sizeof(int) * nbsize;
+    std::memcpy(ptr, &nbrank[0], sizeof(int) * nbsize);
+    ptr += sizeof(int) * nbsize;
 
-  std::memcpy(buffer, &load, sizeof(float64));
-  buffer += sizeof(float64);
+    std::memcpy(ptr, &load, sizeof(float64));
+    ptr += sizeof(float64);
 
-  return buffer - buffer0;
+    count = ptr - ptr0;
+    break;
+  case PackAllQuery:
+    count += sizeof(int);
+    count += sizeof(int) * nbsize;
+    count += sizeof(int) * nbsize;
+    count += sizeof(float64);
+    break;
+  default:
+    count = -1;
+    break;
+  }
+
+  return count;
 }
 
-DEFINE_MEMBER(int, unpack_base)(const int flag, char *buffer)
+DEFINE_MEMBER(int, unpack_base)(const int mode, void *buffer)
 {
-  char *buffer0 = buffer;
+  int   count = 0;
+  char *ptr0  = static_cast<char *>(buffer);
+  char *ptr   = ptr0;
 
-  std::memcpy(&myid, buffer, sizeof(int));
-  buffer += sizeof(int);
+  switch (mode) {
+  case PackAll:
+    std::memcpy(&myid, ptr, sizeof(int));
+    ptr += sizeof(int);
 
-  std::memcpy(&nbid[0], buffer, sizeof(int) * nbsize);
-  buffer += sizeof(int) * nbsize;
+    std::memcpy(&nbid[0], ptr, sizeof(int) * nbsize);
+    ptr += sizeof(int) * nbsize;
 
-  std::memcpy(&nbrank[0], buffer, sizeof(int) * nbsize);
-  buffer += sizeof(int) * nbsize;
+    std::memcpy(&nbrank[0], ptr, sizeof(int) * nbsize);
+    ptr += sizeof(int) * nbsize;
 
-  std::memcpy(&load, buffer, sizeof(float64));
-  buffer += sizeof(float64);
+    std::memcpy(&load, ptr, sizeof(float64));
+    ptr += sizeof(float64);
 
-  return buffer - buffer0;
+    count = ptr - ptr0;
+    break;
+  case PackAllQuery:
+    count += sizeof(int);
+    count += sizeof(int) * nbsize;
+    count += sizeof(int) * nbsize;
+    count += sizeof(float64);
+    break;
+  default:
+    count = -1;
+    break;
+  }
+
+  return count;
 }
 
 DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
@@ -106,14 +140,14 @@ DEFINE_MEMBER(float64, get_load)()
   return load;
 }
 
-DEFINE_MEMBER(int, pack)(const int flag, char *buffer)
+DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
 {
-  return pack_base(flag, buffer);
+  return pack_base(mode, buffer);
 }
 
-DEFINE_MEMBER(int, unpack)(const int flag, char *buffer)
+DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
 {
-  return unpack_base(flag, buffer);
+  return unpack_base(mode, buffer);
 }
 
 template class BaseChunk<1>;

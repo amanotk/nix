@@ -6,6 +6,8 @@
 /// Chunk
 ///
 #include "common.hpp"
+#include "debug.hpp"
+
 #include <mpi.h>
 
 static constexpr int DIRTAG_BIT = 5;
@@ -18,6 +20,12 @@ static constexpr int NB_SIZE[3] = {3, 9, 27};
 template <int N>
 class BaseChunk
 {
+public:
+  enum PackMode {
+    PackAll = 1,
+    PackAllQuery,
+  };
+
 protected:
   static int nbsize;              ///< number of neighbors
   static int tagmask;             ///< mask for directional tag
@@ -30,9 +38,9 @@ protected:
   int     offset[N];              ///< global index offset
   float64 load;                   ///< current load
 
-  int pack_base(const int flag, char *buffer);
+  int pack_base(const int mode, void *buffer);
 
-  int unpack_base(const int flag, char *buffer);
+  int unpack_base(const int mode, void *buffer);
 
   virtual void initialize(const int dims[N], const int id);
 
@@ -53,10 +61,10 @@ public:
   virtual float64 get_load();
 
   // pack
-  virtual int pack(const int flag, char *buffer);
+  virtual int pack(const int mode, void *buffer);
 
   // unpack
-  virtual int unpack(const int flag, char *buffer);
+  virtual int unpack(const int mode, void *buffer);
 
   // set ID
   void set_id(const int id)
