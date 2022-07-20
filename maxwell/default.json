@@ -1,0 +1,14 @@
+{
+    "Nx" : 64,
+    "Ny" : 64,
+    "Nz" : 1,
+    "Cx" : 1,
+    "Cy" : 1,
+    "Cz" : 1,
+    "delt" : 0.5,
+    "delh" : 1.0,
+    "cc"   : 1.0,
+    "interval" : 5,
+    "prefix" : "maxwell",
+    "__EOF__" : 0
+}
