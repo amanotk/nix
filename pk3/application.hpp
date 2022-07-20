@@ -89,14 +89,14 @@ protected:
   }
 
   // default configuration file parsing
-  void parse_cfg_default(std::string cfg)
+  void parse_cfg_default(std::string config)
   {
     json root;
 
     // read configuration file
-    config = cfg;
+    this->config = config;
     {
-      std::ifstream f(config.c_str());
+      std::ifstream f(this->config.c_str());
       f >> root;
     }
 
@@ -105,15 +105,26 @@ protected:
     delh = root["delt"].get<float64>();
 
     // get dimensions
-    int nx   = root["Nx"].get<int>();
-    int ny   = root["Ny"].get<int>();
-    int nz   = root["Nz"].get<int>();
-    int cx   = root["Cx"].get<int>();
-    int cy   = root["Cy"].get<int>();
-    int cz   = root["Cz"].get<int>();
-    ndims[0] = nz * cz;
-    ndims[1] = ny * cy;
-    ndims[2] = nx * cx;
+    int nx = root["Nx"].get<int>();
+    int ny = root["Ny"].get<int>();
+    int nz = root["Nz"].get<int>();
+    int cx = root["Cx"].get<int>();
+    int cy = root["Cy"].get<int>();
+    int cz = root["Cz"].get<int>();
+
+    // check dimensions
+    if (!(nz % cz == 0 && ny % cy == 0 && nx % cx == 0)) {
+      ERRORPRINT("Number of grid must be divisible by number of chunk\n"
+                 "Nx, Ny, Nz = [%4d, %4d, %4d]\n"
+                 "Cx, Cy, Cz = [%4d, %4d, %4d]\n",
+                 nx, ny, nz, cx, cy, cz);
+      finalize();
+      exit(-1);
+    }
+
+    ndims[0] = nz;
+    ndims[1] = ny;
+    ndims[2] = nx;
     ndims[3] = ndims[0] * ndims[1] * ndims[2];
     cdims[0] = cz;
     cdims[1] = cy;
@@ -325,7 +336,7 @@ public:
       ERRORPRINT("number of chunk   = %8d\n"
                  "number of process = %8d\n",
                  nc, nprocess);
-      finalize_mpi_default();
+      finalize();
       exit(-1);
     }
 
@@ -475,6 +486,8 @@ public:
                    "current rank = %4d\n"
                    "newrank      = %4d\n",
                    id, thisrank, newrank[id]);
+        finalize();
+        exit(-1);
       }
     }
 
