@@ -7,31 +7,23 @@
 
 DEFINE_MEMBER(int, pack_base)(const int mode, void *buffer)
 {
+  using common::memcpy_count;
+
   int   count = 0;
-  char *ptr0  = static_cast<char *>(buffer);
-  char *ptr   = ptr0;
+  char *ptr   = static_cast<char *>(buffer);
 
   switch (mode) {
   case PackAll:
-    std::memcpy(ptr, &myid, sizeof(int));
-    ptr += sizeof(int);
-
-    std::memcpy(ptr, &nbid[0], sizeof(int) * nbsize);
-    ptr += sizeof(int) * nbsize;
-
-    std::memcpy(ptr, &nbrank[0], sizeof(int) * nbsize);
-    ptr += sizeof(int) * nbsize;
-
-    std::memcpy(ptr, &load, sizeof(float64));
-    ptr += sizeof(float64);
-
-    count = ptr - ptr0;
+    count += memcpy_count(&ptr[count], &myid, sizeof(int), false);
+    count += memcpy_count(&ptr[count], &nbid[0], nbsize * sizeof(int), false);
+    count += memcpy_count(&ptr[count], &nbrank[0], nbsize * sizeof(int), false);
+    count += memcpy_count(&ptr[count], &load, sizeof(float64), false);
     break;
   case PackAllQuery:
-    count += sizeof(int);
-    count += sizeof(int) * nbsize;
-    count += sizeof(int) * nbsize;
-    count += sizeof(float64);
+    count += memcpy_count(&ptr[count], &myid, sizeof(int), true);
+    count += memcpy_count(&ptr[count], &nbid[0], nbsize * sizeof(int), true);
+    count += memcpy_count(&ptr[count], &nbrank[0], nbsize * sizeof(int), true);
+    count += memcpy_count(&ptr[count], &load, sizeof(float64), true);
     break;
   default:
     count = -1;
@@ -43,31 +35,23 @@ DEFINE_MEMBER(int, pack_base)(const int mode, void *buffer)
 
 DEFINE_MEMBER(int, unpack_base)(const int mode, void *buffer)
 {
+  using common::memcpy_count;
+
   int   count = 0;
-  char *ptr0  = static_cast<char *>(buffer);
-  char *ptr   = ptr0;
+  char *ptr   = static_cast<char *>(buffer);
 
   switch (mode) {
   case PackAll:
-    std::memcpy(&myid, ptr, sizeof(int));
-    ptr += sizeof(int);
-
-    std::memcpy(&nbid[0], ptr, sizeof(int) * nbsize);
-    ptr += sizeof(int) * nbsize;
-
-    std::memcpy(&nbrank[0], ptr, sizeof(int) * nbsize);
-    ptr += sizeof(int) * nbsize;
-
-    std::memcpy(&load, ptr, sizeof(float64));
-    ptr += sizeof(float64);
-
-    count = ptr - ptr0;
+    count += memcpy_count(&myid, &ptr[count], sizeof(int), false);
+    count += memcpy_count(&nbid[0], &ptr[count], nbsize * sizeof(int), false);
+    count += memcpy_count(&nbrank[0], &ptr[count], nbsize * sizeof(int), false);
+    count += memcpy_count(&load, &ptr[count], sizeof(float64), false);
     break;
   case PackAllQuery:
-    count += sizeof(int);
-    count += sizeof(int) * nbsize;
-    count += sizeof(int) * nbsize;
-    count += sizeof(float64);
+    count += memcpy_count(&myid, &ptr[count], sizeof(int), true);
+    count += memcpy_count(&nbid[0], &ptr[count], nbsize * sizeof(int), true);
+    count += memcpy_count(&nbrank[0], &ptr[count], nbsize * sizeof(int), true);
+    count += memcpy_count(&load, &ptr[count], sizeof(float64), true);
     break;
   default:
     count = -1;

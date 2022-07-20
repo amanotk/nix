@@ -56,6 +56,15 @@ const std::ios::openmode text_read   = std::ios::in;
 // common functions
 //@{
 
+//// wrapper of std::memcpy
+inline size_t memcpy_count(void *dst, const void *src, size_t count, bool count_only = false)
+{
+  if (!count_only) {
+    std::memcpy(dst, src, count);
+  }
+  return count;
+}
+
 //// return 1 on little endian and 16777216 on big endian
 inline int32_t get_endian_flag()
 {
