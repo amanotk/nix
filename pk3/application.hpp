@@ -31,7 +31,8 @@ protected:
 
   int         cl_argc;  ///< command-line argc
   char **     cl_argv;  ///< command-line argv
-  std::string config;   ///< configuration file name
+  std::string cfg_file; ///< configuration file name
+  json        cfg_json; ///< configuration json object
   cmdparser   parser;   ///< command line parser
   float64     wclock;   ///< wall clock time at initialization
   PtrBalancer balancer; ///< load balancer
@@ -86,31 +87,29 @@ protected:
     emax     = parser.get<float64>("emax");
     loadfile = parser.get<std::string>("load");
     savefile = parser.get<std::string>("save");
+    cfg_file = parser.get<std::string>("config");
   }
 
   // default configuration file parsing
-  void parse_cfg_default(std::string config)
+  void parse_cfg_default()
   {
-    json root;
-
     // read configuration file
-    this->config = config;
     {
-      std::ifstream f(this->config.c_str());
-      f >> root;
+      std::ifstream f(cfg_file.c_str());
+      f >> cfg_json;
     }
 
     // delt and delh
-    delt = root["delt"].get<float64>();
-    delh = root["delt"].get<float64>();
+    delt = cfg_json["delt"].get<float64>();
+    delh = cfg_json["delt"].get<float64>();
 
     // get dimensions
-    int nx = root["Nx"].get<int>();
-    int ny = root["Ny"].get<int>();
-    int nz = root["Nz"].get<int>();
-    int cx = root["Cx"].get<int>();
-    int cy = root["Cy"].get<int>();
-    int cz = root["Cz"].get<int>();
+    int nx = cfg_json["Nx"].get<int>();
+    int ny = cfg_json["Ny"].get<int>();
+    int nz = cfg_json["Nz"].get<int>();
+    int cx = cfg_json["Cx"].get<int>();
+    int cy = cfg_json["Cy"].get<int>();
+    int cz = cfg_json["Cz"].get<int>();
 
     // check dimensions
     if (!(nz % cz == 0 && ny % cy == 0 && nx % cx == 0)) {
@@ -213,7 +212,7 @@ public:
     parse_cmd_default(argc, argv);
 
     // configuration file
-    parse_cfg_default(parser.get<std::string>("config"));
+    parse_cfg_default();
 
     // initialize current physical time and time step
     curstep = 0;
