@@ -6,7 +6,6 @@
 /// Chunk
 ///
 #include "common.hpp"
-#include "debug.hpp"
 
 #include <mpi.h>
 

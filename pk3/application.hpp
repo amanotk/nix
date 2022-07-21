@@ -10,8 +10,6 @@
 #include "mpistream.hpp"
 #include "tinyformat.hpp"
 
-#include "debug.hpp"
-
 ///
 /// Definition of BaseApplication Class
 ///
@@ -577,6 +575,7 @@ public:
       int id = chunkvec[i]->get_id();
       chunkmap->get_coordinate(id, iz, iy, ix);
 
+      DEBUGPRINT(std::cout, "*** ID = %4d [%4d, %4d, %4d] ***\n", id, iz, iy, ix);
       for (int dirz = -1; dirz <= +1; dirz++) {
         for (int diry = -1; diry <= +1; diry++) {
           for (int dirx = -1; dirx <= +1; dirx++) {
@@ -592,6 +591,8 @@ public:
             // set neighbor rank
             int nbrank = chunkmap->get_rank(nbid);
             chunkvec[i]->set_nb_rank(dirz, diry, dirx, nbrank);
+
+            DEBUGPRINT(std::cout, "[cz, cy, cx] = [%4d, %4d, %4d], nbid = %4d, nbrank = %4d\n", cz, cy, cx, nbid, nbrank);
           }
         }
       }

@@ -16,7 +16,8 @@
   tfm::format(std::cerr, "<<< ERROR BEGIN (File = %s, Line = %05d) >>>\n", __FILENAME__,           \
               __LINE__);                                                                           \
   tfm::format(std::cerr, fmt, ##__VA_ARGS__);                                                      \
-  tfm::format(std::cerr, "<<< ERROR END >>>\n");
+  tfm::format(std::cerr, "<<< ERROR END >>>\n");                                                   \
+  std::cerr.flush();
 
 //
 // debug printing
@@ -25,7 +26,8 @@
 
 #define DEBUGPRINT(out, fmt, ...)                                                                  \
   tfm::format(out, "DEBUG (File = %s, Line = %05d): ", __FILENAME__, __LINE__);                    \
-  tfm::format(out, fmt, ##__VA_ARGS__);
+  tfm::format(out, fmt, ##__VA_ARGS__);                                                            \
+  out.flush();
 
 #else
 

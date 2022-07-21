@@ -4,10 +4,7 @@
 
 #include "common.hpp"
 #include "tinyformat.hpp"
-#include "xtensor/xarray.hpp"
-#include "xtensor/xio.hpp"
-#include "xtensor/xsort.hpp"
-#include "xtensor/xview.hpp"
+#include "xtensorall.hpp"
 
 ///
 /// Space-Filling Curve

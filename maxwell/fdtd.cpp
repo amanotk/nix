@@ -284,6 +284,8 @@ DEFINE_MEMBER(void, set_boundary_begin)()
     void *sndpos[2] = {sendbuf.get(bufpos(0, 0)), sendbuf.get(bufpos(0, 1))};
     void *rcvpos[2] = {recvbuf.get(bufpos(0, 0)), recvbuf.get(bufpos(0, 1))};
 
+    DEBUGPRINT(std::cout, "z direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(-1, 0, 0), get_nb_rank(0, 0, 0), get_nb_rank(+1, 0, 0));
+
     // lower bound
     {
       auto     view   = xt::view(uf, Lbz, Iy, Ix, Ia);
@@ -315,6 +317,8 @@ DEFINE_MEMBER(void, set_boundary_begin)()
     void *sndpos[2] = {sendbuf.get(bufpos(1, 0)), sendbuf.get(bufpos(1, 1))};
     void *rcvpos[2] = {recvbuf.get(bufpos(1, 0)), recvbuf.get(bufpos(1, 1))};
 
+    DEBUGPRINT(std::cout, "y direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(-1, 0, 0), get_nb_rank(0, 0, 0), get_nb_rank(+1, 0, 0));
+
     // lower bound
     {
       auto     view   = xt::view(uf, Iz, Lby, Ix, Ia);
@@ -345,6 +349,8 @@ DEFINE_MEMBER(void, set_boundary_begin)()
     int   rcvtag[2] = {get_rcvtag(0, 0, -1), get_rcvtag(0, 0, +1)};
     void *sndpos[2] = {sendbuf.get(bufpos(2, 0)), sendbuf.get(bufpos(2, 1))};
     void *rcvpos[2] = {recvbuf.get(bufpos(2, 0)), recvbuf.get(bufpos(2, 1))};
+
+    DEBUGPRINT(std::cout, "x direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(-1, 0, 0), get_nb_rank(0, 0, 0), get_nb_rank(+1, 0, 0));
 
     // lower bound
     {
@@ -493,32 +499,32 @@ DEFINE_MEMBER(void, set_boundary_physical)(const int dir)
 {
   // lower boundary in z
   if (get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // upper boundary in z
   if (get_nb_rank(+1, 0, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // lower boundary in y
   if (get_nb_rank(0, -1, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // upper boundary in y
   if (get_nb_rank(0, +1, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // lower boundary in x
   if (get_nb_rank(0, 0, -1) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // upper boundary in x
   if (get_nb_rank(0, 0, +1) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 }
 

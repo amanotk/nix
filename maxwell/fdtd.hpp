@@ -2,17 +2,13 @@
 #ifndef _FDTD_HPP_
 #define _FDTD_HPP_
 
+#include "pk3/buffer.hpp"
 #include "pk3/chunk.hpp"
 #include "pk3/debug.hpp"
 #include "pk3/jsonio.hpp"
-#include "pk3/buffer.hpp"
-#include "pk3/debug.hpp"
-#include <functional>
+#include "pk3/xtensorall.hpp"
 
-#include "xtensor/xadapt.hpp"
-#include "xtensor/xarray.hpp"
-#include "xtensor/xview.hpp"
-#include "xtensor/xio.hpp"
+#include <functional>
 
 class FDTD : public BaseChunk<3>
 {
@@ -44,11 +40,11 @@ protected:
   float64                 ylim[3]; ///< physical domain in y
   float64                 zlim[3]; ///< physical domain in z
 
-  MPI_Request sendreq[3][2];    ///< MPI request
-  MPI_Request recvreq[3][2];    ///< MPI request
-  size_t      bufsize[4];       ///< MPI buffer size
-  Buffer      sendbuf;          ///< MPI send buffer
-  Buffer      recvbuf;          ///< MPI recv buffer
+  MPI_Request sendreq[3][2]; ///< MPI request
+  MPI_Request recvreq[3][2]; ///< MPI request
+  size_t      bufsize[4];    ///< MPI buffer size
+  Buffer      sendbuf;       ///< MPI send buffer
+  Buffer      recvbuf;       ///< MPI recv buffer
 
 public:
   FDTD(const int dims[3], const int id = 0);

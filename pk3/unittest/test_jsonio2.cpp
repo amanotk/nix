@@ -1,14 +1,11 @@
 // -*- C++ -*-
 
+#include "pk3/catch.hpp"
 #include "pk3/jsonio.hpp"
+#include "pk3/xtensorall.hpp"
+
 #include <fstream>
 #include <iostream>
-#include <xtensor/xadapt.hpp>
-#include <xtensor/xarray.hpp>
-#include <xtensor/xio.hpp>
-#include <xtensor/xview.hpp>
-
-#include "pk3/catch.hpp"
 
 using jsonio::float32;
 using jsonio::float64;
@@ -157,8 +154,9 @@ TEST_CASE("ReadSingle")
 
   // delete
   if (get_thisrank() == 0) {
-    REQUIRE(std::remove(filename) == 0);
+    std::remove(filename);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //
@@ -208,8 +206,9 @@ TEST_CASE("WriteSingle")
 
   // delete
   if (get_thisrank() == 0) {
-    REQUIRE(std::remove(filename) == 0);
+    std::remove(filename);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //
@@ -268,8 +267,9 @@ TEST_CASE("ReadContiguous")
 
   // delete
   if (get_thisrank() == 0) {
-    REQUIRE(std::remove(filename) == 0);
+    std::remove(filename);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //
@@ -330,8 +330,9 @@ TEST_CASE("WriteContiguous")
 
   // delete
   if (get_thisrank() == 0) {
-    REQUIRE(std::remove(filename) == 0);
+    std::remove(filename);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //
@@ -404,8 +405,9 @@ TEST_CASE("ReadContiguousAt")
 
   // delete
   if (get_thisrank() == 0) {
-    REQUIRE(std::remove(filename) == 0);
+    std::remove(filename);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //
@@ -480,8 +482,9 @@ TEST_CASE("WriteContiguousAt")
 
   // delete
   if (get_thisrank() == 0) {
-    REQUIRE(std::remove(filename) == 0);
+    std::remove(filename);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //
@@ -560,8 +563,9 @@ TEST_CASE("ReadSubarray")
 
   // delete
   if (get_thisrank() == 0) {
-    REQUIRE(std::remove(filename) == 0);
+    std::remove(filename);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //
@@ -639,8 +643,9 @@ TEST_CASE("WriteSubarray")
 
   // delete
   if (get_thisrank() == 0) {
-    REQUIRE(std::remove(filename) == 0);
+    std::remove(filename);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 // Local Variables:

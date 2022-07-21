@@ -23,6 +23,7 @@
 #include <cassert>
 #include <sys/time.h>
 #include "config.hpp"
+#include "debug.hpp"
 #include "tinyformat.hpp"
 
 namespace common

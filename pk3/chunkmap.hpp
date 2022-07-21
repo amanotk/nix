@@ -10,10 +10,8 @@
 #include "common.hpp"
 #include "json.hpp"
 #include "sfc.hpp"
-#include "xtensor/xarray.hpp"
-#include "xtensor/xio.hpp"
-#include "xtensor/xsort.hpp"
-#include "xtensor/xview.hpp"
+#include "xtensorall.hpp"
+
 #include <mpi.h>
 
 ///
@@ -110,8 +108,8 @@ template <>
 inline void BaseChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
 {
   if (id >= 0 && id < size) {
-    cy = coord(id, 0);
-    cx = coord(id, 1);
+    cx = coord(id, 0);
+    cy = coord(id, 1);
   } else {
     cy = -1;
     cx = -1;
@@ -121,7 +119,7 @@ inline void BaseChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
 template <>
 inline int BaseChunkMap<2>::get_chunkid(int cy, int cx)
 {
-  if ((cy >= 0 && cy < dims[1]) && (cx >= 0 && cx < dims[0])) {
+  if ((cy >= 0 && cy < dims[0]) && (cx >= 0 && cx < dims[1])) {
     return chunkid(cy, cx);
   } else {
     return -1;
@@ -131,7 +129,7 @@ inline int BaseChunkMap<2>::get_chunkid(int cy, int cx)
 template <>
 inline int BaseChunkMap<3>::get_chunkid(int cz, int cy, int cx)
 {
-  if ((cz >= 0 && cz < dims[2]) && (cy >= 0 && cy < dims[1]) && (cx >= 0 && cx < dims[0])) {
+  if ((cz >= 0 && cz < dims[0]) && (cy >= 0 && cy < dims[1]) && (cx >= 0 && cx < dims[2])) {
     return chunkid(cz, cy, cx);
   } else {
     return -1;
@@ -142,9 +140,9 @@ template <>
 inline void BaseChunkMap<3>::get_coordinate(const int id, int &cz, int &cy, int &cx)
 {
   if (id >= 0 && id < size) {
-    cz = coord(id, 0);
+    cx = coord(id, 0);
     cy = coord(id, 1);
-    cx = coord(id, 2);
+    cz = coord(id, 2);
   } else {
     cz = -1;
     cy = -1;
