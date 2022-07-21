@@ -1,0 +1,15 @@
+{
+    "Nx" : 32,
+    "Ny" : 32,
+    "Nz" : 32,
+    "Cx" : 1,
+    "Cy" : 1,
+    "Cz" : 1,
+    "delt" : 0.5,
+    "delh" : 1.0,
+    "cc"   : 1.0,
+    "kdir" : 1,
+    "interval" : 5,
+    "prefix" : "maxwell_y",
+    "__EOF__" : 0
+}

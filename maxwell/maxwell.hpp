@@ -16,8 +16,9 @@ using Base     = BaseApplication<FDTD, ChunkMap>;
 class Maxwell : public Base
 {
 protected:
-  int         interval; ///< data output interval
   std::string prefix;   ///< output filename prefix
+  int         interval; ///< data output interval
+  int         kdir;     ///< wave propagation direction (for initial condition)
   float64     cc;       ///< speed of light
 
 public:
@@ -31,7 +32,7 @@ public:
 
   virtual void diagnostic() override;
 
-  virtual void initializer(float64 z, float64 y, float64 x, float64 *eb) = 0;
+  virtual void initializer(float64 z, float64 y, float64 x, float64 *eb);
 };
 
 // Local Variables:
