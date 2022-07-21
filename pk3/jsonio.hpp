@@ -207,7 +207,7 @@ inline void put_attribute(json &obj, string name, const size_t disp, const int32
 {
   int32_t dims[1] = {length};
   put_metadata(obj, name, "i4", "", disp, sizeof(int32_t) * length, 1, dims);
-  obj[name]["data"] = std::vector<int32_t>(&data[0], &data[length - 1]);
+  obj[name]["data"] = std::vector<int32_t>(&data[0], &data[length]);
 }
 
 inline void put_attribute(json &obj, string name, const size_t disp, const int32_t length,
@@ -215,7 +215,7 @@ inline void put_attribute(json &obj, string name, const size_t disp, const int32
 {
   int32_t dims[1] = {length};
   put_metadata(obj, name, "i8", "", disp, sizeof(size_t) * length, 1, dims);
-  obj[name]["data"] = std::vector<size_t>(&data[0], &data[length - 1]);
+  obj[name]["data"] = std::vector<size_t>(&data[0], &data[length]);
 }
 
 inline void put_attribute(json &obj, string name, const size_t disp, const int32_t length,
@@ -223,7 +223,7 @@ inline void put_attribute(json &obj, string name, const size_t disp, const int32
 {
   int32_t dims[1] = {length};
   put_metadata(obj, name, "f4", "", disp, sizeof(float32) * length, 1, dims);
-  obj[name]["data"] = std::vector<float32>(&data[0], &data[length - 1]);
+  obj[name]["data"] = std::vector<float32>(&data[0], &data[length]);
 }
 
 inline void put_attribute(json &obj, string name, const size_t disp, const int32_t length,
@@ -231,7 +231,7 @@ inline void put_attribute(json &obj, string name, const size_t disp, const int32
 {
   int32_t dims[1] = {length};
   put_metadata(obj, name, "f8", "", disp, sizeof(float64) * length, 1, dims);
-  obj[name]["data"] = std::vector<float64>(&data[0], &data[length - 1]);
+  obj[name]["data"] = std::vector<float64>(&data[0], &data[length]);
 }
 
 } // namespace jsonio

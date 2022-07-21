@@ -123,6 +123,42 @@ DEFINE_MEMBER3(bool, validate)()
   return sfc::check_index(chunkid) & sfc::check_locality3d(coord);
 }
 
+DEFINE_MEMBER(void, save)(json &obj, MPI_File *fh, size_t *disp)
+{
+  int32_t nd;
+  int32_t sh[3];
+  size_t  datasize;
+
+  datasize = sizeof(int);
+  jsonio::put_attribute(obj, "size", *disp, size);
+  jsonio::write_single(fh, disp, &size, datasize);
+
+  datasize = sizeof(int) * 3;
+  jsonio::put_attribute(obj, "dims", *disp, 3, dims);
+  jsonio::write_single(fh, disp, &dims[0], datasize);
+
+  nd       = 1;
+  sh[0]    = size;
+  datasize = sizeof(int) * rank.size();
+  jsonio::put_metadata(obj, "rank", "i4", "", *disp, datasize, nd, sh);
+  jsonio::write_single(fh, disp, rank.data(), datasize);
+
+  nd       = 2;
+  sh[0]    = size;
+  sh[1]    = N;
+  datasize = sizeof(int) * coord.size();
+  jsonio::put_metadata(obj, "coord", "i4", "", *disp, datasize, nd, sh);
+  jsonio::write_single(fh, disp, coord.data(), datasize);
+
+  nd       = N;
+  sh[0]    = dims[0];
+  sh[1]    = dims[1];
+  sh[2]    = dims[2];
+  datasize = sizeof(int) * chunkid.size();
+  jsonio::put_metadata(obj, "chunkid", "i4", "", *disp, datasize, nd, sh);
+  jsonio::write_single(fh, disp, chunkid.data(), datasize);
+}
+
 DEFINE_MEMBER1(void, json_save)(std::ostream &out)
 {
   json obj;

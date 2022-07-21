@@ -54,8 +54,9 @@ DEFINE_MEMBER(void, diagnostic)()
   std::string fn_json  = filename + ".json";
   std::string fn_data  = filename + ".data";
 
-  json     root;
-  json     dataset;
+  json     json_root;
+  json     json_chunkmap;
+  json     json_dataset;
   MPI_File fh;
   size_t   disp;
   int      bufsize;
@@ -66,8 +67,11 @@ DEFINE_MEMBER(void, diagnostic)()
   // open file
   jsonio::open_file(fn_data.c_str(), &fh, &disp, "w");
 
+  // save chunkmap
+  chunkmap->save(json_chunkmap, &fh, &disp);
+
   // json metadata
-  jsonio::put_metadata(dataset, "uf", "f8", "", disp, size, ndim, dims);
+  jsonio::put_metadata(json_dataset, "uf", "f8", "", disp, size, ndim, dims);
 
   // assume buffer size for each chunk is equal
   bufsize = chunkvec[0]->pack(FDTD::PackEmfQuery, nullptr);
@@ -79,31 +83,39 @@ DEFINE_MEMBER(void, diagnostic)()
 
   // write data for each chunk
   for (int i = 0; i < numchunk; i++) {
-    int         byte;
     MPI_Request req;
 
-    byte = chunkvec[i]->pack(FDTD::PackEmf, sendbuf.get());
+    chunkvec[i]->pack(FDTD::PackEmf, sendbuf.get());
 
-    jsonio::write_contiguous_at(&fh, &disp, sendbuf.get(), byte, 1, &req);
-    disp += byte;
+    jsonio::write_contiguous_at(&fh, &disp, sendbuf.get(), bufsize, 1, &req);
+    disp += bufsize;
 
     MPI_Wait(&req, MPI_STATUS_IGNORE);
   }
 
   jsonio::close_file(&fh);
 
-  // meta data
-  root["meta"] = {{"endian", common::get_endian_flag()},
-                  {"rawfile", fn_data},
-                  {"order", 1},
-                  {"time", curtime},
-                  {"step", curstep}};
-  // dataset
-  root["dataset"] = dataset;
+  //
+  // output json file
+  //
 
-  std::ofstream ofs(fn_json);
-  ofs << std::setw(2) << root;
-  ofs.close();
+  // meta data
+  json_root["meta"] = {{"endian", common::get_endian_flag()},
+                       {"rawfile", fn_data},
+                       {"order", 1},
+                       {"time", curtime},
+                       {"step", curstep}};
+  // chunkmap
+  json_root["chunkmap"] = json_chunkmap;
+  // dataset
+  json_root["dataset"] = json_dataset;
+
+  if (thisrank == 0) {
+    std::ofstream ofs(fn_json);
+    ofs << std::setw(2) << json_root;
+    ofs.close();
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 DEFINE_MEMBER(void, initializer)(float64 z, float64 y, float64 x, float64 *eb)

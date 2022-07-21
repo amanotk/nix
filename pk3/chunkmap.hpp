@@ -9,6 +9,7 @@
 ///
 #include "common.hpp"
 #include "json.hpp"
+#include "jsonio.hpp"
 #include "sfc.hpp"
 #include "xtensorall.hpp"
 
@@ -52,6 +53,8 @@ public:
   BaseChunkMap(const int dims[N]);
 
   virtual bool validate();
+
+  virtual void save(json &obj, MPI_File *fh, size_t *disp);
 
   virtual void json_save(std::ostream &out);
 
