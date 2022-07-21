@@ -269,7 +269,10 @@ DEFINE_MEMBER(void, set_boundary_begin)()
   bufpos = xt::cumsum(bufpos) - Sz;
   bufpos.reshape({3, 2});
 
-  DEBUGPRINT(std::cerr, "set_boundary_begin\n");
+  // physical boundary
+  set_boundary_physical(0);
+  set_boundary_physical(1);
+  set_boundary_physical(2);
 
   //
   // issue send/recv calls in z direction
@@ -281,18 +284,14 @@ DEFINE_MEMBER(void, set_boundary_begin)()
     void *sndpos[2] = {sendbuf.get(bufpos(0, 0)), sendbuf.get(bufpos(0, 1))};
     void *rcvpos[2] = {recvbuf.get(bufpos(0, 0)), recvbuf.get(bufpos(0, 1))};
 
-    MPI_Request *sndreq = &request[0][0][0];
-    MPI_Request *rcvreq = &request[1][0][0];
-
     // lower bound
     {
       auto     view   = xt::view(uf, Lbz, Iy, Ix, Ia);
       float64 *buffer = static_cast<float64 *>(sndpos[0]);
       int      byte   = view.size() * sizeof(float64);
       std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sndreq[0]);
-      MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &rcvreq[0]);
-      DEBUGPRINT(std::cerr, "send/recv to lower z direction: sndpos = %d, rcvpos = %d\n", sndpos[0], rcvpos[0]);
+      MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[0][0]);
+      MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[0][0]);
     }
 
     // upper bound
@@ -301,9 +300,8 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       float64 *buffer = static_cast<float64 *>(sndpos[1]);
       int      byte   = view.size() * sizeof(float64);
       std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sndreq[1]);
-      MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &rcvreq[1]);
-      DEBUGPRINT(std::cerr, "send/recv to upper z direction: sndpos = %d, rcvpos = %d\n", sndpos[1], rcvpos[1]);
+      MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[0][1]);
+      MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[0][1]);
     }
   }
 
@@ -317,18 +315,14 @@ DEFINE_MEMBER(void, set_boundary_begin)()
     void *sndpos[2] = {sendbuf.get(bufpos(1, 0)), sendbuf.get(bufpos(1, 1))};
     void *rcvpos[2] = {recvbuf.get(bufpos(1, 0)), recvbuf.get(bufpos(1, 1))};
 
-    MPI_Request *sndreq = &request[0][1][0];
-    MPI_Request *rcvreq = &request[1][1][0];
-
     // lower bound
     {
       auto     view   = xt::view(uf, Iz, Lby, Ix, Ia);
       float64 *buffer = static_cast<float64 *>(sndpos[0]);
       int      byte   = view.size() * sizeof(float64);
       std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sndreq[0]);
-      MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &rcvreq[0]);
-      DEBUGPRINT(std::cerr, "send/recv to lower y direction: sndpos = %d, rcvpos = %d\n", sndpos[0], rcvpos[0]);
+      MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[1][0]);
+      MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[1][0]);
     }
 
     // upper bound
@@ -337,9 +331,8 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       float64 *buffer = static_cast<float64 *>(sndpos[1]);
       int      byte   = view.size() * sizeof(float64);
       std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sndreq[1]);
-      MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &rcvreq[1]);
-      DEBUGPRINT(std::cerr, "send/recv to upper y direction: sndpos = %d, rcvpos = %d\n", sndpos[1], rcvpos[1]);
+      MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[1][1]);
+      MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[1][1]);
     }
   }
 
@@ -353,18 +346,14 @@ DEFINE_MEMBER(void, set_boundary_begin)()
     void *sndpos[2] = {sendbuf.get(bufpos(2, 0)), sendbuf.get(bufpos(2, 1))};
     void *rcvpos[2] = {recvbuf.get(bufpos(2, 0)), recvbuf.get(bufpos(2, 1))};
 
-    MPI_Request *sndreq = &request[0][2][0];
-    MPI_Request *rcvreq = &request[1][2][0];
-
     // lower bound
     {
       auto     view   = xt::view(uf, Iz, Iy, Lbx, Ia);
       float64 *buffer = static_cast<float64 *>(sndpos[0]);
       int      byte   = view.size() * sizeof(float64);
       std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sndreq[0]);
-      MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &rcvreq[0]);
-      DEBUGPRINT(std::cerr, "send/recv to lower x direction: sndpos = %d, rcvpos = %d\n", sndpos[0], rcvpos[0]);
+      MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[2][0]);
+      MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[2][0]);
     }
 
     // upper bound
@@ -373,9 +362,8 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       float64 *buffer = static_cast<float64 *>(sndpos[1]);
       int      byte   = view.size() * sizeof(float64);
       std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sndreq[1]);
-      MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &rcvreq[1]);
-      DEBUGPRINT(std::cerr, "send/recv to upper x direction: sndpos = %d, rcvpos = %d\n", sndpos[1], rcvpos[1]);
+      MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[2][1]);
+      MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[2][1]);
     }
   }
 }
@@ -397,117 +385,85 @@ DEFINE_MEMBER(void, set_boundary_end)()
   bufpos = xt::cumsum(bufpos) - Sz;
   bufpos.reshape({3, 2});
 
-  DEBUGPRINT(std::cerr, "set_boundary_end\n");
-
   //
   // unpack recv buffer in z direction
   //
   {
-    int   nbrank[2] = {get_nb_rank(-1, 0, 0), get_nb_rank(+1, 0, 0)};
     void *rcvpos[2] = {recvbuf.get(bufpos(0, 0)), recvbuf.get(bufpos(0, 1))};
 
-    MPI_Request *sndreq = &request[0][0][0];
-    MPI_Request *rcvreq = &request[1][0][0];
-
     // wait for receive
-    MPI_Waitall(2, &rcvreq[0], MPI_STATUS_IGNORE);
+    MPI_Waitall(2, &recvreq[0][0], MPI_STATUS_IGNORE);
 
     // lower bound
-    if (nbrank[0] == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!");
-    } else {
+    if (get_nb_rank(-1, 0, 0) != MPI_PROC_NULL) {
       auto     view   = xt::view(uf, Lbz - 1, Iy, Ix, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[0]);
       std::copy(buffer, buffer + view.size(), view.begin());
-      DEBUGPRINT(std::cerr, "unpack from lower z direction\n");
     }
 
     // upper bound
-    if (nbrank[1] == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!");
-    } else {
+    if (get_nb_rank(+1, 0, 0) != MPI_PROC_NULL) {
       auto     view   = xt::view(uf, Ubz + 1, Iy, Ix, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[1]);
       std::copy(buffer, buffer + view.size(), view.begin());
-      DEBUGPRINT(std::cerr, "unpack from upper z direction\n");
     }
 
     // wait for send
-    MPI_Waitall(2, &sndreq[0], MPI_STATUS_IGNORE);
+    MPI_Waitall(2, &sendreq[0][0], MPI_STATUS_IGNORE);
   }
 
   //
   // unpack recv buffer in y direction
   //
   {
-    int   nbrank[2] = {get_nb_rank(0, -1, 0), get_nb_rank(0, +1, 0)};
     void *rcvpos[2] = {recvbuf.get(bufpos(1, 0)), recvbuf.get(bufpos(1, 1))};
 
-    MPI_Request *sndreq = &request[0][1][0];
-    MPI_Request *rcvreq = &request[1][1][0];
-
     // wait for receive
-    MPI_Waitall(2, &rcvreq[0], MPI_STATUS_IGNORE);
+    MPI_Waitall(2, &recvreq[1][0], MPI_STATUS_IGNORE);
 
     // lower bound
-    if (nbrank[0] == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!");
-    } else {
+    if (get_nb_rank(0, -1, 0) != MPI_PROC_NULL) {
       auto     view   = xt::view(uf, Iz, Lby - 1, Ix, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[0]);
       std::copy(buffer, buffer + view.size(), view.begin());
-      DEBUGPRINT(std::cerr, "unpack from lower y direction\n");
     }
 
     // upper bound
-    if (nbrank[1] == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!");
-    } else {
+    if (get_nb_rank(0, +1, 0) != MPI_PROC_NULL) {
       auto     view   = xt::view(uf, Iz, Uby + 1, Ix, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[1]);
       std::copy(buffer, buffer + view.size(), view.begin());
-      DEBUGPRINT(std::cerr, "unpack from upper y direction\n");
     }
 
     // wait for send
-    MPI_Waitall(2, &sndreq[0], MPI_STATUS_IGNORE);
+    MPI_Waitall(2, &sendreq[1][0], MPI_STATUS_IGNORE);
   }
 
   //
   // unpack recv buffer in x direction
   //
   {
-    int   nbrank[2] = {get_nb_rank(0, 0, -1), get_nb_rank(0, 0, +1)};
     void *rcvpos[2] = {recvbuf.get(bufpos(2, 0)), recvbuf.get(bufpos(2, 1))};
 
-    MPI_Request *sndreq = &request[0][2][0];
-    MPI_Request *rcvreq = &request[1][2][0];
-
     // wait for receive
-    MPI_Waitall(2, &rcvreq[0], MPI_STATUS_IGNORE);
+    MPI_Waitall(2, &recvreq[1][0], MPI_STATUS_IGNORE);
 
     // lower bound
-    if (nbrank[0] == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!");
-    } else {
+    if (get_nb_rank(0, 0, -1) != MPI_PROC_NULL) {
       auto     view   = xt::view(uf, Iz, Iy, Lbx - 1, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[0]);
       std::copy(buffer, buffer + view.size(), view.begin());
-      DEBUGPRINT(std::cerr, "unpack from lower x direction\n");
     }
 
     // upper bound
-    if (nbrank[1] == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!");
-    } else {
+    if (get_nb_rank(0, 0, +1) != MPI_PROC_NULL) {
       auto     view   = xt::view(uf, Iz, Iy, Ubx + 1, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[1]);
       std::copy(buffer, buffer + view.size(), view.begin());
-      DEBUGPRINT(std::cerr, "unpack from upper x direction\n");
     }
 
     // wait for send
-    MPI_Waitall(2, &sndreq[0], MPI_STATUS_IGNORE);
+    MPI_Waitall(2, &sendreq[1][0], MPI_STATUS_IGNORE);
   }
 }
 
@@ -517,20 +473,53 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
 
   switch (mode) {
   case +1: // receive
-    MPI_Testall(6, &request[1][0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(6, &recvreq[0][0], &flag, MPI_STATUS_IGNORE);
     break;
   case -1: // send
-    MPI_Testall(6, &request[0][0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(6, &sendreq[0][0], &flag, MPI_STATUS_IGNORE);
     break;
   case 0: // both send and receive
-    MPI_Testall(6, &request[0][0][0], &flag, MPI_STATUS_IGNORE);
-    MPI_Testall(6, &request[1][0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(6, &recvreq[0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(6, &sendreq[0][0], &flag, MPI_STATUS_IGNORE);
     break;
   deafult:
     ERRORPRINT("No such mode is available");
   }
 
   return !(flag == 0);
+}
+
+DEFINE_MEMBER(void, set_boundary_physical)(const int dir)
+{
+  // lower boundary in z
+  if (get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+  }
+
+  // upper boundary in z
+  if (get_nb_rank(+1, 0, 0) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+  }
+
+  // lower boundary in y
+  if (get_nb_rank(0, -1, 0) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+  }
+
+  // upper boundary in y
+  if (get_nb_rank(0, +1, 0) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+  }
+
+  // lower boundary in x
+  if (get_nb_rank(0, 0, -1) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+  }
+
+  // upper boundary in x
+  if (get_nb_rank(0, 0, +1) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!");
+  }
 }
 
 DEFINE_MEMBER(void, set_boundary)()

@@ -44,7 +44,6 @@ protected:
   float64                 ylim[3]; ///< physical domain in y
   float64                 zlim[3]; ///< physical domain in z
 
-  MPI_Request request[2][3][2]; ///< MPI request
   MPI_Request sendreq[3][2];    ///< MPI request
   MPI_Request recvreq[3][2];    ///< MPI request
   size_t      bufsize[4];       ///< MPI buffer size
@@ -76,6 +75,8 @@ public:
   virtual void set_boundary_end();
 
   virtual bool set_boundary_query(const int mode);
+
+  virtual void set_boundary_physical(const int dir);
 
   virtual void set_boundary();
 };
