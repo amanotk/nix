@@ -22,7 +22,13 @@ DEFINE_MEMBER(void, initialize)(int argc, char **argv)
 
   // set initial condition
   for (int i = 0; i < numchunk; i++) {
-    int offset[3] = {0, 0, 0};
+    int ix, iy, iz;
+    int offset[3];
+
+    chunkmap->get_coordinate(chunkvec[i]->get_id(), iz, iy, ix);
+    offset[0] = iz * ndims[0] / cdims[0];
+    offset[1] = iy * ndims[1] / cdims[1];
+    offset[2] = ix * ndims[2] / cdims[2];
     chunkvec[i]->setup(cc, delh, offset, f);
   }
 }
@@ -63,12 +69,13 @@ DEFINE_MEMBER(void, diagnostic)()
   // json metadata
   jsonio::put_metadata(dataset, "uf", "f8", "", disp, size, ndim, dims);
 
-  // check buffer size
-  bufsize = 0;
+  // assume buffer size for each chunk is equal
+  bufsize = chunkvec[0]->pack(FDTD::PackEmfQuery, nullptr);
   for (int i = 0; i < numchunk; i++) {
-    bufsize = std::max(bufsize, chunkvec[i]->pack(FDTD::PackEmfQuery, nullptr));
+    assert(bufsize == chunkvec[i]->pack(FDTD::PackEmfQuery, nullptr));
   }
   sendbuf.resize(bufsize);
+  disp += bufsize * chunkvec[0]->get_id();
 
   // write data for each chunk
   for (int i = 0; i < numchunk; i++) {
@@ -76,7 +83,6 @@ DEFINE_MEMBER(void, diagnostic)()
     MPI_Request req;
 
     byte = chunkvec[i]->pack(FDTD::PackEmf, sendbuf.get());
-    assert(byte == bufsize);
 
     jsonio::write_contiguous_at(&fh, &disp, sendbuf.get(), byte, 1, &req);
     disp += byte;

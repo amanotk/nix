@@ -317,7 +317,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
     void *sndpos[2] = {sendbuf.get(bufpos(1, 0)), sendbuf.get(bufpos(1, 1))};
     void *rcvpos[2] = {recvbuf.get(bufpos(1, 0)), recvbuf.get(bufpos(1, 1))};
 
-    DEBUGPRINT(std::cout, "y direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(-1, 0, 0), get_nb_rank(0, 0, 0), get_nb_rank(+1, 0, 0));
+    DEBUGPRINT(std::cout, "y direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(0, -1, 0), get_nb_rank(0, 0, 0), get_nb_rank(0, +1, 0));
 
     // lower bound
     {
@@ -350,7 +350,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
     void *sndpos[2] = {sendbuf.get(bufpos(2, 0)), sendbuf.get(bufpos(2, 1))};
     void *rcvpos[2] = {recvbuf.get(bufpos(2, 0)), recvbuf.get(bufpos(2, 1))};
 
-    DEBUGPRINT(std::cout, "x direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(-1, 0, 0), get_nb_rank(0, 0, 0), get_nb_rank(+1, 0, 0));
+    DEBUGPRINT(std::cout, "x direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(0, 0, -1), get_nb_rank(0, 0, 0), get_nb_rank(0, 0, +1));
 
     // lower bound
     {
@@ -360,6 +360,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       std::copy(view.begin(), view.end(), buffer);
       MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[2][0]);
       MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[2][0]);
+      DEBUGPRINT(std::cout, "send to lower (%2d -> %2d) => %20.8e\n", get_nb_rank(0,0,0), get_nb_rank(0,0,-1), buffer[0]);
     }
 
     // upper bound
@@ -370,6 +371,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       std::copy(view.begin(), view.end(), buffer);
       MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[2][1]);
       MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[2][1]);
+      DEBUGPRINT(std::cout, "send to upper (%2d -> %2d) => %20.8e\n", get_nb_rank(0,0,0), get_nb_rank(0,0,+1), buffer[0]);
     }
   }
 }
@@ -452,13 +454,14 @@ DEFINE_MEMBER(void, set_boundary_end)()
     void *rcvpos[2] = {recvbuf.get(bufpos(2, 0)), recvbuf.get(bufpos(2, 1))};
 
     // wait for receive
-    MPI_Waitall(2, &recvreq[1][0], MPI_STATUS_IGNORE);
+    MPI_Waitall(2, &recvreq[2][0], MPI_STATUS_IGNORE);
 
     // lower bound
     if (get_nb_rank(0, 0, -1) != MPI_PROC_NULL) {
       auto     view   = xt::view(uf, Iz, Iy, Lbx - 1, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[0]);
       std::copy(buffer, buffer + view.size(), view.begin());
+      DEBUGPRINT(std::cout, "recv from lower (%2d <- %2d) => %20.8e\n", get_nb_rank(0,0,0), get_nb_rank(0,0,-1), buffer[0]);
     }
 
     // upper bound
@@ -466,10 +469,11 @@ DEFINE_MEMBER(void, set_boundary_end)()
       auto     view   = xt::view(uf, Iz, Iy, Ubx + 1, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[1]);
       std::copy(buffer, buffer + view.size(), view.begin());
+      DEBUGPRINT(std::cout, "recv from upper (%2d <- %2d) => %20.8e\n", get_nb_rank(0,0,0), get_nb_rank(0,0,+1), buffer[0]);
     }
 
     // wait for send
-    MPI_Waitall(2, &sendreq[1][0], MPI_STATUS_IGNORE);
+    MPI_Waitall(2, &sendreq[2][0], MPI_STATUS_IGNORE);
   }
 }
 
