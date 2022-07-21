@@ -33,7 +33,7 @@ protected:
   int     myid;                   ///< chunk ID
   int     nbid[NB_SIZE[N - 1]];   ///< neighboring chunk ID
   int     nbrank[NB_SIZE[N - 1]]; ///< neighboring chunk MPI rank
-  int     shape[N];               ///< number of grids
+  int     dims[N];                ///< number of grids
   int     offset[N];              ///< global index offset
   float64 load;                   ///< current load
 

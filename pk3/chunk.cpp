@@ -81,9 +81,9 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
   // set ID
   set_id(id);
 
-  // set shape
+  // set dimensions
   for (int i = 0; i < N; i++) {
-    shape[i]  = dims[i];
+    this->dims[i]  = dims[i];
     offset[i] = 0;
   }
 

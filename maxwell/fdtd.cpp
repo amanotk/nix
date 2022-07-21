@@ -5,17 +5,17 @@
 
 DEFINE_MEMBER(, FDTD)(const int dims[3], const int id) : BaseChunk<3>(dims, id)
 {
-  size_t Nz = shape[0] + 2 * Nb;
-  size_t Ny = shape[1] + 2 * Nb;
-  size_t Nx = shape[2] + 2 * Nb;
+  size_t Nz = this->dims[0] + 2 * Nb;
+  size_t Ny = this->dims[1] + 2 * Nb;
+  size_t Nx = this->dims[2] + 2 * Nb;
 
   // lower and upper bound
   Lbz = Nb;
-  Ubz = shape[0] + Nb - 1;
+  Ubz = this->dims[0] + Nb - 1;
   Lby = Nb;
-  Uby = shape[1] + Nb - 1;
+  Uby = this->dims[1] + Nb - 1;
   Lbx = Nb;
-  Ubx = shape[2] + Nb - 1;
+  Ubx = this->dims[2] + Nb - 1;
 
   // memory allocation
   zc.resize({Nz});
@@ -153,13 +153,13 @@ DEFINE_MEMBER(void, setup)
   this->offset[2] = offset[2];
 
   zlim[0] = offset[0] * delh;
-  zlim[1] = offset[0] * delh + shape[0] * delh;
+  zlim[1] = offset[0] * delh + dims[0] * delh;
   zlim[2] = zlim[1] - zlim[0];
   ylim[0] = offset[1] * delh;
-  ylim[1] = offset[1] * delh + shape[1] * delh;
+  ylim[1] = offset[1] * delh + dims[1] * delh;
   ylim[2] = ylim[1] - ylim[0];
   xlim[0] = offset[2] * delh;
-  xlim[1] = offset[2] * delh + shape[2] * delh;
+  xlim[1] = offset[2] * delh + dims[2] * delh;
   xlim[2] = xlim[1] - xlim[0];
 
   // set coordinate
@@ -234,7 +234,7 @@ DEFINE_MEMBER(void, push)(const float64 delt)
 
 DEFINE_MEMBER(int, pack_diagnostic)(void *buffer, const bool query)
 {
-  size_t   size = shape[2] * shape[1] * shape[0] * 6;
+  size_t   size = dims[2] * dims[1] * dims[0] * 6;
   float64 *buf  = static_cast<float64 *>(buffer);
 
   if (query) {
