@@ -69,7 +69,7 @@ public:
   // set ID
   void set_id(const int id)
   {
-    assert( !(tagmask & id) ); // ID must be < 2^(32-DIRTAG_BIT)
+    assert( !(tagmask & id) ); // ID must be < 2^(31-DIRTAG_BIT)
 
     myid = id;
   }
@@ -84,6 +84,13 @@ public:
   int get_tagmask()
   {
     return tagmask;
+  }
+
+  // get maximum ID
+  static int get_max_id()
+  {
+    int max_int32_t = std::numeric_limits<int32_t>::max();
+    return tagmask ^ max_int32_t;
   }
 
   void set_nb_id(const int dirx, const int id);
@@ -121,12 +128,6 @@ public:
   int get_rcvtag(const int diry, const int dirx);
 
   int get_rcvtag(const int dirz, const int diry, const int dirx);
-
-  // get maximum ID
-  static int get_max_id()
-  {
-    return 1 << (32 - DIRTAG_BIT) - 1;
-  }
 };
 
 template <int N>
