@@ -7,6 +7,7 @@
 ///
 /// $Id$
 ///
+#include "common.hpp"
 #include "json.hpp"
 #include "tinyformat.hpp"
 #include <cstddef>

@@ -6,6 +6,7 @@
 #include <xtensor/xarray.hpp>
 #include <xtensor/xview.hpp>
 #include <xtensor/xio.hpp>
+#include <xtensor/xsort.hpp>
 
 // Local Variables:
 // c-file-style   : "gnu"
