@@ -27,12 +27,9 @@ DEFINE_MEMBER(, FDTD)(const int dims[3], const int id) : BaseChunk<3>(dims, id)
   xc.fill(0);
   uf.fill(0);
 
-  bufsize[0] = 6 * Nx * Ny * Nb * sizeof(float64);
-  bufsize[1] = 6 * Nz * Nx * Nb * sizeof(float64);
-  bufsize[2] = 6 * Ny * Nz * Nb * sizeof(float64);
-  bufsize[3] = bufsize[0] + bufsize[1] + bufsize[2];
-  sendbuf.resize(2 * bufsize[3]);
-  recvbuf.resize(2 * bufsize[3]);
+  set_buffer_position();
+  sendbuf.resize(bufsize);
+  recvbuf.resize(bufsize);
 }
 
 DEFINE_MEMBER(, ~FDTD)()
@@ -252,225 +249,168 @@ DEFINE_MEMBER(int, pack_diagnostic)(void *buffer, const bool query)
   return sizeof(float64) * size;
 }
 
+DEFINE_MEMBER(void, set_buffer_position) ()
+{
+  const std::vector<size_t> shape = {3, 3};
+
+  auto I = xt::all();
+  auto J = xt::newaxis();
+
+  {
+    //
+    // lower/upper bounds for MPI send
+    //
+    // * z direction
+    sendlb[0][0] = Lbz;
+    sendlb[0][1] = Lbz;
+    sendlb[0][2] = Ubz - Nb + 1;
+    sendub[0][0] = Lbz + Nb - 1;
+    sendub[0][1] = Ubz;
+    sendub[0][2] = Ubz;
+    // * y direction
+    sendlb[1][0] = Lby;
+    sendlb[1][1] = Lby;
+    sendlb[1][2] = Uby - Nb + 1;
+    sendub[1][0] = Lby + Nb - 1;
+    sendub[1][1] = Uby;
+    sendub[1][2] = Uby;
+    // * x direction
+    sendlb[2][0] = Lbx;
+    sendlb[2][1] = Lbx;
+    sendlb[2][2] = Ubx - Nb + 1;
+    sendub[2][0] = Lbx + Nb - 1;
+    sendub[2][1] = Ubx;
+    sendub[2][2] = Ubx;
+
+    //
+    // lower/upper bounds for MPI recv
+    //
+    // * z direction
+    recvlb[0][0] = Lbz - Nb;
+    recvlb[0][1] = Lbz;
+    recvlb[0][2] = Ubz + 1;
+    recvub[0][0] = Lbz - 1;
+    recvub[0][1] = Ubz;
+    recvub[0][2] = Ubz + Nb;
+    // * y direction
+    recvlb[1][0] = Lby - Nb;
+    recvlb[1][1] = Lby;
+    recvlb[1][2] = Uby + 1;
+    recvub[1][0] = Lby - 1;
+    recvub[1][1] = Uby;
+    recvub[1][2] = Uby + Nb;
+    // * x direction
+    recvlb[2][0] = Lbx - Nb;
+    recvlb[2][1] = Lbx;
+    recvlb[2][2] = Ubx + 1;
+    recvub[2][0] = Lbx - 1;
+    recvub[2][1] = Ubx;
+    recvub[2][2] = Ubx + Nb;
+  }
+
+  auto xlb = xt::adapt(&recvlb[0][0], 9, xt::no_ownership(), shape);
+  auto xub = xt::adapt(&recvub[0][0], 9, xt::no_ownership(), shape);
+  auto xss = xub - xlb + 1;
+  auto pos =
+      xt::eval(xt::view(xss, 0, I, J, J) * xt::view(xss, 1, J, I, J) * xt::view(xss, 2, J, J, I));
+
+  // no send/recv with itself
+  pos(1, 1, 1) = 0;
+
+  // calculate buffer positions and size
+  pos     = xt::cumsum(pos);
+  pos     = xt::roll(pos, 1);
+  bufsize = pos(0) * sizeof(float64) * 6;
+  pos(0)  = 0;
+
+  // reshpe and store
+  pos.reshape({3, 3, 3});
+  bufaddr = pos;
+}
+
 DEFINE_MEMBER(void, set_boundary_begin)()
 {
-  const size_t Sz = bufsize[0];
-  const size_t Sy = bufsize[1];
-  const size_t Sx = bufsize[2];
-
   auto Ia = xt::all();
-  auto Iz = xt::range(Lbz, Ubz + 1);
-  auto Iy = xt::range(Lby, Uby + 1);
-  auto Ix = xt::range(Lbx, Ubx + 1);
-
-  // calculate buffer positions
-  xt::xarray<size_t> bufpos = {Sz, Sz, Sy, Sy, Sx, Sx};
-
-  bufpos = xt::roll(xt::cumsum(bufpos), 1);
-  bufpos(0) = 0;
-  bufpos.reshape({3, 2});
 
   // physical boundary
   set_boundary_physical(0);
   set_boundary_physical(1);
   set_boundary_physical(2);
 
-  //
-  // issue send/recv calls in z direction
-  //
-  {
-    int   nbrank[2] = {get_nb_rank(-1, 0, 0), get_nb_rank(+1, 0, 0)};
-    int   sndtag[2] = {get_sndtag(-1, 0, 0), get_sndtag(+1, 0, 0)};
-    int   rcvtag[2] = {get_rcvtag(-1, 0, 0), get_rcvtag(+1, 0, 0)};
-    void *sndpos[2] = {sendbuf.get(bufpos(0, 0)), sendbuf.get(bufpos(0, 1))};
-    void *rcvpos[2] = {recvbuf.get(bufpos(0, 0)), recvbuf.get(bufpos(0, 1))};
+  for (int dirz = -1, iz=0; dirz <= +1; dirz++, iz++) {
+    for (int diry = -1, iy=0; diry <= +1; diry++, iy++) {
+      for (int dirx = -1, ix=0; dirx <= +1; dirx++, ix++) {
+        // skip send/recv to itself
+        if (dirz == 0 && diry == 0 && dirx == 0) {
+          sendreq[iz][iy][ix] = MPI_REQUEST_NULL;
+          recvreq[iz][iy][ix] = MPI_REQUEST_NULL;
+          continue;
+        }
 
-    DEBUGPRINT(std::cout, "z direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(-1, 0, 0), get_nb_rank(0, 0, 0), get_nb_rank(+1, 0, 0));
+        // index range
+        auto Iz = xt::range(sendlb[0][iz], sendub[0][iz] + 1);
+        auto Iy = xt::range(sendlb[1][iy], sendub[1][iy] + 1);
+        auto Ix = xt::range(sendlb[2][ix], sendub[2][ix] + 1);
 
-    // lower bound
-    {
-      auto     view   = xt::view(uf, Lbz, Iy, Ix, Ia);
-      float64 *buffer = static_cast<float64 *>(sndpos[0]);
-      int      byte   = view.size() * sizeof(float64);
-      std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[0][0]);
-      MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[0][0]);
-      DEBUGPRINT(std::cout, "sendrecv %6d bytes in z %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(-1,0,0));
-    }
+        // MPI
+        auto  view   = xt::view(uf, Iz, Iy, Ix, Ia);
+        int   byte   = view.size() * sizeof(float64);
+        int   nbrank = get_nb_rank(dirz, diry, dirx);
+        int   sndtag = get_sndtag(dirz, diry, dirx);
+        int   rcvtag = get_rcvtag(dirz, diry, dirx);
+        int   dsize  = sizeof(float64) * 6;
+        void *sndpos = sendbuf.get(bufaddr(iz, iy, ix) * dsize);
+        void *rcvpos = recvbuf.get(bufaddr(iz, iy, ix) * dsize);
 
-    // upper bound
-    {
-      auto     view   = xt::view(uf, Ubz, Iy, Ix, Ia);
-      float64 *buffer = static_cast<float64 *>(sndpos[1]);
-      int      byte   = view.size() * sizeof(float64);
-      std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[0][1]);
-      MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[0][1]);
-      DEBUGPRINT(std::cout, "sendrecv %6d bytes in z %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(+1,0,0));
-    }
-  }
+        // pack
+        std::copy(view.begin(), view.end(), static_cast<float64 *>(sndpos));
 
-  //
-  // issue send/recv calls in y direction
-  //
-  {
-    int   nbrank[2] = {get_nb_rank(0, -1, 0), get_nb_rank(0, +1, 0)};
-    int   sndtag[2] = {get_sndtag(0, -1, 0), get_sndtag(0, +1, 0)};
-    int   rcvtag[2] = {get_rcvtag(0, -1, 0), get_rcvtag(0, +1, 0)};
-    void *sndpos[2] = {sendbuf.get(bufpos(1, 0)), sendbuf.get(bufpos(1, 1))};
-    void *rcvpos[2] = {recvbuf.get(bufpos(1, 0)), recvbuf.get(bufpos(1, 1))};
-
-    DEBUGPRINT(std::cout, "y direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(0, -1, 0), get_nb_rank(0, 0, 0), get_nb_rank(0, +1, 0));
-
-    // lower bound
-    {
-      auto     view   = xt::view(uf, Iz, Lby, Ix, Ia);
-      float64 *buffer = static_cast<float64 *>(sndpos[0]);
-      int      byte   = view.size() * sizeof(float64);
-      std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[1][0]);
-      MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[1][0]);
-      DEBUGPRINT(std::cout, "sendrecv %6d bytes in y %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(0,-1,0));
-    }
-
-    // upper bound
-    {
-      auto     view   = xt::view(uf, Iz, Uby, Ix, Ia);
-      float64 *buffer = static_cast<float64 *>(sndpos[1]);
-      int      byte   = view.size() * sizeof(float64);
-      std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[1][1]);
-      MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[1][1]);
-      DEBUGPRINT(std::cout, "sendrecv %6d bytes in y %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(0,+1,0));
-    }
-  }
-
-  //
-  // issue send/recv calls in x direction
-  //
-  {
-    int   nbrank[2] = {get_nb_rank(0, 0, -1), get_nb_rank(0, 0, +1)};
-    int   sndtag[2] = {get_sndtag(0, 0, -1), get_sndtag(0, 0, +1)};
-    int   rcvtag[2] = {get_rcvtag(0, 0, -1), get_rcvtag(0, 0, +1)};
-    void *sndpos[2] = {sendbuf.get(bufpos(2, 0)), sendbuf.get(bufpos(2, 1))};
-    void *rcvpos[2] = {recvbuf.get(bufpos(2, 0)), recvbuf.get(bufpos(2, 1))};
-
-    DEBUGPRINT(std::cout, "x direction: [lower, self, upper] => [%4d, %4d, %4d]\n", get_nb_rank(0, 0, -1), get_nb_rank(0, 0, 0), get_nb_rank(0, 0, +1));
-
-    // lower bound
-    {
-      auto     view   = xt::view(uf, Iz, Iy, Lbx, Ia);
-      float64 *buffer = static_cast<float64 *>(sndpos[0]);
-      int      byte   = view.size() * sizeof(float64);
-      std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[2][0]);
-      MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[2][0]);
-      DEBUGPRINT(std::cout, "sendrecv %6d bytes in x %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(0,0,-1));
-    }
-
-    // upper bound
-    {
-      auto     view   = xt::view(uf, Iz, Iy, Ubx, Ia);
-      float64 *buffer = static_cast<float64 *>(sndpos[1]);
-      int      byte   = view.size() * sizeof(float64);
-      std::copy(view.begin(), view.end(), buffer);
-      MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[2][1]);
-      MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[2][1]);
-      DEBUGPRINT(std::cout, "sendrecv %6d bytes in x %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(0,0,+1));
+        // send/recv calls
+        MPI_Isend(sndpos, byte, MPI_BYTE, nbrank, sndtag, MPI_COMM_WORLD, &sendreq[iz][iy][ix]);
+        MPI_Irecv(rcvpos, byte, MPI_BYTE, nbrank, rcvtag, MPI_COMM_WORLD, &recvreq[iz][iy][ix]);
+      }
     }
   }
 }
 
 DEFINE_MEMBER(void, set_boundary_end)()
 {
-  const size_t Sz = bufsize[0];
-  const size_t Sy = bufsize[1];
-  const size_t Sx = bufsize[2];
-
   auto Ia = xt::all();
-  auto Iz = xt::range(Lbz, Ubz + 1);
-  auto Iy = xt::range(Lby, Uby + 1);
-  auto Ix = xt::range(Lbx, Ubx + 1);
-
-  // calculate buffer positions
-  xt::xarray<size_t> bufpos = {Sz, Sz, Sy, Sy, Sx, Sx};
-
-  bufpos = xt::roll(xt::cumsum(bufpos), 1);
-  bufpos(0) = 0;
-  bufpos.reshape({3, 2});
 
   //
-  // unpack recv buffer in z direction
+  // wait for MPI calls to complete
   //
-  {
-    void *rcvpos[2] = {recvbuf.get(bufpos(0, 0)), recvbuf.get(bufpos(0, 1))};
-
-    // wait
-    MPI_Waitall(2, &sendreq[0][0], MPI_STATUS_IGNORE);
-    MPI_Waitall(2, &recvreq[0][0], MPI_STATUS_IGNORE);
-
-    // lower bound
-    if (get_nb_rank(-1, 0, 0) != MPI_PROC_NULL) {
-      auto     view   = xt::view(uf, Lbz - 1, Iy, Ix, Ia);
-      float64 *buffer = static_cast<float64 *>(rcvpos[0]);
-      std::copy(buffer, buffer + view.size(), view.begin());
-    }
-
-    // upper bound
-    if (get_nb_rank(+1, 0, 0) != MPI_PROC_NULL) {
-      auto     view   = xt::view(uf, Ubz + 1, Iy, Ix, Ia);
-      float64 *buffer = static_cast<float64 *>(rcvpos[1]);
-      std::copy(buffer, buffer + view.size(), view.begin());
-    }
-  }
+  MPI_Waitall(27, &sendreq[0][0][0], MPI_STATUS_IGNORE);
+  MPI_Waitall(27, &recvreq[0][0][0], MPI_STATUS_IGNORE);
 
   //
-  // unpack recv buffer in y direction
+  // unpack recv buffer
   //
-  {
-    void *rcvpos[2] = {recvbuf.get(bufpos(1, 0)), recvbuf.get(bufpos(1, 1))};
+  for (int dirz = -1, iz=0; dirz <= +1; dirz++, iz++) {
+    for (int diry = -1, iy=0; diry <= +1; diry++, iy++) {
+      for (int dirx = -1, ix=0; dirx <= +1; dirx++, ix++) {
+        // skip send/recv to itself
+        if (dirz == 0 && diry == 0 && dirx == 0) {
+          continue;
+        }
 
-    // wait
-    MPI_Waitall(2, &sendreq[1][0], MPI_STATUS_IGNORE);
-    MPI_Waitall(2, &recvreq[1][0], MPI_STATUS_IGNORE);
+        // skip physical boundary
+        if (get_nb_rank(dirz, diry, dirx) == MPI_PROC_NULL) {
+          continue;
+        }
 
-    // lower bound
-    if (get_nb_rank(0, -1, 0) != MPI_PROC_NULL) {
-      auto     view   = xt::view(uf, Iz, Lby - 1, Ix, Ia);
-      float64 *buffer = static_cast<float64 *>(rcvpos[0]);
-      std::copy(buffer, buffer + view.size(), view.begin());
-    }
+        // index range
+        auto Iz = xt::range(recvlb[0][iz], recvub[0][iz] + 1);
+        auto Iy = xt::range(recvlb[1][iy], recvub[1][iy] + 1);
+        auto Ix = xt::range(recvlb[2][ix], recvub[2][ix] + 1);
 
-    // upper bound
-    if (get_nb_rank(0, +1, 0) != MPI_PROC_NULL) {
-      auto     view   = xt::view(uf, Iz, Uby + 1, Ix, Ia);
-      float64 *buffer = static_cast<float64 *>(rcvpos[1]);
-      std::copy(buffer, buffer + view.size(), view.begin());
-    }
-  }
-
-  //
-  // unpack recv buffer in x direction
-  //
-  {
-    void *rcvpos[2] = {recvbuf.get(bufpos(2, 0)), recvbuf.get(bufpos(2, 1))};
-
-    // wait for receive
-    MPI_Waitall(2, &sendreq[2][0], MPI_STATUS_IGNORE);
-    MPI_Waitall(2, &recvreq[2][0], MPI_STATUS_IGNORE);
-
-    // lower bound
-    if (get_nb_rank(0, 0, -1) != MPI_PROC_NULL) {
-      auto     view   = xt::view(uf, Iz, Iy, Lbx - 1, Ia);
-      float64 *buffer = static_cast<float64 *>(rcvpos[0]);
-      std::copy(buffer, buffer + view.size(), view.begin());
-    }
-
-    // upper bound
-    if (get_nb_rank(0, 0, +1) != MPI_PROC_NULL) {
-      auto     view   = xt::view(uf, Iz, Iy, Ubx + 1, Ia);
-      float64 *buffer = static_cast<float64 *>(rcvpos[1]);
-      std::copy(buffer, buffer + view.size(), view.begin());
+        // unpack
+        auto     view   = xt::view(uf, Iz, Iy, Ix, Ia);
+        int      dsize  = sizeof(float64) * 6;
+        void *   rcvpos = recvbuf.get(bufaddr(iz, iy, ix) * dsize);
+        float64 *ptr    = static_cast<float64 *>(rcvpos);
+        std::copy(ptr, ptr + view.size(), view.begin());
+      }
     }
   }
 }
@@ -481,14 +421,14 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
 
   switch (mode) {
   case +1: // receive
-    MPI_Testall(6, &recvreq[0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Waitall(27, &recvreq[0][0][0], MPI_STATUS_IGNORE);
     break;
   case -1: // send
-    MPI_Testall(6, &sendreq[0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Waitall(27, &sendreq[0][0][0], MPI_STATUS_IGNORE);
     break;
   case 0: // both send and receive
-    MPI_Testall(6, &recvreq[0][0], &flag, MPI_STATUS_IGNORE);
-    MPI_Testall(6, &sendreq[0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Waitall(27, &sendreq[0][0][0], MPI_STATUS_IGNORE);
+    MPI_Waitall(27, &recvreq[0][0][0], MPI_STATUS_IGNORE);
     break;
   deafult:
     ERRORPRINT("No such mode is available");

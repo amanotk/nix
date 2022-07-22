@@ -14,6 +14,7 @@ class FDTD : public BaseChunk<3>
 {
 public:
   using T_function = std::function<void(float64, float64, float64, float64 *)>;
+  using T_bufaddr = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
   enum PackMode {
     PackAll = 1,
     PackAllQuery,
@@ -22,13 +23,17 @@ public:
   };
 
 protected:
-  static const int Nb = 1; ///< boundary margin
-  int              Lbx;    ///< lower bound in x
-  int              Ubx;    ///< upper bound in x
-  int              Lby;    ///< lower bound in y
-  int              Uby;    ///< upper bound in y
-  int              Lbz;    ///< lower bound in z
-  int              Ubz;    ///< upper bound in z
+  static const int Nb = 1;       ///< boundary margin
+  int              Lbx;          ///< lower bound in x
+  int              Ubx;          ///< upper bound in x
+  int              Lby;          ///< lower bound in y
+  int              Uby;          ///< upper bound in y
+  int              Lbz;          ///< lower bound in z
+  int              Ubz;          ///< upper bound in z
+  int              sendlb[3][3]; ///< lower bound for send
+  int              sendub[3][3]; ///< upper bound for send
+  int              recvlb[3][3]; ///< lower bound for recv
+  int              recvub[3][3]; ///< upper bound for recv
 
   xt::xtensor<float64, 1> xc;      ///< x coordiante
   xt::xtensor<float64, 1> yc;      ///< y coordiante
@@ -40,11 +45,12 @@ protected:
   float64                 ylim[3]; ///< physical domain in y
   float64                 zlim[3]; ///< physical domain in z
 
-  MPI_Request sendreq[3][2]; ///< MPI request
-  MPI_Request recvreq[3][2]; ///< MPI request
-  size_t      bufsize[4];    ///< MPI buffer size
-  Buffer      sendbuf;       ///< MPI send buffer
-  Buffer      recvbuf;       ///< MPI recv buffer
+  MPI_Request sendreq[3][3][3]; ///< MPI request
+  MPI_Request recvreq[3][3][3]; ///< MPI request
+  size_t      bufsize;          // MPI buffer size
+  T_bufaddr   bufaddr;          // MPI buffer address array
+  Buffer      sendbuf;          ///< MPI send buffer
+  Buffer      recvbuf;          ///< MPI recv buffer
 
 public:
   FDTD(const int dims[3], const int id = 0);
@@ -65,6 +71,8 @@ public:
   virtual void push(const float64 delt);
 
   virtual int pack_diagnostic(void *buffer, const bool query);
+
+  virtual void set_buffer_position();
 
   virtual void set_boundary_begin();
 
