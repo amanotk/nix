@@ -266,7 +266,8 @@ DEFINE_MEMBER(void, set_boundary_begin)()
   // calculate buffer positions
   xt::xarray<size_t> bufpos = {Sz, Sz, Sy, Sy, Sx, Sx};
 
-  bufpos = xt::cumsum(bufpos) - Sz;
+  bufpos = xt::roll(xt::cumsum(bufpos), 1);
+  bufpos(0) = 0;
   bufpos.reshape({3, 2});
 
   // physical boundary
@@ -294,6 +295,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       std::copy(view.begin(), view.end(), buffer);
       MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[0][0]);
       MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[0][0]);
+      DEBUGPRINT(std::cout, "sendrecv %6d bytes in z %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(-1,0,0));
     }
 
     // upper bound
@@ -304,6 +306,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       std::copy(view.begin(), view.end(), buffer);
       MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[0][1]);
       MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[0][1]);
+      DEBUGPRINT(std::cout, "sendrecv %6d bytes in z %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(+1,0,0));
     }
   }
 
@@ -327,6 +330,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       std::copy(view.begin(), view.end(), buffer);
       MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[1][0]);
       MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[1][0]);
+      DEBUGPRINT(std::cout, "sendrecv %6d bytes in y %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(0,-1,0));
     }
 
     // upper bound
@@ -337,6 +341,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       std::copy(view.begin(), view.end(), buffer);
       MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[1][1]);
       MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[1][1]);
+      DEBUGPRINT(std::cout, "sendrecv %6d bytes in y %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(0,+1,0));
     }
   }
 
@@ -360,7 +365,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       std::copy(view.begin(), view.end(), buffer);
       MPI_Isend(sndpos[0], byte, MPI_BYTE, nbrank[0], sndtag[0], MPI_COMM_WORLD, &sendreq[2][0]);
       MPI_Irecv(rcvpos[0], byte, MPI_BYTE, nbrank[0], rcvtag[0], MPI_COMM_WORLD, &recvreq[2][0]);
-      DEBUGPRINT(std::cout, "send to lower (%2d -> %2d) => %20.8e\n", get_nb_rank(0,0,0), get_nb_rank(0,0,-1), buffer[0]);
+      DEBUGPRINT(std::cout, "sendrecv %6d bytes in x %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(0,0,-1));
     }
 
     // upper bound
@@ -371,7 +376,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
       std::copy(view.begin(), view.end(), buffer);
       MPI_Isend(sndpos[1], byte, MPI_BYTE, nbrank[1], sndtag[1], MPI_COMM_WORLD, &sendreq[2][1]);
       MPI_Irecv(rcvpos[1], byte, MPI_BYTE, nbrank[1], rcvtag[1], MPI_COMM_WORLD, &recvreq[2][1]);
-      DEBUGPRINT(std::cout, "send to upper (%2d -> %2d) => %20.8e\n", get_nb_rank(0,0,0), get_nb_rank(0,0,+1), buffer[0]);
+      DEBUGPRINT(std::cout, "sendrecv %6d bytes in x %2d <=> %2d\n", byte, get_nb_rank(0,0,0), get_nb_rank(0,0,+1));
     }
   }
 }
@@ -390,7 +395,8 @@ DEFINE_MEMBER(void, set_boundary_end)()
   // calculate buffer positions
   xt::xarray<size_t> bufpos = {Sz, Sz, Sy, Sy, Sx, Sx};
 
-  bufpos = xt::cumsum(bufpos) - Sz;
+  bufpos = xt::roll(xt::cumsum(bufpos), 1);
+  bufpos(0) = 0;
   bufpos.reshape({3, 2});
 
   //
@@ -399,7 +405,8 @@ DEFINE_MEMBER(void, set_boundary_end)()
   {
     void *rcvpos[2] = {recvbuf.get(bufpos(0, 0)), recvbuf.get(bufpos(0, 1))};
 
-    // wait for receive
+    // wait
+    MPI_Waitall(2, &sendreq[0][0], MPI_STATUS_IGNORE);
     MPI_Waitall(2, &recvreq[0][0], MPI_STATUS_IGNORE);
 
     // lower bound
@@ -415,9 +422,6 @@ DEFINE_MEMBER(void, set_boundary_end)()
       float64 *buffer = static_cast<float64 *>(rcvpos[1]);
       std::copy(buffer, buffer + view.size(), view.begin());
     }
-
-    // wait for send
-    MPI_Waitall(2, &sendreq[0][0], MPI_STATUS_IGNORE);
   }
 
   //
@@ -426,7 +430,8 @@ DEFINE_MEMBER(void, set_boundary_end)()
   {
     void *rcvpos[2] = {recvbuf.get(bufpos(1, 0)), recvbuf.get(bufpos(1, 1))};
 
-    // wait for receive
+    // wait
+    MPI_Waitall(2, &sendreq[1][0], MPI_STATUS_IGNORE);
     MPI_Waitall(2, &recvreq[1][0], MPI_STATUS_IGNORE);
 
     // lower bound
@@ -442,9 +447,6 @@ DEFINE_MEMBER(void, set_boundary_end)()
       float64 *buffer = static_cast<float64 *>(rcvpos[1]);
       std::copy(buffer, buffer + view.size(), view.begin());
     }
-
-    // wait for send
-    MPI_Waitall(2, &sendreq[1][0], MPI_STATUS_IGNORE);
   }
 
   //
@@ -454,6 +456,7 @@ DEFINE_MEMBER(void, set_boundary_end)()
     void *rcvpos[2] = {recvbuf.get(bufpos(2, 0)), recvbuf.get(bufpos(2, 1))};
 
     // wait for receive
+    MPI_Waitall(2, &sendreq[2][0], MPI_STATUS_IGNORE);
     MPI_Waitall(2, &recvreq[2][0], MPI_STATUS_IGNORE);
 
     // lower bound
@@ -461,7 +464,6 @@ DEFINE_MEMBER(void, set_boundary_end)()
       auto     view   = xt::view(uf, Iz, Iy, Lbx - 1, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[0]);
       std::copy(buffer, buffer + view.size(), view.begin());
-      DEBUGPRINT(std::cout, "recv from lower (%2d <- %2d) => %20.8e\n", get_nb_rank(0,0,0), get_nb_rank(0,0,-1), buffer[0]);
     }
 
     // upper bound
@@ -469,11 +471,7 @@ DEFINE_MEMBER(void, set_boundary_end)()
       auto     view   = xt::view(uf, Iz, Iy, Ubx + 1, Ia);
       float64 *buffer = static_cast<float64 *>(rcvpos[1]);
       std::copy(buffer, buffer + view.size(), view.begin());
-      DEBUGPRINT(std::cout, "recv from upper (%2d <- %2d) => %20.8e\n", get_nb_rank(0,0,0), get_nb_rank(0,0,+1), buffer[0]);
     }
-
-    // wait for send
-    MPI_Waitall(2, &sendreq[2][0], MPI_STATUS_IGNORE);
   }
 }
 
