@@ -30,13 +30,27 @@ DEFINE_MEMBER(void, initialize)(int argc, char **argv)
     offset[1] = iy * ndims[1] / cdims[1];
     offset[2] = ix * ndims[2] / cdims[2];
     chunkvec[i]->setup(cc, delh, offset, f);
+    chunkvec[i]->set_boundary_begin();
+  }
+
+  for (int i = 0; i < numchunk; i++) {
+    chunkvec[i]->set_boundary_end();
   }
 }
 
 DEFINE_MEMBER(void, push)()
 {
+  std::set<int> waiting;
+
   for (int i = 0; i < numchunk; i++) {
     chunkvec[i]->push(delt);
+    chunkvec[i]->set_boundary_begin();
+    waiting.insert(i);
+  }
+
+  for (int i = 0; i < numchunk; i++) {
+    chunkvec[i]->set_boundary_end();
+    waiting.erase(i);
   }
 
   curtime += delt;

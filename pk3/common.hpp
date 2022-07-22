@@ -16,6 +16,7 @@
 #include <fstream>
 #include <vector>
 #include <list>
+#include <set>
 #include <algorithm>
 #include <memory>
 #include <bitset>

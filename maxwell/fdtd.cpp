@@ -180,9 +180,6 @@ DEFINE_MEMBER(void, setup)
       }
     }
   }
-
-  // set boundary condition
-  set_boundary();
 }
 
 DEFINE_MEMBER(void, push)(const float64 delt)
@@ -205,9 +202,6 @@ DEFINE_MEMBER(void, push)(const float64 delt)
     }
   }
 
-  // set boundary condition
-  set_boundary();
-
   // advance B-field
   for (int iz = Lbz; iz <= Ubz; iz++) {
     for (int iy = Lby; iy <= Uby; iy++) {
@@ -221,9 +215,6 @@ DEFINE_MEMBER(void, push)(const float64 delt)
       }
     }
   }
-
-  // set boundary condition
-  set_boundary();
 
   // store computation time
   load += common::etime() - etime;
