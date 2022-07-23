@@ -439,10 +439,22 @@ public:
     // check buffer size and reallocate if necessary
     //
     {
-      int bufsize = 0;
+      int sendsize_l = 0;
+      int sendsize_r = 0;
+
       for (int i = 0; i < numchunk; i++) {
-        bufsize = std::max(bufsize, chunkvec[i]->pack(Chunk::PackAllQuery, nullptr));
+        int id = chunkvec[i]->get_id();
+
+        if (newrank[id] == thisrank - 1) {
+          sendsize_l += chunkvec[i]->pack(Chunk::PackAllQuery, nullptr);
+        } else if (newrank[id] == thisrank + 1) {
+          sendsize_r += chunkvec[i]->pack(Chunk::PackAllQuery, nullptr);
+        }
       }
+
+      // make buffer size the same for all processes
+      bufsize = std::max(bufsize, 2*std::max(sendsize_l, sendsize_r));
+      MPI_Allreduce(MPI_IN_PLACE, &bufsize, 1, MPI_INT32_T, MPI_MAX, MPI_COMM_WORLD);
 
       sendbuf.resize(bufsize);
       recvbuf.resize(bufsize);
@@ -504,7 +516,7 @@ public:
       int rank_l     = thisrank > 0 ? thisrank - 1 : MPI_PROC_NULL;
       int rank_r     = thisrank < nprocess - 1 ? thisrank + 1 : MPI_PROC_NULL;
 
-      // send/recv chunkes
+      // send/recv chunks
       sbuf_l = sendbuf.get(spos_l);
       sbuf_r = sendbuf.get(spos_r);
       rbuf_l = recvbuf.get(rpos_l);

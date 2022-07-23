@@ -72,7 +72,7 @@ public:
 
   virtual int pack_diagnostic(void *buffer, const bool query);
 
-  virtual void set_buffer_position();
+  virtual void set_buffer_address();
 
   virtual void set_boundary_begin();
 
@@ -81,8 +81,6 @@ public:
   virtual bool set_boundary_query(const int mode);
 
   virtual void set_boundary_physical(const int dir);
-
-  virtual void set_boundary();
 };
 
 // Local Variables:

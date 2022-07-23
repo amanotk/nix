@@ -48,9 +48,17 @@ DEFINE_MEMBER(void, push)()
     waiting.insert(i);
   }
 
-  for (int i = 0; i < numchunk; i++) {
-    chunkvec[i]->set_boundary_end();
-    waiting.erase(i);
+  while (waiting.empty() == false) {
+    // try to find a chunk ready for unpacking
+    auto iter = std::find_if(waiting.begin(), waiting.end(),
+                             [&](int i) { return chunkvec[i]->set_boundary_query(+1); });
+    if (iter == waiting.end()) {
+      continue;
+    }
+
+    // unpack and remove from the waiting queue
+    chunkvec[*iter]->set_boundary_end();
+    waiting.erase(*iter);
   }
 
   curtime += delt;
