@@ -129,9 +129,8 @@ def add_chunkmap(obj, hdffile, rawfile, byteorder, order, group='', verbose=True
 
 def is_chunked_dataset(dataset, cshape):
     dshape = dataset.shape
-    status1 = (dshape[0] == np.prod(cshape))
-    status2 = np.alltrue([d%c == 0 for d, c in zip(dshape[1:4], cshape[0:3])])
-    return (status1 and status2)
+    status = (dshape[0] == np.prod(cshape))
+    return status
 
 
 def is_external_contiguous(external):
