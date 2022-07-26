@@ -18,6 +18,7 @@
 #include <list>
 #include <set>
 #include <algorithm>
+#include <functional>
 #include <memory>
 #include <bitset>
 #include <random>

@@ -2,7 +2,7 @@
 include ../common.mk
 
 SUBDIRS =
-SRCS    = chunk.cpp chunkmap.cpp jsonio.cpp sfc.cpp
+SRCS    = chunk.cpp chunk3d.cpp chunkmap.cpp jsonio.cpp sfc.cpp
 OBJS    = $(SRCS:%.cpp=%.o)
 DEPS    = $(SRCS:%.cpp=%.d)
 
