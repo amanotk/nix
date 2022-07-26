@@ -1,10 +1,10 @@
 // -*- C++ -*-
 
-#include "pk3/application.hpp"
-#include "pk3/chunk.hpp"
-#include "pk3/chunkmap.hpp"
+#include "../application.hpp"
+#include "../chunk.hpp"
+#include "../chunkmap.hpp"
 
-#include "pk3/catch.hpp"
+#include "../catch.hpp"
 
 using Chunk    = BaseChunk<3>;
 using ChunkMap = BaseChunkMap<3>;

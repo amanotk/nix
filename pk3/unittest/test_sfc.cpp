@@ -1,8 +1,8 @@
 // -*- C++ -*-
 
-#include "pk3/sfc.hpp"
+#include "../sfc.hpp"
 
-#include "pk3/catch.hpp"
+#include "../catch.hpp"
 
 //
 // 2D

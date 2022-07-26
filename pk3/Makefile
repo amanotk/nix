@@ -6,11 +6,11 @@ SRCS    = chunk.cpp chunk3d.cpp chunkmap.cpp jsonio.cpp sfc.cpp
 OBJS    = $(SRCS:%.cpp=%.o)
 DEPS    = $(SRCS:%.cpp=%.d)
 
-default: libpk3.a
+default: libnix.a
 
 ### library
-libpk3.a: $(OBJS)
-	$(AR) r libpk3.a $(OBJS)
+libnix.a: $(OBJS)
+	$(AR) r $@ $(OBJS)
 
 ### clean
 clean :

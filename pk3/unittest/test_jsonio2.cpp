@@ -1,8 +1,8 @@
 // -*- C++ -*-
 
-#include "pk3/catch.hpp"
-#include "pk3/jsonio.hpp"
-#include "pk3/xtensorall.hpp"
+#include "../catch.hpp"
+#include "../jsonio.hpp"
+#include "../xtensorall.hpp"
 
 #include <fstream>
 #include <iostream>

@@ -1,9 +1,9 @@
 // -*- C++ -*-
 
-#include "pk3/jsonio.hpp"
+#include "../jsonio.hpp"
 #include <iostream>
 
-#include "pk3/catch.hpp"
+#include "../catch.hpp"
 
 static const auto json_to_check = R"(
 {
@@ -42,7 +42,8 @@ static const auto json_to_check = R"(
       10,
       20,
       30,
-      40
+      40,
+      50
     ]
   },
   "array_int64": {
@@ -58,7 +59,8 @@ static const auto json_to_check = R"(
       15,
       30,
       45,
-      60
+      60,
+      75
     ]
   },
   "scalar_float32": {
@@ -96,7 +98,8 @@ static const auto json_to_check = R"(
       0.0,
       1.0,
       2.0,
-      3.0
+      3.0,
+      4.0
     ]
   },
   "array_float64": {
@@ -112,7 +115,8 @@ static const auto json_to_check = R"(
       0.0,
       -1.0,
       -2.0,
-      -3.0
+      -3.0,
+      -4.0
     ]
   }
 }

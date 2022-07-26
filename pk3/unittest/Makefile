@@ -4,7 +4,7 @@ include ../../common.mk
 .PHONY: default clean cleanall
 
 ### target
-LIBS    := $(BASEDIR)/libpk3.a
+LIBS    := $(BASEDIR)/libnix.a
 SRCS    := test_serial.cpp test_parallel.cpp test_jsonio1.cpp test_jsonio2.cpp \
 	test_sfc.cpp test_chunk.cpp test_chunkmap.cpp test_application.cpp
 
@@ -18,22 +18,22 @@ default: $(EXES)
 
 # individual executables
 test_jsonio1: test_serial.o test_jsonio1.o
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 test_jsonio2: test_parallel.o test_jsonio2.o
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 test_sfc: test_serial.o test_sfc.o
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 test_chunk: test_serial.o test_chunk.o
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 test_chunkmap: test_serial.o test_chunkmap.o
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 test_application: test_serial.o test_application.o
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lpk3
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 ### clean
 clean:

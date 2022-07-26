@@ -4,7 +4,7 @@
 #include <mpi.h>
 
 #define CATCH_CONFIG_RUNNER
-#include "pk3/catch.hpp"
+#include "../catch.hpp"
 
 // global variable for MPI
 int options_mpi_decomposition[3];

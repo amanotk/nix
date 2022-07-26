@@ -2,11 +2,11 @@
 #ifndef _Chunk3D_HPP_
 #define _Chunk3D_HPP_
 
-#include "pk3/buffer.hpp"
-#include "pk3/chunk.hpp"
-#include "pk3/debug.hpp"
-#include "pk3/jsonio.hpp"
-#include "pk3/xtensorall.hpp"
+#include "buffer.hpp"
+#include "chunk.hpp"
+#include "debug.hpp"
+#include "jsonio.hpp"
+#include "xtensorall.hpp"
 
 template <int Nb>
 class Chunk3D : public BaseChunk<3>
