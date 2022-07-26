@@ -4,7 +4,7 @@ include ../common.mk
 .PHONY: default clean cleanall
 
 ### target
-LIBS    := $(BASEDIR)/libpk3.a
+LIBS    := $(BASEDIR)/libnix.a
 SRCS    := fdtd.cpp maxwell.cpp main.cpp
 
 ### OBJS/DEPS
@@ -16,7 +16,7 @@ DEPS    := $(SRCS:%.cpp=%.d)
 default: $(EXES)
 
 main.out: $(OBJS)
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../pk3/ -lpk3
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L$(BASEDIR) -lnix
 
 ### clean
 clean:

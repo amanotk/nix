@@ -1,5 +1,5 @@
 # -*- Makefile -*-
-include ../../common.mk
+include ../common.mk
 
 .PHONY: default clean cleanall
 

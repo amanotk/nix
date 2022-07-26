@@ -2,11 +2,11 @@
 #ifndef _FDTD_HPP_
 #define _FDTD_HPP_
 
-#include "pk3/buffer.hpp"
-#include "pk3/chunk3d.hpp"
-#include "pk3/debug.hpp"
-#include "pk3/jsonio.hpp"
-#include "pk3/xtensorall.hpp"
+#include "../buffer.hpp"
+#include "../chunk3d.hpp"
+#include "../debug.hpp"
+#include "../jsonio.hpp"
+#include "../xtensorall.hpp"
 
 class FDTD : public Chunk3D<1>
 {

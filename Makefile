@@ -1,5 +1,5 @@
 # -*- Makefile -*-
-include ../common.mk
+include common.mk
 
 SUBDIRS =
 SRCS    = chunk.cpp chunk3d.cpp chunkmap.cpp jsonio.cpp sfc.cpp

@@ -3,9 +3,9 @@
 #define _MAXWELL_HPP_
 
 #include "fdtd.hpp"
-#include "pk3/application.hpp"
-#include "pk3/chunkmap.hpp"
-#include "pk3/jsonio.hpp"
+#include "../application.hpp"
+#include "../chunkmap.hpp"
+#include "../jsonio.hpp"
 
 using ChunkMap = BaseChunkMap<3>;
 using Base     = BaseApplication<FDTD, ChunkMap>;
