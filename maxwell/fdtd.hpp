@@ -44,13 +44,13 @@ public:
 
   virtual int pack_diagnostic(void *buffer, const bool query);
 
-  virtual void set_boundary_begin() override;
+  virtual void set_boundary_begin(const int mode=0) override;
 
-  virtual void set_boundary_end() override;
+  virtual void set_boundary_end(const int mode=0) override;
 
-  virtual bool set_boundary_query(const int mode) override;
+  virtual bool set_boundary_query(const int mode=0) override;
 
-  virtual void set_boundary_physical(const int dir) override;
+  virtual void set_boundary_physical(const int dir);
 };
 
 // Local Variables:

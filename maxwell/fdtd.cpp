@@ -159,7 +159,7 @@ DEFINE_MEMBER(int, pack_diagnostic)(void *buffer, const bool query)
   return sizeof(float64) * size;
 }
 
-DEFINE_MEMBER(void, set_boundary_begin)()
+DEFINE_MEMBER(void, set_boundary_begin)(const int mode)
 {
   auto Ia = xt::all();
 
@@ -204,7 +204,7 @@ DEFINE_MEMBER(void, set_boundary_begin)()
   }
 }
 
-DEFINE_MEMBER(void, set_boundary_end)()
+DEFINE_MEMBER(void, set_boundary_end)(const int mode)
 {
   auto Ia = xt::all();
 

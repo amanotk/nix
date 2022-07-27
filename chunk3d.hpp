@@ -68,13 +68,11 @@ public:
 
   virtual void push(const float64 delt) = 0;
 
-  virtual void set_boundary_begin() = 0;
+  virtual void set_boundary_begin(const int mode) = 0;
 
-  virtual void set_boundary_end() = 0;
+  virtual void set_boundary_end(const int mode) = 0;
 
   virtual bool set_boundary_query(const int mode) = 0;
-
-  virtual void set_boundary_physical(const int dir) = 0;
 };
 
 // Local Variables:
