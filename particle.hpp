@@ -33,6 +33,7 @@ public:
   int Np;       ///< # particles in active
   int Ng;       ///< # grid points (product in x, y, z dirs)
 
+  float64                 qm;     ///< charge/mass
   xt::xtensor<float64, 2> xp;     ///< particle array
   xt::xtensor<float64, 2> xq;     ///< temporary particle array (for sorting)
   xt::xtensor<float64, 1> gindex; ///< index to grid for each particle
@@ -219,6 +220,35 @@ public:
     s[0] = 0.50 * (0.50 + delta) * (0.5 + delta);
     s[1] = 0.75 - delta * delta;
     s[2] = 0.50 * (0.50 - delta) * (0.5 - delta);
+  }
+
+  ///
+  /// @brief return first-order weighted electromagnetic field
+  ///
+  template <typename T>
+  static float64 weighted_eb1(const T &eb, const int iz, const int iy, const int ix, const int ik,
+                              const float64 wz[2], const float64 wy[2], const float64 wx[2],
+                              const float64 dt)
+  {
+    float64 result;
+
+    int ix1 = ix;
+    int ix2 = ix1 + 1;
+    int iy1 = iy;
+    int iy2 = iy1 + 1;
+    int iz1 = iz;
+    int iz2 = iz1 + 1;
+
+    result = (wx[0] * wy[0] * wz[0] * eb(iz1, iy1, ix1, ik) +
+              wx[1] * wy[0] * wz[0] * eb(iz1, iy1, ix2, ik) +
+              wx[0] * wy[1] * wz[0] * eb(iz1, iy2, ix1, ik) +
+              wx[1] * wy[1] * wz[0] * eb(iz1, iy2, ix2, ik) +
+              wx[0] * wy[0] * wz[1] * eb(iz2, iy1, ix1, ik) +
+              wx[1] * wy[0] * wz[1] * eb(iz2, iy1, ix2, ik) +
+              wx[0] * wy[1] * wz[1] * eb(iz2, iy2, ix1, ik) +
+              wx[1] * wy[1] * wz[1] * eb(iz2, iy2, ix2, ik)) *
+             dt;
+    return result;
   }
 };
 

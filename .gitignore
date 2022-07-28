@@ -12,3 +12,4 @@ test_chunkmap
 test_jsonio1
 test_jsonio2
 test_sfc
+test_particle
