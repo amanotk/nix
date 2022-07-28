@@ -6,10 +6,12 @@ include ../common.mk
 ### target
 LIBS    := $(BASEDIR)/libnix.a
 SRCS    := test_serial.cpp test_parallel.cpp test_jsonio1.cpp test_jsonio2.cpp \
-	test_sfc.cpp test_chunk.cpp test_chunkmap.cpp test_application.cpp
+	test_sfc.cpp test_chunk.cpp test_chunkmap.cpp test_particle.cpp \
+	test_application.cpp
 
 ### OBJS/DEPS
-EXES    := test_jsonio1 test_jsonio2 test_sfc test_chunk test_chunkmap test_application
+EXES    := test_jsonio1 test_jsonio2 test_sfc test_chunk test_chunkmap \
+	test_particle test_application
 OBJS    := $(SRCS:%.cpp=%.o)
 DEPS    := $(SRCS:%.cpp=%.d)
 
@@ -30,6 +32,9 @@ test_chunk: test_serial.o test_chunk.o
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 test_chunkmap: test_serial.o test_chunkmap.o
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
+
+test_particle: test_serial.o test_particle.o
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 test_application: test_serial.o test_application.o

@@ -7,6 +7,7 @@
 #include <xtensor/xview.hpp>
 #include <xtensor/xio.hpp>
 #include <xtensor/xsort.hpp>
+#include <xtensor/xrandom.hpp>
 
 // Local Variables:
 // c-file-style   : "gnu"

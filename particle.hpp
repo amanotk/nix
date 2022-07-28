@@ -170,60 +170,44 @@ public:
   }
 
   ///
-  /// @brief template for shape function
+  /// @brief first-order particle shape function
   ///
-  template <int order>
-  static float64 S(float64 xp, float64 xg, float64 rdx);
+  /// This function assumes X <= x < X + dx and computes particle weights at
+  /// the two gird points X, X + dx, which are assigned to s[0..1].
+  ///
+  /// @param[in]  x   particle position
+  /// @param[in]  X   grid point such that X <= x < X + dx
+  /// @param[in]  rdx 1/dx
+  /// @param[out] s   weights at grid points (X, X + dx)
+  ///
+  static void S1(const float64 x, const float64 X, const float64 rdx, float64 s[2])
+  {
+    float64 delta = (x - X) * rdx;
+
+    s[0] = 1 - delta;
+    s[1] = delta;
+  }
 
   ///
-  /// @brief template for derivative of shape function
+  /// @brief second-order particle shape function
   ///
-  template <int order>
-  static float64 D(float64 xp, float64 xg, float64 rdx);
+  /// This function assumes X - dx/2 <= x < X + dx/2 and computes particle weights
+  /// at the three grid points X-dx, X, X + dx, which are assigned to s[0..2].
+  ///
+  /// @param[in]  x   particle position
+  /// @param[in]  X   grid point such that X - dx/2 <= x < X + dx/2
+  /// @param[in]  rdx 1/dx
+  /// @param[out] s   weights at grid points (X - dx, X, X + dx)
+  ///
+  static void S2(const float64 x, const float64 X, const float64 rdx, float64 s[3])
+  {
+    float64 delta = (x - X) * rdx;
+
+    s[0] = 0.50 * (0.50 + delta) * (0.5 + delta);
+    s[1] = 0.75 - delta * delta;
+    s[2] = 0.50 * (0.50 - delta) * (0.5 - delta);
+  }
 };
-
-// first-order shape function
-template <>
-inline float64 Particle::S<1>(float64 xp, float64 xg, float64 rdx)
-{
-  float64 xx = std::abs((xp - xg) * rdx);
-  float64 s1 = 0.5 * (Particle::sign(1.0 - xx) + 1.0);
-  return s1 * (1.0 - xx);
-}
-
-// derivative of first-order shape function
-template <>
-inline float64 Particle::D<1>(float64 xp, float64 xg, float64 rdx)
-{
-  float64 xx = std::abs((xp - xg) * rdx);
-  float64 pm = Particle::sign(xp - xg);
-  return 0.5 * (Particle::sign(1.0 - xx) + 1.0) * pm;
-}
-
-// second-order shape function
-template <>
-inline float64 Particle::S<2>(float64 xp, float64 xg, float64 rdx)
-{
-  float64 xx = std::abs((xp - xg) * rdx);
-  float64 yy = 1.5 - xx;
-  float64 s1 = 0.5 * (Particle::sign(0.5 - xx) + 1.0);
-  float64 s2 = 0.5 * (Particle::sign(1.5 - xx) + 1.0) - s1;
-
-  return s1 * (0.75 - xx * xx) + s2 * 0.5 * yy * yy;
-}
-
-// derivative of second-order shape function
-template <>
-inline float64 Particle::D<2>(float64 xp, float64 xg, float64 rdx)
-{
-  float64 xx = std::abs((xp - xg) * rdx);
-  float64 yy = 1.5 - xx;
-  float64 pm = Particle::sign(xp - xg);
-  float64 s1 = 0.5 * (Particle::sign(0.5 - xx) + 1.0);
-  float64 s2 = 0.5 * (Particle::sign(1.5 - xx) + 1.0) - s1;
-
-  return (s1 * (2.0 * xx) + s2 * yy) * pm;
-}
 
 // Local Variables:
 // c-file-style   : "gnu"
