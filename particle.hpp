@@ -8,7 +8,7 @@
 class Particle;
 
 /// List of particles
-using ParticleList = std::vector<std::unique_ptr<Particle>>;
+using ParticleList = std::vector<std::shared_ptr<Particle>>;
 
 ///
 /// @brief Particle Container
@@ -89,6 +89,19 @@ public:
   void swap()
   {
     xp.storage().swap(xq.storage());
+  }
+
+  ///
+  /// @brief return Lorentz factor
+  ///
+  /// @param[in] ux X-component of four velocity
+  /// @param[in] uy Y-component of four velocity
+  /// @param[in] uz Z-component of four velocity
+  /// @param[in] rc 1/c^2
+  ///
+  static float64 lorentz_factor(float64 ux, float64 uy, float64 uz, float64 rc)
+  {
+    return sqrt(1 + (ux * ux + uy * uy + uz * uz) * rc * rc);
   }
 
   ///
