@@ -18,7 +18,7 @@ void set_random_particle(Particle &particle, int k, float64 rmin, float64 rmax)
   uniform_rand       rand(rmin, rmax);
 
   for (int ip = 0; ip < particle.Np; ip++) {
-    particle.xp.at(ip, k) = rand(engine);
+    particle.xu.at(ip, k) = rand(engine);
   }
 }
 
@@ -33,7 +33,7 @@ void prepare_sort1d(Particle &particle, const int Nx)
   particle.gindex.fill(0);
   particle.count.fill(0);
   for (int ip = 0; ip < particle.Np; ip++) {
-    int ix = Particle::digitize(particle.xp.at(ip, 0), xmin, 1 / delh);
+    int ix = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
     int ii = ix;
 
     // take care out-of-bounds particles
@@ -51,7 +51,7 @@ bool check_sort1d(Particle &particle, const int Nx)
 
   for (int ii = 0; ii < particle.Ng; ii++) {
     for (int ip = particle.pindex.at(ii); ip < particle.pindex.at(ii + 1); ip++) {
-      int jx = Particle::digitize(particle.xp.at(ip, 0), xmin, 1 / delh);
+      int jx = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
       int jj = jx;
 
       status = status & (ii == jj);
@@ -73,8 +73,8 @@ void prepare_sort2d(Particle &particle, const int Nx, const int Ny)
   particle.gindex.fill(0);
   particle.count.fill(0);
   for (int ip = 0; ip < particle.Np; ip++) {
-    int ix = Particle::digitize(particle.xp.at(ip, 0), xmin, 1 / delh);
-    int iy = Particle::digitize(particle.xp.at(ip, 1), xmin, 1 / delh);
+    int ix = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+    int iy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
     int ii = ix + iy * Nx;
 
     // take care out-of-bounds particles
@@ -93,8 +93,8 @@ bool check_sort2d(Particle &particle, const int Nx, const int Ny)
 
   for (int ii = 0; ii < particle.Ng; ii++) {
     for (int ip = particle.pindex.at(ii); ip < particle.pindex.at(ii + 1); ip++) {
-      int jx = Particle::digitize(particle.xp.at(ip, 0), xmin, 1 / delh);
-      int jy = Particle::digitize(particle.xp.at(ip, 1), xmin, 1 / delh);
+      int jx = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+      int jy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
       int jj = jx + jy * Nx;
 
       status = status & (ii == jj);
@@ -117,9 +117,9 @@ void prepare_sort3d(Particle &particle, const int Nx, const int Ny, const int Nz
   particle.gindex.fill(0);
   particle.count.fill(0);
   for (int ip = 0; ip < particle.Np; ip++) {
-    int ix = Particle::digitize(particle.xp.at(ip, 0), xmin, 1 / delh);
-    int iy = Particle::digitize(particle.xp.at(ip, 1), xmin, 1 / delh);
-    int iz = Particle::digitize(particle.xp.at(ip, 2), xmin, 1 / delh);
+    int ix = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+    int iy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
+    int iz = Particle::digitize(particle.xu.at(ip, 2), xmin, 1 / delh);
     int ii = ix + iy * Nx + iz * Nx * Ny;
 
     // take care out-of-bounds particles
@@ -139,9 +139,9 @@ bool check_sort3d(Particle &particle, const int Nx, const int Ny, const int Nz)
 
   for (int ii = 0; ii < particle.Ng; ii++) {
     for (int ip = particle.pindex.at(ii); ip < particle.pindex.at(ii + 1); ip++) {
-      int jx = Particle::digitize(particle.xp.at(ip, 0), xmin, 1 / delh);
-      int jy = Particle::digitize(particle.xp.at(ip, 1), xmin, 1 / delh);
-      int jz = Particle::digitize(particle.xp.at(ip, 2), xmin, 1 / delh);
+      int jx = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+      int jy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
+      int jz = Particle::digitize(particle.xu.at(ip, 2), xmin, 1 / delh);
       int jj = jx + jy * Nx + jz * Nx * Ny;
 
       status = status & (ii == jj);
@@ -163,15 +163,15 @@ TEST_CASE("CreateParticle")
   particle.Np = Np;
 
   // check array size
-  REQUIRE(particle.xp.size() == Np * Particle::Nc);
-  REQUIRE(particle.xq.size() == Np * Particle::Nc);
+  REQUIRE(particle.xu.size() == Np * Particle::Nc);
+  REQUIRE(particle.xv.size() == Np * Particle::Nc);
   REQUIRE(particle.gindex.size() == Np);
   REQUIRE(particle.pindex.size() == Ng + 1);
   REQUIRE(particle.count.size() == Ng + 1);
 
   // check particle data
-  REQUIRE(xt::allclose(particle.xp, 0.0));
-  REQUIRE(xt::allclose(particle.xq, 0.0));
+  REQUIRE(xt::allclose(particle.xu, 0.0));
+  REQUIRE(xt::allclose(particle.xv, 0.0));
 }
 
 //
@@ -185,8 +185,8 @@ TEST_CASE("SwapParticle")
   Particle particle(Np, Ng);
   particle.Np = Np;
 
-  float64 *ptr1 = particle.xp.data();
-  float64 *ptr2 = particle.xq.data();
+  float64 *ptr1 = particle.xu.data();
+  float64 *ptr2 = particle.xv.data();
 
   // set random number
   {
@@ -202,19 +202,19 @@ TEST_CASE("SwapParticle")
   }
 
   // before swap
-  REQUIRE(particle.xp.data() == ptr1);
-  REQUIRE(std::equal(particle.xp.begin(), particle.xp.end(), ptr1));
-  REQUIRE(particle.xq.data() == ptr2);
-  REQUIRE(std::equal(particle.xq.begin(), particle.xq.end(), ptr2));
+  REQUIRE(particle.xu.data() == ptr1);
+  REQUIRE(std::equal(particle.xu.begin(), particle.xu.end(), ptr1));
+  REQUIRE(particle.xv.data() == ptr2);
+  REQUIRE(std::equal(particle.xv.begin(), particle.xv.end(), ptr2));
 
-  // swap xp and xq
+  // swap xu and xv
   particle.swap();
 
   // after swap
-  REQUIRE(particle.xp.data() == ptr2);
-  REQUIRE(std::equal(particle.xp.begin(), particle.xp.end(), ptr2));
-  REQUIRE(particle.xq.data() == ptr1);
-  REQUIRE(std::equal(particle.xq.begin(), particle.xq.end(), ptr1));
+  REQUIRE(particle.xu.data() == ptr2);
+  REQUIRE(std::equal(particle.xu.begin(), particle.xu.end(), ptr2));
+  REQUIRE(particle.xv.data() == ptr1);
+  REQUIRE(std::equal(particle.xv.begin(), particle.xv.end(), ptr1));
 }
 
 //

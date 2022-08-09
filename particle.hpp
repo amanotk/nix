@@ -34,8 +34,8 @@ public:
   int Ng;       ///< # grid points (product in x, y, z dirs)
 
   float64                 qm;     ///< charge/mass
-  xt::xtensor<float64, 2> xp;     ///< particle array
-  xt::xtensor<float64, 2> xq;     ///< temporary particle array (for sorting)
+  xt::xtensor<float64, 2> xu;     ///< particle array
+  xt::xtensor<float64, 2> xv;     ///< temporary particle array
   xt::xtensor<float64, 1> gindex; ///< index to grid for each particle
   xt::xtensor<float64, 1> pindex; ///< index to first particle for each cell
   xt::xtensor<float64, 1> count;  ///< particle count for each cell
@@ -58,14 +58,14 @@ public:
       size_t ng = Ng;
       size_t nc = Nc;
 
-      xp.resize({np, nc});
-      xq.resize({np, nc});
+      xu.resize({np, nc});
+      xv.resize({np, nc});
       gindex.resize({np});
       pindex.resize({ng + 1});
       count.resize({ng + 1});
 
-      xp.fill(0);
-      xq.fill(0);
+      xu.fill(0);
+      xv.fill(0);
       gindex.fill(0);
       pindex.fill(0);
       count.fill(0);
@@ -77,8 +77,8 @@ public:
   ///
   virtual ~Particle()
   {
-    xp.resize({0, 0});
-    xq.resize({0, 0});
+    xu.resize({0, 0});
+    xv.resize({0, 0});
     gindex.resize({0});
     pindex.resize({0});
     count.resize({0});
@@ -89,7 +89,7 @@ public:
   ///
   void swap()
   {
-    xp.storage().swap(xq.storage());
+    xu.storage().swap(xv.storage());
   }
 
   ///
@@ -154,7 +154,7 @@ public:
       int ii = gindex(ip);
 
       // copy particle to temporary at new address
-      xt::view(xq, count(ii), xt::all()) = xt::view(xp, ip, xt::all());
+      xt::view(xv, count(ii), xt::all()) = xt::view(xu, ip, xt::all());
 
       // increment address
       count(ii)++;
@@ -249,6 +249,92 @@ public:
               wx[1] * wy[1] * wz[1] * eb(iz2, iy2, ix2, ik)) *
              dt;
     return result;
+  }
+
+  ///
+  /// @brief calculate current via first-order density decomposition scheme
+  ///
+  /// This implements the density decomposition scheme of Esirkepov (2001) with the first-order
+  /// shape function in 3D. The input to this routine is the first argument "ss", with ss[0][*][*]
+  /// and ss[1][*][*] are 1D weights before and after the movement of particle by one time step,
+  /// respectively. The current density is appended to the second argument "current",
+  /// which is an array of local 4x4x4 mesh with 4 components including charge density.
+  ///
+  /// @param[in]     ss      array of 1D weights
+  /// @param[in,out] current array of local current
+  ///
+  static void esirkepov3d1(float64 ss[2][3][4], float64 current[4][4][4][4])
+  {
+    const float64 A           = 1.0 / 2;
+    const float64 B           = 1.0 / 3;
+    float64       ww[4][4][4] = {0};
+
+    // rho
+    for (int jz = 0; jz < 4; jz++) {
+      for (int jy = 0; jy < 4; jy++) {
+        for (int jx = 0; jx < 4; jx++) {
+          current[jz][jy][jx][0] += ss[1][0][jx] * ss[1][1][jy] * ss[1][2][jz];
+        }
+      }
+    }
+
+    // ss[1][*][*] now represents DS(*,*) of Esirkepov (2001)
+    for (int dir = 0; dir < 3; dir++) {
+      for (int l = 0; l < 4; l++) {
+        ss[1][dir][l] -= ss[0][dir][l];
+      }
+    }
+
+    // Jx
+    for (int jz = 0; jz < 4; jz++) {
+      for (int jy = 0; jy < 4; jy++) {
+        float64 wx = (1 * ss[0][1][jy] + A * ss[1][1][jy]) * ss[0][2][jz] +
+                     (A * ss[0][1][jy] + B * ss[1][1][jy]) * ss[1][2][jz];
+
+        ww[jz][jy][0] = ss[1][0][0] * wx;
+        ww[jz][jy][1] = ss[1][0][1] * wx + ww[jz][jy][0];
+        ww[jz][jy][2] = ss[1][0][2] * wx + ww[jz][jy][1];
+        ww[jz][jy][3] = ss[1][0][3] * wx + ww[jz][jy][2];
+
+        current[jz][jy][1][1] += ww[jz][jy][0];
+        current[jz][jy][2][1] += ww[jz][jy][1];
+        current[jz][jy][3][1] += ww[jz][jy][2];
+      }
+    }
+
+    // Jy
+    for (int jz = 0; jz < 4; jz++) {
+      for (int jx = 0; jx < 4; jx++) {
+        float64 wy = (1 * ss[0][2][jz] + A * ss[1][2][jz]) * ss[0][0][jx] +
+                     (A * ss[0][2][jz] + B * ss[1][2][jz]) * ss[1][0][jx];
+
+        ww[jz][0][jx] = ss[1][1][0] * wy;
+        ww[jz][1][jx] = ss[1][1][1] * wy + ww[jz][0][jx];
+        ww[jz][2][jx] = ss[1][1][2] * wy + ww[jz][1][jx];
+        ww[jz][3][jx] = ss[1][1][3] * wy + ww[jz][2][jx];
+
+        current[jz][1][jx][2] += ww[jz][0][jx];
+        current[jz][2][jx][2] += ww[jz][1][jx];
+        current[jz][3][jx][2] += ww[jz][2][jx];
+      }
+    }
+
+    // Jz
+    for (int jy = 0; jy < 4; jy++) {
+      for (int jx = 0; jx < 4; jx++) {
+        float64 wz = (1 * ss[0][0][jx] + A * ss[1][0][jx]) * ss[0][1][jy] +
+                     (A * ss[0][0][jx] + B * ss[1][0][jx]) * ss[1][1][jy];
+
+        ww[0][jy][jx] = ss[1][2][0] * wz;
+        ww[1][jy][jx] = ss[1][2][1] * wz + ww[0][jy][jx];
+        ww[2][jy][jx] = ss[1][2][2] * wz + ww[1][jy][jx];
+        ww[3][jy][jx] = ss[1][2][3] * wz + ww[2][jy][jx];
+
+        current[1][jy][jx][3] += ww[0][jy][jx];
+        current[2][jy][jx][3] += ww[1][jy][jx];
+        current[3][jy][jx][3] += ww[2][jy][jx];
+      }
+    }
   }
 };
 
