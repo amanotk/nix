@@ -277,6 +277,141 @@ TEST_CASE("SortParticle3D")
   REQUIRE(check_sort3d(particle, Nx, Ny, Nz) == true);
 }
 
+//
+// Esirkepov's density decomposition scheme 3D for first-order shape function
+//
+TEST_CASE("Esirkepov3D1")
+{
+  const float64 epsilon = 1.0e-14;
+
+  const int Np = 20;
+  const int Nx = 8;
+  const int Ny = 8;
+  const int Nz = 8;
+
+  const float64 q    = 1.0;
+  const float64 delt = 1.0;
+  const float64 delh = 1.0;
+  const float64 rdh  = 1 / delh;
+  const float64 dhdt = delh / delt;
+
+  Particle particle(Np, Nx * Ny * Nz);
+  particle.Np = Np;
+
+  // position
+  set_random_particle(particle, 0, +1.5 * delh, +2.5 * delh);
+  set_random_particle(particle, 1, +1.5 * delh, +2.5 * delh);
+  set_random_particle(particle, 2, +1.5 * delh, +2.5 * delh);
+
+  // velocity
+  set_random_particle(particle, 3, -1.0 * delh, +1.0 * delh);
+  set_random_particle(particle, 4, -1.0 * delh, +1.0 * delh);
+  set_random_particle(particle, 5, -1.0 * delh, +1.0 * delh);
+
+  for (int ip = 0; ip < particle.Np; ip++) {
+    float64 ss[2][3][4]     = {0};
+    float64 rho[4][4][4]    = {0};
+    float64 cur[4][4][4][4] = {0};
+    float64 err[4][4][4]    = {0};
+
+    float64 *xv = &particle.xv(ip, 0);
+    float64 *xu = &particle.xu(ip, 0);
+
+    xv[0] = xu[0];
+    xv[1] = xu[1];
+    xv[2] = xu[2];
+    xu[0] = xu[0] + xu[3] * delt;
+    xu[1] = xu[1] + xu[4] * delt;
+    xu[2] = xu[2] + xv[5] * delt;
+
+    //
+    // before move
+    //
+    int ix0 = Particle::digitize(xv[0], 0.0, rdh);
+    int iy0 = Particle::digitize(xv[1], 0.0, rdh);
+    int iz0 = Particle::digitize(xv[2], 0.0, rdh);
+
+    Particle::S1(xv[0], ix0 * delh, delh, &ss[0][0][1], q);
+    Particle::S1(xv[1], iy0 * delh, delh, &ss[0][1][1], q);
+    Particle::S1(xv[2], iz0 * delh, delh, &ss[0][2][1], q);
+
+    // check charge density
+    {
+      float64 rhosum = 0.0;
+
+      for (int jz = 0; jz < 4; jz++) {
+        for (int jy = 0; jy < 4; jy++) {
+          for (int jx = 0; jx < 4; jx++) {
+            rho[jz][jy][jx] += ss[0][0][jx] * ss[0][1][jy] * ss[0][2][jz];
+            rhosum += rho[jz][jy][jx];
+          }
+        }
+      }
+
+      REQUIRE(std::abs(rhosum - 1) < epsilon);
+    }
+
+    //
+    // after move
+    //
+    int ix1 = Particle::digitize(xu[0], 0.0, rdh);
+    int iy1 = Particle::digitize(xu[1], 0.0, rdh);
+    int iz1 = Particle::digitize(xu[2], 0.0, rdh);
+
+    Particle::S1(xu[0], ix1 * delh, delh, &ss[1][0][1 + ix1 - ix0], q);
+    Particle::S1(xu[1], iy1 * delh, delh, &ss[1][1][1 + iy1 - iy0], q);
+    Particle::S1(xu[2], iz1 * delh, delh, &ss[1][2][1 + iz1 - iz0], q);
+
+    // calculate charge and current density
+    Particle::esirkepov3d1(dhdt, ss, cur);
+
+    // check charge density
+    {
+      float64 rhosum = 0.0;
+
+      for (int jz = 0; jz < 4; jz++) {
+        for (int jy = 0; jy < 4; jy++) {
+          for (int jx = 0; jx < 4; jx++) {
+            rhosum += cur[jz][jy][jx][0];
+          }
+        }
+      }
+
+      REQUIRE(std::abs(rhosum - 1) < epsilon);
+    }
+
+    // check charge continuity
+    {
+      float64 errsum        = 0.0;
+      float64 J[5][5][5][4] = {0};
+
+      for (int jz = 0; jz < 4; jz++) {
+        for (int jy = 0; jy < 4; jy++) {
+          for (int jx = 0; jx < 4; jx++) {
+            J[jz][jy][jx][0] = cur[jz][jy][jx][0];
+            J[jz][jy][jx][1] = cur[jz][jy][jx][1];
+            J[jz][jy][jx][2] = cur[jz][jy][jx][2];
+            J[jz][jy][jx][3] = cur[jz][jy][jx][3];
+          }
+        }
+      }
+
+      for (int jz = 0; jz < 4; jz++) {
+        for (int jy = 0; jy < 4; jy++) {
+          for (int jx = 0; jx < 4; jx++) {
+            errsum += std::abs((J[jz][jy][jx][0] - rho[jz][jy][jx]) +
+                               delt / delh * (J[jz][jy][jx + 1][1] - J[jz][jy][jx][1]) +
+                               delt / delh * (J[jz][jy + 1][jx][2] - J[jz][jy][jx][2]) +
+                               delt / delh * (J[jz + 1][jy][jx][3] - J[jz][jy][jx][3]));
+          }
+        }
+      }
+
+      REQUIRE(errsum < epsilon);
+    }
+  }
+}
+
 // Local Variables:
 // c-file-style   : "gnu"
 // c-file-offsets : ((innamespace . 0) (inline-open . 0))
