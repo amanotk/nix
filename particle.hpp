@@ -196,12 +196,13 @@ public:
   /// @param[out] s   weights at grid points (X, X + dx)
   /// @param[in]  w   normalization factor (1 by default)
   ///
-  static void S1(const float64 x, const float64 X, const float64 rdx, float64 s[2], const float64 w=1)
+  static void S1(const float64 x, const float64 X, const float64 rdx, float64 s[2],
+                 const float64 w = 1)
   {
     float64 delta = (x - X) * rdx;
 
-    s[0] = w*(1 - delta);
-    s[1] = w*delta;
+    s[0] = w * (1 - delta);
+    s[1] = w * delta;
   }
 
   ///
@@ -216,7 +217,8 @@ public:
   /// @param[out] s   weights at grid points (X - dx, X, X + dx)
   /// @param[in]  w   normalization factor (1 by default)
   ///
-  static void S2(const float64 x, const float64 X, const float64 rdx, float64 s[3], const float64 w=1)
+  static void S2(const float64 x, const float64 X, const float64 rdx, float64 s[3],
+                 const float64 w = 1)
   {
     float64 delta = (x - X) * rdx;
 
@@ -226,12 +228,26 @@ public:
   }
 
   ///
-  /// @brief return first-order weighted electromagnetic field
+  /// @brief calculate electromagnetic field at particle position by first-order interpolation
+  ///
+  /// This implements linear interpolation of the electromagnetic field at the particle position.
+  /// The indices iz, iy, ix and weights wz, wy, wx must appropriately be calculated in advance.
+  /// This function is just a shorthand notation of interpolation.
+  ///
+  /// @param[in] eb electromagnetic field (4D array)
+  /// @param[in] iz z-index of particle position
+  /// @param[in] iy y-index of particle position
+  /// @param[in] ix x-index of particle position
+  /// @param[in] ik index for electromagnetic field component
+  /// @param[in] wz weight in z direction
+  /// @param[in] wy weight in y direction
+  /// @param[in] wx weight in x direction
+  /// @param[in] dt time step (multiplied to the returned electromagnetic field)
   ///
   template <typename T>
-  static float64 weighted_eb1(const T &eb, const int iz, const int iy, const int ix, const int ik,
-                              const float64 wz[2], const float64 wy[2], const float64 wx[2],
-                              const float64 dt)
+  static float64 interp3d1(const T &eb, const int iz, const int iy, const int ix, const int ik,
+                           const float64 wz[2], const float64 wy[2], const float64 wx[2],
+                           const float64 dt = 1)
   {
     float64 result;
 
@@ -242,14 +258,10 @@ public:
     int iz1 = iz;
     int iz2 = iz1 + 1;
 
-    result = (wx[0] * wy[0] * wz[0] * eb(iz1, iy1, ix1, ik) +
-              wx[1] * wy[0] * wz[0] * eb(iz1, iy1, ix2, ik) +
-              wx[0] * wy[1] * wz[0] * eb(iz1, iy2, ix1, ik) +
-              wx[1] * wy[1] * wz[0] * eb(iz1, iy2, ix2, ik) +
-              wx[0] * wy[0] * wz[1] * eb(iz2, iy1, ix1, ik) +
-              wx[1] * wy[0] * wz[1] * eb(iz2, iy1, ix2, ik) +
-              wx[0] * wy[1] * wz[1] * eb(iz2, iy2, ix1, ik) +
-              wx[1] * wy[1] * wz[1] * eb(iz2, iy2, ix2, ik)) *
+    result = (wz[0] * (wy[0] * (wx[0] * eb(iz1, iy1, ix1, ik) + wx[1] * eb(iz1, iy1, ix2, ik)) +
+                       wy[1] * (wx[0] * eb(iz1, iy2, ix1, ik) + wx[1] * eb(iz1, iy2, ix2, ik))) +
+              wz[1] * (wy[0] * (wx[0] * eb(iz2, iy1, ix1, ik) + wx[1] * eb(iz2, iy1, ix2, ik)) +
+                       wy[1] * (wx[0] * eb(iz2, iy2, ix1, ik) + wx[1] * eb(iz2, iy2, ix2, ik)))) *
              dt;
     return result;
   }
@@ -295,7 +307,7 @@ public:
     // Jx
     for (int jz = 0; jz < 4; jz++) {
       for (int jy = 0; jy < 4; jy++) {
-        float64 ww[4];
+        float64 ww[3];
         float64 wx = -((1 * ss[0][1][jy] + A * ss[1][1][jy]) * ss[0][2][jz] +
                        (A * ss[0][1][jy] + B * ss[1][1][jy]) * ss[1][2][jz]) *
                      dxdt;
@@ -303,7 +315,6 @@ public:
         ww[0] = ss[1][0][0] * wx;
         ww[1] = ss[1][0][1] * wx + ww[0];
         ww[2] = ss[1][0][2] * wx + ww[1];
-        ww[3] = ss[1][0][3] * wx + ww[2]; // unnecessary
 
         current[jz][jy][1][1] += ww[0];
         current[jz][jy][2][1] += ww[1];
@@ -314,7 +325,7 @@ public:
     // Jy
     for (int jz = 0; jz < 4; jz++) {
       for (int jx = 0; jx < 4; jx++) {
-        float64 ww[4];
+        float64 ww[3];
         float64 wy = -((1 * ss[0][2][jz] + A * ss[1][2][jz]) * ss[0][0][jx] +
                        (A * ss[0][2][jz] + B * ss[1][2][jz]) * ss[1][0][jx]) *
                      dydt;
@@ -322,7 +333,6 @@ public:
         ww[0] = ss[1][1][0] * wy;
         ww[1] = ss[1][1][1] * wy + ww[0];
         ww[2] = ss[1][1][2] * wy + ww[1];
-        ww[3] = ss[1][1][3] * wy + ww[2]; // unnecessary
 
         current[jz][1][jx][2] += ww[0];
         current[jz][2][jx][2] += ww[1];
@@ -333,7 +343,7 @@ public:
     // Jz
     for (int jy = 0; jy < 4; jy++) {
       for (int jx = 0; jx < 4; jx++) {
-        float64 ww[4];
+        float64 ww[3];
         float64 wz = -((1 * ss[0][0][jx] + A * ss[1][0][jx]) * ss[0][1][jy] +
                        (A * ss[0][0][jx] + B * ss[1][0][jx]) * ss[1][1][jy]) *
                      dzdt;
@@ -341,7 +351,6 @@ public:
         ww[0] = ss[1][2][0] * wz;
         ww[1] = ss[1][2][1] * wz + ww[0];
         ww[2] = ss[1][2][2] * wz + ww[1];
-        ww[3] = ss[1][2][3] * wz + ww[2]; // unnecessary
 
         current[1][jy][jx][3] += ww[0];
         current[2][jy][jx][3] += ww[1];
