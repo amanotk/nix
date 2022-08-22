@@ -54,23 +54,7 @@ public:
     Np             = 0;
 
     // allocate and initialize arrays
-    {
-      size_t np = Np_total;
-      size_t ng = Ng;
-      size_t nc = Nc;
-
-      xu.resize({np, nc});
-      xv.resize({np, nc});
-      gindex.resize({np});
-      pindex.resize({ng + 1});
-      count.resize({ng + 1});
-
-      xu.fill(0);
-      xv.fill(0);
-      gindex.fill(0);
-      pindex.fill(0);
-      count.fill(0);
-    }
+    allocate_memory(Np_total, Ng);
   }
 
   ///
@@ -91,6 +75,76 @@ public:
   void swap()
   {
     xu.storage().swap(xv.storage());
+  }
+
+  ///
+  /// @brief memory allocation
+  ///
+  void allocate_memory(const int Np_total, const int Ng)
+  {
+    size_t np = Np_total;
+    size_t ng = Ng;
+    size_t nc = Nc;
+
+    xu.resize({np, nc});
+    xv.resize({np, nc});
+    gindex.resize({np});
+    pindex.resize({ng + 1});
+    count.resize({ng + 1});
+
+    xu.fill(0);
+    xv.fill(0);
+    gindex.fill(0);
+    pindex.fill(0);
+    count.fill(0);
+  }
+
+  ///
+  /// @brief pack data into buffer
+  ///
+  int pack(void *buffer, bool count_only = false)
+  {
+    int   c = 0;
+    char *p = static_cast<char *>(buffer);
+
+    c += common::memcpy_count(&p[c], &Np_total, sizeof(int), count_only);
+    c += common::memcpy_count(&p[c], &Np, sizeof(int), count_only);
+    c += common::memcpy_count(&p[c], &Ng, sizeof(int), count_only);
+    c += common::memcpy_count(&p[c], &q, sizeof(float64), count_only);
+    c += common::memcpy_count(&p[c], &m, sizeof(float64), count_only);
+    c += common::memcpy_count(&p[c], xu.data(), xu.size() * sizeof(float64), count_only);
+    c += common::memcpy_count(&p[c], xv.data(), xu.size() * sizeof(float64), count_only);
+    c += common::memcpy_count(&p[c], gindex.data(), gindex.size() * sizeof(int), count_only);
+    c += common::memcpy_count(&p[c], pindex.data(), pindex.size() * sizeof(int), count_only);
+    c += common::memcpy_count(&p[c], count.data(), count.size() * sizeof(int), count_only);
+
+    return c;
+  }
+
+  ///
+  /// @brief unpack data from buffer
+  ///
+  int unpack(void *buffer, bool count_only = false)
+  {
+    int   c = 0;
+    char *p = static_cast<char *>(buffer);
+
+    c += common::memcpy_count(&Np_total, &p[c], sizeof(int), count_only);
+    c += common::memcpy_count(&Np, &p[c], sizeof(int), count_only);
+    c += common::memcpy_count(&Ng, &p[c], sizeof(int), count_only);
+    c += common::memcpy_count(&p[c], &q, sizeof(float64), count_only);
+    c += common::memcpy_count(&p[c], &m, sizeof(float64), count_only);
+
+    // memory allocation before reading arrays
+    allocate_memory(Np_total, Ng);
+
+    c += common::memcpy_count(xu.data(), &p[c], xu.size() * sizeof(float64), count_only);
+    c += common::memcpy_count(xv.data(), &p[c], xu.size() * sizeof(float64), count_only);
+    c += common::memcpy_count(gindex.data(), &p[c], gindex.size() * sizeof(int), count_only);
+    c += common::memcpy_count(pindex.data(), &p[c], pindex.size() * sizeof(int), count_only);
+    c += common::memcpy_count(count.data(), &p[c], count.size() * sizeof(int), count_only);
+
+    return c;
   }
 
   ///
