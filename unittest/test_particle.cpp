@@ -502,7 +502,8 @@ TEST_CASE("Interp3D1st")
         float64 val1 = a[ik] + bx[ik] * xu[0] + by[ik] * xu[1] + bz[ik] * xu[2];
         float64 val2 = Particle::interp3d1(eb, iz, iy, ix, ik, wz, wy, wx, 1.0);
 
-        status = status & (std::abs(val1 - val2) < eps);
+        // check absolute error for small values, and relative error otherwise
+        status = status & (std::abs(val1 - val2) < std::max(eps, eps*std::abs(val1)));
       }
     }
 
