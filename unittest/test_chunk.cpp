@@ -6,17 +6,17 @@
 #include "../catch.hpp"
 
 //
-// BaseChunk<1>
+// Chunk<1>
 //
-TEST_CASE("BsseChunk1")
+TEST_CASE("Chunk1")
 {
   const int bufsize = 4096;
   const int N = 5;
 
   char buffer[bufsize];
   int chunkid[N];
-  BaseChunk<1> chunk[N];
-  BaseChunk<1> unpack_chunk;
+  Chunk<1> chunk[N];
+  Chunk<1> unpack_chunk;
 
   // set IDs
   for (int i = 0; i < N; i++) {
@@ -52,8 +52,8 @@ TEST_CASE("BsseChunk1")
   //
   INFO("pack/unpack");
   {
-    int byte1 = chunk[2].pack(BaseChunk<1>::PackAll, buffer);
-    int byte2 = unpack_chunk.unpack(BaseChunk<1>::PackAll, buffer);
+    int byte1 = chunk[2].pack(Chunk<1>::PackAll, buffer);
+    int byte2 = unpack_chunk.unpack(Chunk<1>::PackAll, buffer);
 
     REQUIRE(byte1 == byte2);
     REQUIRE(chunk[2].get_id() == unpack_chunk.get_id());
@@ -66,17 +66,17 @@ TEST_CASE("BsseChunk1")
 }
 
 //
-// BaseChunk<2>
+// Chunk<2>
 //
-TEST_CASE("BsseChunk2")
+TEST_CASE("Chunk2")
 {
   const int bufsize = 4096;
   const int N = 5;
 
   char buffer[bufsize];
   int chunkid[N][N];
-  BaseChunk<2> chunk[N][N];
-  BaseChunk<2> unpack_chunk;
+  Chunk<2> chunk[N][N];
+  Chunk<2> unpack_chunk;
 
   // set IDs
   for (int i = 0; i < N; i++) {
@@ -133,8 +133,8 @@ TEST_CASE("BsseChunk2")
   //
   INFO("pack/unpack");
   {
-    int byte1 = chunk[2][2].pack(BaseChunk<2>::PackAll, buffer);
-    int byte2 = unpack_chunk.unpack(BaseChunk<2>::PackAll, buffer);
+    int byte1 = chunk[2][2].pack(Chunk<2>::PackAll, buffer);
+    int byte2 = unpack_chunk.unpack(Chunk<2>::PackAll, buffer);
 
     REQUIRE(byte1 == byte2);
     REQUIRE(chunk[2][2].get_id() == unpack_chunk.get_id());
@@ -152,17 +152,17 @@ TEST_CASE("BsseChunk2")
 }
 
 //
-// BaseChunk<3>
+// Chunk<3>
 //
-TEST_CASE("BsseChunk3")
+TEST_CASE("Chunk3")
 {
   const int bufsize = 4096;
   const int N = 5;
 
   char buffer[bufsize];
   int chunkid[N][N][N];
-  BaseChunk<3> chunk[N][N][N];
-  BaseChunk<3> unpack_chunk;
+  Chunk<3> chunk[N][N][N];
+  Chunk<3> unpack_chunk;
 
   // set IDs
   for (int i = 0; i < N; i++) {
@@ -280,8 +280,8 @@ TEST_CASE("BsseChunk3")
   //
   INFO("pack/unpack");
   {
-    int byte1 = chunk[2][2][2].pack(BaseChunk<3>::PackAll, buffer);
-    int byte2 = unpack_chunk.unpack(BaseChunk<3>::PackAll, buffer);
+    int byte1 = chunk[2][2][2].pack(Chunk<3>::PackAll, buffer);
+    int byte2 = unpack_chunk.unpack(Chunk<3>::PackAll, buffer);
 
     REQUIRE(byte1 == byte2);
     REQUIRE(chunk[2][2][2].get_id() == unpack_chunk.get_id());

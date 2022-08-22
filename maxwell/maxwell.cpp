@@ -12,7 +12,7 @@ DEFINE_MEMBER(void, initialize)(int argc, char **argv)
   FDTD::T_function f = std::bind(&Maxwell::initializer, this, _1, _2, _3, _4);
 
   // default initialize()
-  Base::initialize(argc, argv);
+  BaseApp::initialize(argc, argv);
 
   // additional parameters
   interval = cfg_json["interval"].get<int>();
@@ -83,7 +83,7 @@ DEFINE_MEMBER(void, diagnostic)()
   size_t   disp;
   int      bufsize;
   int      ndim    = 5;
-  int      dims[5] = {cdims[3], ndims[0]/cdims[0], ndims[1]/cdims[1], ndims[2]/cdims[2], 6};
+  int      dims[5] = {cdims[3], ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2], 6};
   int      size    = dims[0] * dims[1] * dims[2] * dims[3] * dims[4] * sizeof(float64);
 
   // open file

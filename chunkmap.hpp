@@ -16,7 +16,7 @@
 #include <mpi.h>
 
 ///
-/// BaseChunkMap
+/// ChunkMap
 ///
 /// * rank   : MPI rank for each chunk
 ///            Defines mappping from chunk ID to MPI rank.
@@ -29,7 +29,7 @@
 /// calculated via get_chunk() and get_coordinate() methods.
 ///
 template <int N>
-class BaseChunkMap
+class ChunkMap
 {
 protected:
   using json = nlohmann::ordered_json;
@@ -44,13 +44,13 @@ protected:
   IntArrayND chunkid; ///< coordiante to chunk id map
 
 public:
-  BaseChunkMap(const int Cx);
+  ChunkMap(const int Cx);
 
-  BaseChunkMap(const int Cy, const int Cx);
+  ChunkMap(const int Cy, const int Cx);
 
-  BaseChunkMap(const int Cz, const int Cy, const int Cx);
+  ChunkMap(const int Cz, const int Cy, const int Cx);
 
-  BaseChunkMap(const int dims[N]);
+  ChunkMap(const int dims[N]);
 
   virtual bool validate();
 
@@ -88,7 +88,7 @@ public:
 };
 
 template <>
-inline void BaseChunkMap<1>::get_coordinate(const int id, int &cx)
+inline void ChunkMap<1>::get_coordinate(const int id, int &cx)
 {
   if (id >= 0 && id < size) {
     cx = coord(id, 0);
@@ -98,7 +98,7 @@ inline void BaseChunkMap<1>::get_coordinate(const int id, int &cx)
 }
 
 template <>
-inline int BaseChunkMap<1>::get_chunkid(int cx)
+inline int ChunkMap<1>::get_chunkid(int cx)
 {
   if (cx >= 0 && cx < dims[0]) {
     return chunkid(cx);
@@ -108,7 +108,7 @@ inline int BaseChunkMap<1>::get_chunkid(int cx)
 }
 
 template <>
-inline void BaseChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
+inline void ChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
 {
   if (id >= 0 && id < size) {
     cx = coord(id, 0);
@@ -120,7 +120,7 @@ inline void BaseChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
 }
 
 template <>
-inline int BaseChunkMap<2>::get_chunkid(int cy, int cx)
+inline int ChunkMap<2>::get_chunkid(int cy, int cx)
 {
   if ((cy >= 0 && cy < dims[0]) && (cx >= 0 && cx < dims[1])) {
     return chunkid(cy, cx);
@@ -130,7 +130,7 @@ inline int BaseChunkMap<2>::get_chunkid(int cy, int cx)
 }
 
 template <>
-inline int BaseChunkMap<3>::get_chunkid(int cz, int cy, int cx)
+inline int ChunkMap<3>::get_chunkid(int cz, int cy, int cx)
 {
   if ((cz >= 0 && cz < dims[0]) && (cy >= 0 && cy < dims[1]) && (cx >= 0 && cx < dims[2])) {
     return chunkid(cz, cy, cx);
@@ -140,7 +140,7 @@ inline int BaseChunkMap<3>::get_chunkid(int cz, int cy, int cx)
 }
 
 template <>
-inline void BaseChunkMap<3>::get_coordinate(const int id, int &cz, int &cy, int &cx)
+inline void ChunkMap<3>::get_coordinate(const int id, int &cz, int &cy, int &cx)
 {
   if (id >= 0 && id < size) {
     cx = coord(id, 0);

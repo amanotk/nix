@@ -11,24 +11,24 @@
 #include "tinyformat.hpp"
 
 ///
-/// Definition of BaseApplication Class
+/// Definition of Application Class
 ///
 template <class Chunk, class ChunkMap>
-class BaseApplication
+class Application
 {
 protected:
   using cmdparser = cmdline::parser;
   using json      = nlohmann::ordered_json;
 
-  typedef std::unique_ptr<BaseBalancer> PtrBalancer;
-  typedef std::unique_ptr<Chunk>        PtrChunk;
-  typedef std::unique_ptr<ChunkMap>     PtrChunkMap;
-  typedef std::unique_ptr<char[]>       PtrByte;
-  typedef std::unique_ptr<float64[]>    PtrFloat;
-  typedef std::vector<PtrChunk>         ChunkVec;
+  typedef std::unique_ptr<Balancer>  PtrBalancer;
+  typedef std::unique_ptr<Chunk>     PtrChunk;
+  typedef std::unique_ptr<ChunkMap>  PtrChunkMap;
+  typedef std::unique_ptr<char[]>    PtrByte;
+  typedef std::unique_ptr<float64[]> PtrFloat;
+  typedef std::vector<PtrChunk>      ChunkVec;
 
   int         cl_argc;  ///< command-line argc
-  char **     cl_argv;  ///< command-line argv
+  char      **cl_argv;  ///< command-line argv
   std::string cfg_file; ///< configuration file name
   json        cfg_json; ///< configuration json object
   cmdparser   parser;   ///< command line parser
@@ -188,12 +188,12 @@ protected:
 
 public:
   /// default constructor
-  BaseApplication() : mpi_init_with_nullptr(false)
+  Application() : mpi_init_with_nullptr(false)
   {
   }
 
   /// Constructor
-  BaseApplication(int argc, char **argv) : mpi_init_with_nullptr(false)
+  Application(int argc, char **argv) : mpi_init_with_nullptr(false)
   {
     cl_argc = argc;
     cl_argv = argv;
@@ -228,7 +228,7 @@ public:
     initialize_chunkmap();
 
     // load balancer
-    balancer.reset(new BaseBalancer());
+    balancer.reset(new Balancer());
 
     // buffer; 16 kB by default
     bufsize = 1024 * 16;
@@ -453,17 +453,17 @@ public:
       }
 
       // make buffer size the same for all processes
-      bufsize = std::max(bufsize, 2*std::max(sendsize_l, sendsize_r));
+      bufsize = std::max(bufsize, 2 * std::max(sendsize_l, sendsize_r));
       MPI_Allreduce(MPI_IN_PLACE, &bufsize, 1, MPI_INT32_T, MPI_MAX, MPI_COMM_WORLD);
 
       sendbuf.resize(bufsize);
       recvbuf.resize(bufsize);
     }
 
-    const int spos_l  = 0;
-    const int spos_r  = sendbuf.size / 2;
-    const int rpos_l  = 0;
-    const int rpos_r  = recvbuf.size / 2;
+    const int spos_l = 0;
+    const int spos_r = sendbuf.size / 2;
+    const int rpos_l = 0;
+    const int rpos_r = recvbuf.size / 2;
 
     char *sbuf_l = sendbuf.get(spos_l);
     char *sbuf_r = sendbuf.get(spos_r);

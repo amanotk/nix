@@ -3,18 +3,18 @@
 
 #define DEFINE_MEMBER(type, name)                                                                  \
   template <int N>                                                                                 \
-  type BaseChunkMap<N>::name
+  type ChunkMap<N>::name
 #define DEFINE_MEMBER1(type, name)                                                                 \
   template <>                                                                                      \
-  type BaseChunkMap<1>::name
+  type ChunkMap<1>::name
 #define DEFINE_MEMBER2(type, name)                                                                 \
   template <>                                                                                      \
-  type BaseChunkMap<2>::name
+  type ChunkMap<2>::name
 #define DEFINE_MEMBER3(type, name)                                                                 \
   template <>                                                                                      \
-  type BaseChunkMap<3>::name
+  type ChunkMap<3>::name
 
-DEFINE_MEMBER1(, BaseChunkMap)(const int Cx)
+DEFINE_MEMBER1(, ChunkMap)(const int Cx)
 {
   size    = Cx;
   dims[0] = Cx;
@@ -40,7 +40,7 @@ DEFINE_MEMBER1(, BaseChunkMap)(const int Cx)
   sfc::get_map1d(Cx, chunkid, coord);
 }
 
-DEFINE_MEMBER2(, BaseChunkMap)(const int Cy, const int Cx)
+DEFINE_MEMBER2(, ChunkMap)(const int Cy, const int Cx)
 {
   size    = Cy * Cx;
   dims[0] = Cy;
@@ -66,7 +66,7 @@ DEFINE_MEMBER2(, BaseChunkMap)(const int Cy, const int Cx)
   sfc::get_map2d(Cy, Cx, chunkid, coord);
 }
 
-DEFINE_MEMBER3(, BaseChunkMap)(const int Cz, const int Cy, const int Cx)
+DEFINE_MEMBER3(, ChunkMap)(const int Cz, const int Cy, const int Cx)
 {
   size    = Cz * Cy * Cx;
   dims[0] = Cz;
@@ -93,18 +93,15 @@ DEFINE_MEMBER3(, BaseChunkMap)(const int Cz, const int Cy, const int Cx)
   sfc::get_map3d(Cz, Cy, Cx, chunkid, coord);
 }
 
-DEFINE_MEMBER1(, BaseChunkMap)(const int dims[1])
-: BaseChunkMap<1>(dims[0])
+DEFINE_MEMBER1(, ChunkMap)(const int dims[1]) : ChunkMap<1>(dims[0])
 {
 }
 
-DEFINE_MEMBER2(, BaseChunkMap)(const int dims[2])
-: BaseChunkMap<2>(dims[0], dims[1])
+DEFINE_MEMBER2(, ChunkMap)(const int dims[2]) : ChunkMap<2>(dims[0], dims[1])
 {
 }
 
-DEFINE_MEMBER3(, BaseChunkMap)(const int dims[3])
-: BaseChunkMap<3>(dims[0], dims[1], dims[2])
+DEFINE_MEMBER3(, ChunkMap)(const int dims[3]) : ChunkMap<3>(dims[0], dims[1], dims[2])
 {
 }
 
@@ -328,9 +325,9 @@ DEFINE_MEMBER3(void, json_save)(std::ostream &out)
 }
 
 // explicit instantiation
-template class BaseChunkMap<1>;
-template class BaseChunkMap<2>;
-template class BaseChunkMap<3>;
+template class ChunkMap<1>;
+template class ChunkMap<2>;
+template class ChunkMap<3>;
 
 // Local Variables:
 // c-file-style   : "gnu"

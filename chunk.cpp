@@ -3,7 +3,7 @@
 
 #define DEFINE_MEMBER(type, name)                                                                  \
   template <int N>                                                                                 \
-  type BaseChunk<N>::name
+  type Chunk<N>::name
 
 DEFINE_MEMBER(int, pack_base)(const int mode, void *buffer)
 {
@@ -83,25 +83,25 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
 
   // set dimensions
   for (int i = 0; i < N; i++) {
-    this->dims[i]  = dims[i];
-    offset[i] = 0;
+    this->dims[i] = dims[i];
+    offset[i]     = 0;
   }
 
   initialize_load();
 }
 
-DEFINE_MEMBER(, BaseChunk)()
+DEFINE_MEMBER(, Chunk)()
 {
   const int dims[N] = {};
   initialize(dims, 0);
 }
 
-DEFINE_MEMBER(, BaseChunk)(const int dims[N], const int id)
+DEFINE_MEMBER(, Chunk)(const int dims[N], const int id)
 {
   initialize(dims, id);
 }
 
-DEFINE_MEMBER(, ~BaseChunk)()
+DEFINE_MEMBER(, ~Chunk)()
 {
 }
 
@@ -134,9 +134,9 @@ DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
   return unpack_base(mode, buffer);
 }
 
-template class BaseChunk<1>;
-template class BaseChunk<2>;
-template class BaseChunk<3>;
+template class Chunk<1>;
+template class Chunk<2>;
+template class Chunk<3>;
 
 // Local Variables:
 // c-file-style   : "gnu"

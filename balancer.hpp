@@ -10,9 +10,9 @@
 #include "common.hpp"
 
 ///
-/// Definition of BaseBalancer
+/// Definition of Balancer
 ///
-class BaseBalancer
+class Balancer
 {
 public:
   /// calculate decomposition from load array

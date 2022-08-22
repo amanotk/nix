@@ -5,7 +5,7 @@
   template <int Nb>                                                                                \
   type Chunk3D<Nb>::name
 
-DEFINE_MEMBER(, Chunk3D)(const int dims[3], const int id) : BaseChunk<3>(dims, id)
+DEFINE_MEMBER(, Chunk3D)(const int dims[3], const int id) : Chunk<3>(dims, id)
 {
   size_t Nz = this->dims[0] + 2 * Nb;
   size_t Ny = this->dims[1] + 2 * Nb;
@@ -58,7 +58,7 @@ DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
 
   switch (mode) {
   case PackAll:
-    count += BaseChunk<3>::pack(BaseChunk<3>::PackAll, &ptr[count]);
+    count += Chunk<3>::pack(Chunk<3>::PackAll, &ptr[count]);
     count += memcpy_count(&ptr[count], xc.data(), xc.size() * sizeof(float64), false);
     count += memcpy_count(&ptr[count], yc.data(), yc.size() * sizeof(float64), false);
     count += memcpy_count(&ptr[count], zc.data(), zc.size() * sizeof(float64), false);
@@ -68,7 +68,7 @@ DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
     count += memcpy_count(&ptr[count], zlim, 3 * sizeof(float64), false);
     break;
   case PackAllQuery:
-    count += BaseChunk<3>::pack(BaseChunk<3>::PackAllQuery, &ptr[count]);
+    count += Chunk<3>::pack(Chunk<3>::PackAllQuery, &ptr[count]);
     count += memcpy_count(&ptr[count], xc.data(), xc.size() * sizeof(float64), true);
     count += memcpy_count(&ptr[count], yc.data(), yc.size() * sizeof(float64), true);
     count += memcpy_count(&ptr[count], zc.data(), zc.size() * sizeof(float64), true);
@@ -93,7 +93,7 @@ DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
 
   switch (mode) {
   case PackAll:
-    count += BaseChunk<3>::unpack(BaseChunk<3>::PackAll, &ptr[count]);
+    count += Chunk<3>::unpack(Chunk<3>::PackAll, &ptr[count]);
     count += memcpy_count(xc.data(), &ptr[count], xc.size() * sizeof(float64), false);
     count += memcpy_count(yc.data(), &ptr[count], yc.size() * sizeof(float64), false);
     count += memcpy_count(zc.data(), &ptr[count], zc.size() * sizeof(float64), false);
@@ -103,7 +103,7 @@ DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
     count += memcpy_count(zlim, &ptr[count], 3 * sizeof(float64), false);
     break;
   case PackAllQuery:
-    count += BaseChunk<3>::unpack(BaseChunk<3>::PackAllQuery, &ptr[count]);
+    count += Chunk<3>::unpack(Chunk<3>::PackAllQuery, &ptr[count]);
     count += memcpy_count(xc.data(), &ptr[count], xc.size() * sizeof(float64), true);
     count += memcpy_count(yc.data(), &ptr[count], yc.size() * sizeof(float64), true);
     count += memcpy_count(zc.data(), &ptr[count], zc.size() * sizeof(float64), true);

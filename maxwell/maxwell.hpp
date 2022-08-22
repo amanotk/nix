@@ -2,18 +2,17 @@
 #ifndef _MAXWELL_HPP_
 #define _MAXWELL_HPP_
 
-#include "fdtd.hpp"
 #include "../application.hpp"
 #include "../chunkmap.hpp"
 #include "../jsonio.hpp"
+#include "fdtd.hpp"
 
-using ChunkMap = BaseChunkMap<3>;
-using Base     = BaseApplication<FDTD, ChunkMap>;
+using BaseApp = Application<FDTD, ChunkMap<3>>;
 
 //
 // Maxwell
 //
-class Maxwell : public Base
+class Maxwell : public BaseApp
 {
 protected:
   std::string prefix;   ///< output filename prefix
@@ -22,7 +21,7 @@ protected:
   float64     cc;       ///< speed of light
 
 public:
-  Maxwell(int argc, char **argv) : Base(argc, argv)
+  Maxwell(int argc, char **argv) : BaseApp(argc, argv)
   {
   }
 

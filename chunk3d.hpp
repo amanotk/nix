@@ -9,7 +9,7 @@
 #include "xtensorall.hpp"
 
 template <int Nb>
-class Chunk3D : public BaseChunk<3>
+class Chunk3D : public Chunk<3>
 {
 public:
   using T_bufaddr = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;

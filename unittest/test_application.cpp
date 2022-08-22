@@ -6,21 +6,20 @@
 
 #include "../catch.hpp"
 
-using Chunk    = BaseChunk<3>;
-using ChunkMap = BaseChunkMap<3>;
+using BaseApp = Application<Chunk<3>, ChunkMap<3>>;
 
-// class for testing BaseApplication
-class TestApplication : public BaseApplication<Chunk, ChunkMap>
+// class for testing Application
+class TestApp : public BaseApp
 {
 public:
-  TestApplication()
+  TestApp()
   {
     mpi_init_with_nullptr = true;
   }
 
   virtual void rebuild_chunkmap() override
   {
-    BaseApplication<Chunk, ChunkMap>::rebuild_chunkmap();
+    BaseApp::rebuild_chunkmap();
 
     // check validity
     REQUIRE(validate_chunkmap() == true);
@@ -47,7 +46,7 @@ public:
 //
 // test validity of rebuild_chunkmap()
 //
-TEST_CASE_METHOD(TestApplication, "TestApplication")
+TEST_CASE_METHOD(TestApp, "TestApp")
 {
   run_main();
 }

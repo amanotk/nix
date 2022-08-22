@@ -9,15 +9,15 @@
 
 #include <mpi.h>
 
-static constexpr int DIRTAG_BIT = 5;
+static constexpr int DIRTAG_BIT  = 5;
 static constexpr int DIRTAG_SIZE = 1 << DIRTAG_BIT;
-static constexpr int NB_SIZE[3] = {3, 9, 27};
+static constexpr int NB_SIZE[3]  = {3, 9, 27};
 
 ///
-/// BaseChunk class
+/// Chunk class
 ///
 template <int N>
-class BaseChunk
+class Chunk
 {
 public:
   enum PackMode {
@@ -45,13 +45,13 @@ protected:
 
 public:
   // default constructor
-  BaseChunk();
+  Chunk();
 
   // constructor
-  BaseChunk(const int dims[N], const int id = 0);
+  Chunk(const int dims[N], const int id = 0);
 
   // destructor
-  virtual ~BaseChunk();
+  virtual ~Chunk();
 
   // initialize load
   virtual void initialize_load();
@@ -68,7 +68,7 @@ public:
   // set ID
   void set_id(const int id)
   {
-    assert( !(tagmask & id) ); // ID must be < 2^(31-DIRTAG_BIT)
+    assert(!(tagmask & id)); // ID must be < 2^(31-DIRTAG_BIT)
 
     myid = id;
   }
@@ -130,127 +130,121 @@ public:
 };
 
 template <int N>
-int BaseChunk<N>::nbsize = NB_SIZE[N - 1];
+int Chunk<N>::nbsize = NB_SIZE[N - 1];
 template <int N>
-int BaseChunk<N>::tagmask;
+int Chunk<N>::tagmask;
 template <int N>
-int BaseChunk<N>::dirtag[DIRTAG_SIZE];
+int Chunk<N>::dirtag[DIRTAG_SIZE];
 
 template <>
-inline void BaseChunk<1>::set_nb_id(const int dirx, const int id)
+inline void Chunk<1>::set_nb_id(const int dirx, const int id)
 {
   nbid[(dirx + 1)] = id;
 }
 
 template <>
-inline void BaseChunk<2>::set_nb_id(const int diry, const int dirx,
-                                    const int id)
+inline void Chunk<2>::set_nb_id(const int diry, const int dirx, const int id)
 {
   nbid[3 * (diry + 1) + (dirx + 1)] = id;
 }
 
 template <>
-inline void BaseChunk<3>::set_nb_id(const int dirz, const int diry,
-                                    const int dirx, const int id)
+inline void Chunk<3>::set_nb_id(const int dirz, const int diry, const int dirx, const int id)
 {
   nbid[9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1)] = id;
 }
 
 template <>
-inline int BaseChunk<1>::get_nb_id(const int dirx)
+inline int Chunk<1>::get_nb_id(const int dirx)
 {
   return nbid[(dirx + 1)];
 }
 
 template <>
-inline int BaseChunk<2>::get_nb_id(const int diry, const int dirx)
+inline int Chunk<2>::get_nb_id(const int diry, const int dirx)
 {
   return nbid[3 * (diry + 1) + (dirx + 1)];
 }
 
 template <>
-inline int BaseChunk<3>::get_nb_id(const int dirz, const int diry, const int dirx)
+inline int Chunk<3>::get_nb_id(const int dirz, const int diry, const int dirx)
 {
   return nbid[9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1)];
 }
 
 template <>
-inline void BaseChunk<1>::set_nb_rank(const int dirx, const int rank)
+inline void Chunk<1>::set_nb_rank(const int dirx, const int rank)
 {
   nbrank[(dirx + 1)] = rank;
 }
 
 template <>
-inline void BaseChunk<2>::set_nb_rank(const int diry, const int dirx,
-                                      const int rank)
+inline void Chunk<2>::set_nb_rank(const int diry, const int dirx, const int rank)
 {
   nbrank[3 * (diry + 1) + (dirx + 1)] = rank;
 }
 
 template <>
-inline void BaseChunk<3>::set_nb_rank(const int dirz, const int diry,
-                                      const int dirx, const int rank)
+inline void Chunk<3>::set_nb_rank(const int dirz, const int diry, const int dirx, const int rank)
 {
   nbrank[9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1)] = rank;
 }
 
 template <>
-inline int BaseChunk<1>::get_nb_rank(const int dirx)
+inline int Chunk<1>::get_nb_rank(const int dirx)
 {
   return nbrank[(dirx + 1)];
 }
 
 template <>
-inline int BaseChunk<2>::get_nb_rank(const int diry, const int dirx)
+inline int Chunk<2>::get_nb_rank(const int diry, const int dirx)
 {
   return nbrank[3 * (diry + 1) + (dirx + 1)];
 }
 
 template <>
-inline int BaseChunk<3>::get_nb_rank(const int dirz, const int diry, const int dirx)
+inline int Chunk<3>::get_nb_rank(const int dirz, const int diry, const int dirx)
 {
   return nbrank[9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1)];
 }
 
 template <>
-inline int BaseChunk<1>::get_sndtag(const int dirx)
+inline int Chunk<1>::get_sndtag(const int dirx)
 {
   int dir = (dirx + 1);
   return dirtag[dir] | nbid[dir];
 }
 
 template <>
-inline int BaseChunk<2>::get_sndtag(const int diry, const int dirx)
+inline int Chunk<2>::get_sndtag(const int diry, const int dirx)
 {
   int dir = 3 * (diry + 1) + (dirx + 1);
   return dirtag[dir] | nbid[dir];
 }
 
 template <>
-inline int BaseChunk<3>::get_sndtag(const int dirz, const int diry,
-                                    const int dirx)
+inline int Chunk<3>::get_sndtag(const int dirz, const int diry, const int dirx)
 {
   int dir = 9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1);
   return dirtag[dir] | nbid[dir];
 }
 
 template <>
-inline int BaseChunk<1>::get_rcvtag(const int dirx)
+inline int Chunk<1>::get_rcvtag(const int dirx)
 {
   int dir = (-dirx + 1);
   return dirtag[dir] | myid;
 }
 
 template <>
-inline int BaseChunk<2>::get_rcvtag(const int diry, const int dirx)
+inline int Chunk<2>::get_rcvtag(const int diry, const int dirx)
 {
   int dir = 3 * (-diry + 1) + (-dirx + 1);
   return dirtag[dir] | myid;
 }
 
 template <>
-inline int BaseChunk<3>::get_rcvtag(const int dirz, const int diry,
-                                    const int dirx)
+inline int Chunk<3>::get_rcvtag(const int dirz, const int diry, const int dirx)
 {
   int dir = 9 * (-dirz + 1) + 3 * (-diry + 1) + (-dirx + 1);
   return dirtag[dir] | myid;

@@ -2,14 +2,14 @@
 
 #include "maxwell.hpp"
 
-using Application = Maxwell;
+using App = Maxwell;
 
 //
 // main
 //
 int main(int argc, char **argv)
 {
-  Application app(argc, argv);
+  App app(argc, argv);
   return app.main(std::cout);
 }
 
