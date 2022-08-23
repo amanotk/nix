@@ -170,9 +170,9 @@ DEFINE_MEMBER(void, set_coordinate)(const float64 delh, const int offset[3])
   xlim[2] = xlim[1] - xlim[0];
 
   // set coordinate
-  zc = zlim[0] + delh * (xt::arange(Lbz - Nb, Ubz + Nb + 1) - Lbz + Nb + 0.5);
-  yc = ylim[0] + delh * (xt::arange(Lby - Nb, Uby + Nb + 1) - Lby + Nb + 0.5);
-  xc = xlim[0] + delh * (xt::arange(Lbx - Nb, Ubx + Nb + 1) - Lbx + Nb + 0.5);
+  zc = zlim[0] + delh * (xt::arange(Lbz - Nb, Ubz + Nb + 1) - Lbz + 0.5);
+  yc = ylim[0] + delh * (xt::arange(Lby - Nb, Uby + Nb + 1) - Lby + 0.5);
+  xc = xlim[0] + delh * (xt::arange(Lbx - Nb, Ubx + Nb + 1) - Lbx + 0.5);
 }
 
 DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array)
