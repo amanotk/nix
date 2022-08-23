@@ -11,13 +11,58 @@ DEFINE_MEMBER(, Chunk3D)(const int dims[3], const int id) : Chunk<3>(dims, id)
   size_t Ny = this->dims[1] + 2 * Nb;
   size_t Nx = this->dims[2] + 2 * Nb;
 
+  //
   // lower and upper bound
+  //
   Lbz = Nb;
   Ubz = this->dims[0] + Nb - 1;
   Lby = Nb;
   Uby = this->dims[1] + Nb - 1;
   Lbx = Nb;
   Ubx = this->dims[2] + Nb - 1;
+
+  // * z direction for MPI send
+  sendlb[0][0] = Lbz;
+  sendlb[0][1] = Lbz;
+  sendlb[0][2] = Ubz - Nb + 1;
+  sendub[0][0] = Lbz + Nb - 1;
+  sendub[0][1] = Ubz;
+  sendub[0][2] = Ubz;
+  // * y direction for MPI send
+  sendlb[1][0] = Lby;
+  sendlb[1][1] = Lby;
+  sendlb[1][2] = Uby - Nb + 1;
+  sendub[1][0] = Lby + Nb - 1;
+  sendub[1][1] = Uby;
+  sendub[1][2] = Uby;
+  // * x direction for MPI send
+  sendlb[2][0] = Lbx;
+  sendlb[2][1] = Lbx;
+  sendlb[2][2] = Ubx - Nb + 1;
+  sendub[2][0] = Lbx + Nb - 1;
+  sendub[2][1] = Ubx;
+  sendub[2][2] = Ubx;
+  // * z direction for MPI recv
+  recvlb[0][0] = Lbz - Nb;
+  recvlb[0][1] = Lbz;
+  recvlb[0][2] = Ubz + 1;
+  recvub[0][0] = Lbz - 1;
+  recvub[0][1] = Ubz;
+  recvub[0][2] = Ubz + Nb;
+  // * y direction for MPI recv
+  recvlb[1][0] = Lby - Nb;
+  recvlb[1][1] = Lby;
+  recvlb[1][2] = Uby + 1;
+  recvub[1][0] = Lby - 1;
+  recvub[1][1] = Uby;
+  recvub[1][2] = Uby + Nb;
+  // * x direction for MPI recv
+  recvlb[2][0] = Lbx - Nb;
+  recvlb[2][1] = Lbx;
+  recvlb[2][2] = Ubx + 1;
+  recvub[2][0] = Lbx - 1;
+  recvub[2][1] = Ubx;
+  recvub[2][2] = Ubx + Nb;
 
   // memory allocation
   zc.resize({Nz});
@@ -26,10 +71,6 @@ DEFINE_MEMBER(, Chunk3D)(const int dims[3], const int id) : Chunk<3>(dims, id)
   zc.fill(0);
   yc.fill(0);
   xc.fill(0);
-
-  set_buffer_address();
-  sendbuf.resize(bufsize);
-  recvbuf.resize(bufsize);
 }
 
 DEFINE_MEMBER(, ~Chunk3D)()
@@ -57,16 +98,6 @@ DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
   char *ptr   = static_cast<char *>(buffer);
 
   switch (mode) {
-  case PackAll:
-    count += Chunk<3>::pack(Chunk<3>::PackAll, &ptr[count]);
-    count += memcpy_count(&ptr[count], xc.data(), xc.size() * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], yc.data(), yc.size() * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], zc.data(), zc.size() * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], &delh, sizeof(float64), false);
-    count += memcpy_count(&ptr[count], xlim, 3 * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], ylim, 3 * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], zlim, 3 * sizeof(float64), false);
-    break;
   case PackAllQuery:
     count += Chunk<3>::pack(Chunk<3>::PackAllQuery, &ptr[count]);
     count += memcpy_count(&ptr[count], xc.data(), xc.size() * sizeof(float64), true);
@@ -77,7 +108,18 @@ DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
     count += memcpy_count(&ptr[count], ylim, 3 * sizeof(float64), true);
     count += memcpy_count(&ptr[count], zlim, 3 * sizeof(float64), true);
     break;
+  case PackAll:
+    count += Chunk<3>::pack(Chunk<3>::PackAll, &ptr[count]);
+    count += memcpy_count(&ptr[count], xc.data(), xc.size() * sizeof(float64), false);
+    count += memcpy_count(&ptr[count], yc.data(), yc.size() * sizeof(float64), false);
+    count += memcpy_count(&ptr[count], zc.data(), zc.size() * sizeof(float64), false);
+    count += memcpy_count(&ptr[count], &delh, sizeof(float64), false);
+    count += memcpy_count(&ptr[count], xlim, 3 * sizeof(float64), false);
+    count += memcpy_count(&ptr[count], ylim, 3 * sizeof(float64), false);
+    count += memcpy_count(&ptr[count], zlim, 3 * sizeof(float64), false);
+    break;
   default:
+    ERRORPRINT("No such packing mode");
     break;
   }
 
@@ -102,100 +144,12 @@ DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
     count += memcpy_count(ylim, &ptr[count], 3 * sizeof(float64), false);
     count += memcpy_count(zlim, &ptr[count], 3 * sizeof(float64), false);
     break;
-  case PackAllQuery:
-    count += Chunk<3>::unpack(Chunk<3>::PackAllQuery, &ptr[count]);
-    count += memcpy_count(xc.data(), &ptr[count], xc.size() * sizeof(float64), true);
-    count += memcpy_count(yc.data(), &ptr[count], yc.size() * sizeof(float64), true);
-    count += memcpy_count(zc.data(), &ptr[count], zc.size() * sizeof(float64), true);
-    count += memcpy_count(&delh, &ptr[count], sizeof(float64), true);
-    count += memcpy_count(xlim, &ptr[count], 3 * sizeof(float64), true);
-    count += memcpy_count(ylim, &ptr[count], 3 * sizeof(float64), true);
-    count += memcpy_count(zlim, &ptr[count], 3 * sizeof(float64), true);
-    break;
   default:
+    ERRORPRINT("No such unpacking mode");
     break;
   }
 
   return count;
-}
-
-DEFINE_MEMBER(void, set_buffer_address)()
-{
-  const std::vector<size_t> shape = {3, 3};
-
-  auto I = xt::all();
-  auto J = xt::newaxis();
-
-  {
-    //
-    // lower/upper bounds for MPI send
-    //
-    // * z direction
-    sendlb[0][0] = Lbz;
-    sendlb[0][1] = Lbz;
-    sendlb[0][2] = Ubz - Nb + 1;
-    sendub[0][0] = Lbz + Nb - 1;
-    sendub[0][1] = Ubz;
-    sendub[0][2] = Ubz;
-    // * y direction
-    sendlb[1][0] = Lby;
-    sendlb[1][1] = Lby;
-    sendlb[1][2] = Uby - Nb + 1;
-    sendub[1][0] = Lby + Nb - 1;
-    sendub[1][1] = Uby;
-    sendub[1][2] = Uby;
-    // * x direction
-    sendlb[2][0] = Lbx;
-    sendlb[2][1] = Lbx;
-    sendlb[2][2] = Ubx - Nb + 1;
-    sendub[2][0] = Lbx + Nb - 1;
-    sendub[2][1] = Ubx;
-    sendub[2][2] = Ubx;
-
-    //
-    // lower/upper bounds for MPI recv
-    //
-    // * z direction
-    recvlb[0][0] = Lbz - Nb;
-    recvlb[0][1] = Lbz;
-    recvlb[0][2] = Ubz + 1;
-    recvub[0][0] = Lbz - 1;
-    recvub[0][1] = Ubz;
-    recvub[0][2] = Ubz + Nb;
-    // * y direction
-    recvlb[1][0] = Lby - Nb;
-    recvlb[1][1] = Lby;
-    recvlb[1][2] = Uby + 1;
-    recvub[1][0] = Lby - 1;
-    recvub[1][1] = Uby;
-    recvub[1][2] = Uby + Nb;
-    // * x direction
-    recvlb[2][0] = Lbx - Nb;
-    recvlb[2][1] = Lbx;
-    recvlb[2][2] = Ubx + 1;
-    recvub[2][0] = Lbx - 1;
-    recvub[2][1] = Ubx;
-    recvub[2][2] = Ubx + Nb;
-  }
-
-  auto xlb = xt::adapt(&recvlb[0][0], 9, xt::no_ownership(), shape);
-  auto xub = xt::adapt(&recvub[0][0], 9, xt::no_ownership(), shape);
-  auto xss = xub - xlb + 1;
-  auto pos =
-      xt::eval(xt::view(xss, 0, I, J, J) * xt::view(xss, 1, J, I, J) * xt::view(xss, 2, J, J, I));
-
-  // no send/recv with itself
-  pos(1, 1, 1) = 0;
-
-  // calculate buffer address and size
-  pos     = xt::cumsum(pos);
-  pos     = xt::roll(pos, 1);
-  bufsize = pos(0) * sizeof(float64) * 6;
-  pos(0)  = 0;
-
-  // reshape and store
-  pos.reshape({3, 3, 3});
-  bufaddr = pos;
 }
 
 DEFINE_MEMBER(void, set_coordinate)(const float64 delh, const int offset[3])
@@ -216,17 +170,9 @@ DEFINE_MEMBER(void, set_coordinate)(const float64 delh, const int offset[3])
   xlim[2] = xlim[1] - xlim[0];
 
   // set coordinate
-  for (int iz = Lbz - Nb; iz <= Ubz + Nb; iz++) {
-    zc(iz) = zlim[0] + (iz + 0.5) * delh;
-  }
-
-  for (int iy = Lby - Nb; iy <= Uby + Nb; iy++) {
-    yc(iy) = ylim[0] + (iy + 0.5) * delh;
-  }
-
-  for (int ix = Lbx - Nb; ix <= Ubx + Nb; ix++) {
-    xc(ix) = xlim[0] + (ix + 0.5) * delh;
-  }
+  zc = zlim[0] + delh * (xt::arange(Lbz - Nb, Ubz + Nb + 1) - Lbz + Nb + 0.5);
+  yc = ylim[0] + delh * (xt::arange(Lby - Nb, Uby + Nb + 1) - Lby + Nb + 0.5);
+  xc = xlim[0] + delh * (xt::arange(Lbx - Nb, Ubx + Nb + 1) - Lbx + Nb + 0.5);
 }
 
 template class Chunk3D<1>;

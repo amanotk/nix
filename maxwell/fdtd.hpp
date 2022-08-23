@@ -15,10 +15,10 @@ public:
   using T_function = std::function<void(float64, float64, float64, float64 *)>;
 
   enum PackMode {
-    PackAll = 1,
-    PackAllQuery,
-    PackEmf,
-    PackEmfQuery,
+    PackAllQuery = 0,
+    PackAll      = 1,
+    PackEmf      = 2,
+    PackEmfQuery = 3,
   };
 
   /// boundary margin
@@ -44,13 +44,13 @@ public:
 
   virtual int pack_diagnostic(void *buffer, const bool query);
 
-  virtual void set_boundary_begin(const int mode=0) override;
+  virtual void set_boundary_begin(const int mode = 0) override;
 
-  virtual void set_boundary_end(const int mode=0) override;
+  virtual void set_boundary_end(const int mode = 0) override;
 
-  virtual bool set_boundary_query(const int mode=0) override;
+  virtual bool set_boundary_query(const int mode = 0) override;
 
-  virtual void set_boundary_physical(const int dir);
+  virtual void set_boundary_physical(const int mode = 0);
 };
 
 // Local Variables:

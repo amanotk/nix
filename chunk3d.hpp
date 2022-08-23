@@ -13,11 +13,23 @@ class Chunk3D : public Chunk<3>
 {
 public:
   using T_bufaddr = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
+  using T_request = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
 
   enum PackMode {
-    PackAll = 1,
-    PackAllQuery,
+    PackAllQuery = 0,
+    PackAll      = 1,
   };
+
+  /// MPI buffer struct
+  struct MpiBuffer {
+    size_t    bufsize;
+    Buffer    sendbuf;
+    Buffer    recvbuf;
+    T_bufaddr bufaddr;
+    T_request sendreq;
+    T_request recvreq;
+  };
+  typedef std::vector<std::unique_ptr<MpiBuffer>> MpiBufferVec;
 
   /// boundary margin
   static const int boundary_margin = Nb;
@@ -34,20 +46,46 @@ protected:
   int recvlb[3][3]; ///< lower bound for recv
   int recvub[3][3]; ///< upper bound for recv
 
-  xt::xtensor<float64, 1> xc;      ///< x coordiante
-  xt::xtensor<float64, 1> yc;      ///< y coordiante
-  xt::xtensor<float64, 1> zc;      ///< z coordiante
-  float64                 delh;    ///< grid size
-  float64                 xlim[3]; ///< physical domain in x
-  float64                 ylim[3]; ///< physical domain in y
-  float64                 zlim[3]; ///< physical domain in z
+  xt::xtensor<float64, 1> xc;        ///< x coordiante
+  xt::xtensor<float64, 1> yc;        ///< y coordiante
+  xt::xtensor<float64, 1> zc;        ///< z coordiante
+  float64                 delh;      ///< grid size
+  float64                 xlim[3];   ///< physical domain in x
+  float64                 ylim[3];   ///< physical domain in y
+  float64                 zlim[3];   ///< physical domain in z
+  MpiBufferVec            mpibufvec; ///< MPI buffer vector
 
-  MPI_Request sendreq[3][3][3]; ///< MPI request
-  MPI_Request recvreq[3][3][3]; ///< MPI request
-  size_t      bufsize;          // MPI buffer size
-  T_bufaddr   bufaddr;          // MPI buffer address array
-  Buffer      sendbuf;          ///< MPI send buffer
-  Buffer      recvbuf;          ///< MPI recv buffer
+  template <typename T>
+  void set_mpi_buffer(const int headbyte, const T &elembyte, MpiBuffer *mpibuffer)
+  {
+    const std::vector<size_t> shape = {3, 3};
+
+    auto I   = xt::all();
+    auto J   = xt::newaxis();
+    auto xlb = xt::adapt(&recvlb[0][0], 9, xt::no_ownership(), shape);
+    auto xub = xt::adapt(&recvub[0][0], 9, xt::no_ownership(), shape);
+    auto xss = xub - xlb + 1;
+    auto pos =
+        xt::eval(xt::view(xss, 0, I, J, J) * xt::view(xss, 1, J, I, J) * xt::view(xss, 2, J, J, I));
+
+    // no send/recv with itself
+    pos          = pos * elembyte;
+    pos(1, 1, 1) = 0;
+
+    mpibuffer->bufsize = headbyte + xt::sum(pos)(); // buffer size
+
+    // calculate buffer address and size
+    pos    = xt::cumsum(pos);
+    pos    = xt::roll(pos, 1);
+    pos(0) = 0;
+    pos.reshape({3, 3, 3});
+
+    mpibuffer->bufaddr = headbyte + pos; // buffer address
+
+    // buffer allocation
+    mpibuffer->sendbuf.resize(mpibuffer->bufsize);
+    mpibuffer->recvbuf.resize(mpibuffer->bufsize);
+  }
 
 public:
   Chunk3D(const int dims[3], const int id = 0);
@@ -61,8 +99,6 @@ public:
   virtual int pack(const int mode, void *buffer) override;
 
   virtual int unpack(const int mode, void *buffer) override;
-
-  virtual void set_buffer_address();
 
   virtual void set_coordinate(const float64 delh, const int offset[3]);
 

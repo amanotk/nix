@@ -14,6 +14,10 @@ DEFINE_MEMBER(, FDTD)(const int dims[3], const int id) : Chunk(dims, id)
   // memory allocation
   uf.resize({Nz, Ny, Nx, 6});
   uf.fill(0);
+
+  // initialize MPI buffer
+  mpibufvec.push_back(std::make_unique<MpiBuffer>());
+  set_mpi_buffer(0, sizeof(float64) * 6, mpibufvec[0].get());
 }
 
 DEFINE_MEMBER(, ~FDTD)()
@@ -29,15 +33,15 @@ DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
   char *ptr   = static_cast<char *>(buffer);
 
   switch (mode) {
-  case PackAll:
-    count += Chunk::pack(Chunk::PackAll, &ptr[count]);
-    count += memcpy_count(&ptr[count], uf.data(), uf.size() * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], &cc, sizeof(float64), false);
-    break;
   case PackAllQuery:
     count += Chunk::pack(Chunk::PackAllQuery, &ptr[count]);
     count += memcpy_count(&ptr[count], uf.data(), uf.size() * sizeof(float64), true);
     count += memcpy_count(&ptr[count], &cc, sizeof(float64), true);
+    break;
+  case PackAll:
+    count += Chunk::pack(Chunk::PackAll, &ptr[count]);
+    count += memcpy_count(&ptr[count], uf.data(), uf.size() * sizeof(float64), false);
+    count += memcpy_count(&ptr[count], &cc, sizeof(float64), false);
     break;
   case PackEmf:
     count = pack_diagnostic(buffer, false);
@@ -46,6 +50,7 @@ DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
     count = pack_diagnostic(buffer, true);
     break;
   default:
+    ERRORPRINT("No such packing mode");
     break;
   }
 
@@ -65,11 +70,6 @@ DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
     count += memcpy_count(uf.data(), &ptr[count], uf.size() * sizeof(float64), false);
     count += memcpy_count(&cc, &ptr[count], sizeof(float64), false);
     break;
-  case PackAllQuery:
-    count += Chunk::unpack(Chunk::PackAllQuery, &ptr[count]);
-    count += memcpy_count(uf.data(), &ptr[count], uf.size() * sizeof(float64), true);
-    count += memcpy_count(&cc, &ptr[count], sizeof(float64), true);
-    break;
   case PackEmf:
     ERRORPRINT("Not implemented yet");
     break;
@@ -77,6 +77,7 @@ DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
     ERRORPRINT("Not implemented yet");
     break;
   default:
+    ERRORPRINT("No such unpacking mode");
     break;
   }
 
@@ -164,17 +165,18 @@ DEFINE_MEMBER(void, set_boundary_begin)(const int mode)
   auto Ia = xt::all();
 
   // physical boundary
-  set_boundary_physical(0);
-  set_boundary_physical(1);
-  set_boundary_physical(2);
+  set_boundary_physical();
+
+  // MPI buffer
+  MpiBuffer *mpibuf = mpibufvec[0].get();
 
   for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
     for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
       for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
         // skip send/recv to itself
         if (dirz == 0 && diry == 0 && dirx == 0) {
-          sendreq[iz][iy][ix] = MPI_REQUEST_NULL;
-          recvreq[iz][iy][ix] = MPI_REQUEST_NULL;
+          mpibuf->sendreq(iz, iy, ix) = MPI_REQUEST_NULL;
+          mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
           continue;
         }
 
@@ -189,16 +191,17 @@ DEFINE_MEMBER(void, set_boundary_begin)(const int mode)
         int   nbrank = get_nb_rank(dirz, diry, dirx);
         int   sndtag = get_sndtag(dirz, diry, dirx);
         int   rcvtag = get_rcvtag(dirz, diry, dirx);
-        int   dsize  = sizeof(float64) * 6;
-        void *sndptr = sendbuf.get(bufaddr(iz, iy, ix) * dsize);
-        void *rcvptr = recvbuf.get(bufaddr(iz, iy, ix) * dsize);
+        void *sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        void *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
 
         // pack
         std::copy(view.begin(), view.end(), static_cast<float64 *>(sndptr));
 
         // send/recv calls
-        MPI_Isend(sndptr, byte, MPI_BYTE, nbrank, sndtag, MPI_COMM_WORLD, &sendreq[iz][iy][ix]);
-        MPI_Irecv(rcvptr, byte, MPI_BYTE, nbrank, rcvtag, MPI_COMM_WORLD, &recvreq[iz][iy][ix]);
+        MPI_Isend(sndptr, byte, MPI_BYTE, nbrank, sndtag, MPI_COMM_WORLD,
+                  &mpibuf->sendreq(iz, iy, ix));
+        MPI_Irecv(rcvptr, byte, MPI_BYTE, nbrank, rcvtag, MPI_COMM_WORLD,
+                  &mpibuf->recvreq(iz, iy, ix));
       }
     }
   }
@@ -208,11 +211,14 @@ DEFINE_MEMBER(void, set_boundary_end)(const int mode)
 {
   auto Ia = xt::all();
 
+  // MPI buffer
+  MpiBuffer *mpibuf = mpibufvec[0].get();
+
   //
   // wait for MPI calls to complete
   //
-  MPI_Waitall(27, &sendreq[0][0][0], MPI_STATUS_IGNORE);
-  MPI_Waitall(27, &recvreq[0][0][0], MPI_STATUS_IGNORE);
+  MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
+  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
 
   //
   // unpack recv buffer
@@ -238,7 +244,7 @@ DEFINE_MEMBER(void, set_boundary_end)(const int mode)
         // unpack
         auto     view   = xt::view(uf, Iz, Iy, Ix, Ia);
         int      dsize  = sizeof(float64) * 6;
-        void *   rcvptr = recvbuf.get(bufaddr(iz, iy, ix) * dsize);
+        void    *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
         float64 *ptr    = static_cast<float64 *>(rcvptr);
         std::copy(ptr, ptr + view.size(), view.begin());
       }
@@ -250,16 +256,19 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
 {
   int flag = 0;
 
+  // MPI buffer
+  MpiBuffer *mpibuf = mpibufvec[0].get();
+
   switch (mode) {
   case +1: // receive
-    MPI_Testall(27, &recvreq[0][0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUS_IGNORE);
     break;
   case -1: // send
-    MPI_Testall(27, &sendreq[0][0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUS_IGNORE);
     break;
   case 0: // both send and receive
-    MPI_Testall(27, &sendreq[0][0][0], &flag, MPI_STATUS_IGNORE);
-    MPI_Testall(27, &recvreq[0][0][0], &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUS_IGNORE);
     break;
   deafult:
     ERRORPRINT("No such mode is available");
@@ -268,44 +277,36 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
   return !(flag == 0);
 }
 
-DEFINE_MEMBER(void, set_boundary_physical)(const int dir)
+DEFINE_MEMBER(void, set_boundary_physical)(const int mode)
 {
-  switch (dir) {
-  case 0: // z direction
-    // lower boundary in z
-    if (get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-    }
+  // lower boundary in z
+  if (get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+  }
 
-    // upper boundary in z
-    if (get_nb_rank(+1, 0, 0) == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-    }
-    break;
+  // upper boundary in z
+  if (get_nb_rank(+1, 0, 0) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+  }
 
-  case 1: // y direction
-    // lower boundary in y
-    if (get_nb_rank(0, -1, 0) == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-    }
+  // lower boundary in y
+  if (get_nb_rank(0, -1, 0) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+  }
 
-    // upper boundary in y
-    if (get_nb_rank(0, +1, 0) == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-    }
-    break;
+  // upper boundary in y
+  if (get_nb_rank(0, +1, 0) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+  }
 
-  case 2: // x direction
-    // lower boundary in x
-    if (get_nb_rank(0, 0, -1) == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-    }
+  // lower boundary in x
+  if (get_nb_rank(0, 0, -1) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+  }
 
-    // upper boundary in x
-    if (get_nb_rank(0, 0, +1) == MPI_PROC_NULL) {
-      ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-    }
-    break;
+  // upper boundary in x
+  if (get_nb_rank(0, 0, +1) == MPI_PROC_NULL) {
+    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 }
 
