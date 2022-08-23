@@ -1,6 +1,6 @@
 // -*- C++ -*-
-#ifndef _Chunk3D_HPP_
-#define _Chunk3D_HPP_
+#ifndef _CHUNK3D_HPP_
+#define _CHUNK3D_HPP_
 
 #include "buffer.hpp"
 #include "chunk.hpp"
@@ -14,6 +14,11 @@ class Chunk3D : public Chunk<3>
 public:
   using T_bufaddr = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
   using T_request = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
+
+  enum SendRecvMode {
+    SendMode = 0b01000000000000, // 4096
+    RecvMode = 0b10000000000000, // 8192
+  };
 
   enum PackMode {
     PackAllQuery = 0,
@@ -54,6 +59,10 @@ protected:
   float64                 ylim[3];   ///< physical domain in y
   float64                 zlim[3];   ///< physical domain in z
   MpiBufferVec            mpibufvec; ///< MPI buffer vector
+
+  void begin_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array);
+
+  void end_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append = false);
 
   template <typename T>
   void set_mpi_buffer(const int headbyte, const T &elembyte, MpiBuffer *mpibuffer)
@@ -102,13 +111,15 @@ public:
 
   virtual void set_coordinate(const float64 delh, const int offset[3]);
 
+  virtual bool set_boundary_query(const int mode = 0);
+
+  virtual void set_boundary_physical(const int mode = 0);
+
   virtual void push(const float64 delt) = 0;
 
   virtual void set_boundary_begin(const int mode) = 0;
 
   virtual void set_boundary_end(const int mode) = 0;
-
-  virtual bool set_boundary_query(const int mode) = 0;
 };
 
 // Local Variables:

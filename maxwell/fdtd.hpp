@@ -47,10 +47,6 @@ public:
   virtual void set_boundary_begin(const int mode = 0) override;
 
   virtual void set_boundary_end(const int mode = 0) override;
-
-  virtual bool set_boundary_query(const int mode = 0) override;
-
-  virtual void set_boundary_physical(const int mode = 0);
 };
 
 // Local Variables:

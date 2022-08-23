@@ -40,6 +40,8 @@ DEFINE_MEMBER(void, initialize)(int argc, char **argv)
 
 DEFINE_MEMBER(void, push)()
 {
+  int recvmode = Chunk::RecvMode;
+
   std::set<int> waiting;
 
   for (int i = 0; i < numchunk; i++) {
@@ -51,7 +53,7 @@ DEFINE_MEMBER(void, push)()
   while (waiting.empty() == false) {
     // try to find a chunk ready for unpacking
     auto iter = std::find_if(waiting.begin(), waiting.end(),
-                             [&](int i) { return chunkvec[i]->set_boundary_query(+1); });
+                             [&](int i) { return chunkvec[i]->set_boundary_query(recvmode); });
     if (iter == waiting.end()) {
       continue;
     }

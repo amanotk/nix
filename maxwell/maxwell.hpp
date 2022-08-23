@@ -15,6 +15,8 @@ using BaseApp = Application<FDTD, ChunkMap<3>>;
 class Maxwell : public BaseApp
 {
 protected:
+  using Chunk = FDTD;
+
   std::string prefix;   ///< output filename prefix
   int         interval; ///< data output interval
   int         kdir;     ///< wave propagation direction (for initial condition)

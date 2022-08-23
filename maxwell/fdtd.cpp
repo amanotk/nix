@@ -169,42 +169,7 @@ DEFINE_MEMBER(void, set_boundary_begin)(const int mode)
 
   // MPI buffer
   MpiBuffer *mpibuf = mpibufvec[0].get();
-
-  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
-        // skip send/recv to itself
-        if (dirz == 0 && diry == 0 && dirx == 0) {
-          mpibuf->sendreq(iz, iy, ix) = MPI_REQUEST_NULL;
-          mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
-          continue;
-        }
-
-        // index range
-        auto Iz = xt::range(sendlb[0][iz], sendub[0][iz] + 1);
-        auto Iy = xt::range(sendlb[1][iy], sendub[1][iy] + 1);
-        auto Ix = xt::range(sendlb[2][ix], sendub[2][ix] + 1);
-
-        // MPI
-        auto  view   = xt::view(uf, Iz, Iy, Ix, Ia);
-        int   byte   = view.size() * sizeof(float64);
-        int   nbrank = get_nb_rank(dirz, diry, dirx);
-        int   sndtag = get_sndtag(dirz, diry, dirx);
-        int   rcvtag = get_rcvtag(dirz, diry, dirx);
-        void *sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
-        void *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
-
-        // pack
-        std::copy(view.begin(), view.end(), static_cast<float64 *>(sndptr));
-
-        // send/recv calls
-        MPI_Isend(sndptr, byte, MPI_BYTE, nbrank, sndtag, MPI_COMM_WORLD,
-                  &mpibuf->sendreq(iz, iy, ix));
-        MPI_Irecv(rcvptr, byte, MPI_BYTE, nbrank, rcvtag, MPI_COMM_WORLD,
-                  &mpibuf->recvreq(iz, iy, ix));
-      }
-    }
-  }
+  begin_bc_exchange(mpibuf, uf);
 }
 
 DEFINE_MEMBER(void, set_boundary_end)(const int mode)
@@ -213,101 +178,7 @@ DEFINE_MEMBER(void, set_boundary_end)(const int mode)
 
   // MPI buffer
   MpiBuffer *mpibuf = mpibufvec[0].get();
-
-  //
-  // wait for MPI calls to complete
-  //
-  MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
-  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
-
-  //
-  // unpack recv buffer
-  //
-  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
-        // skip send/recv to itself
-        if (dirz == 0 && diry == 0 && dirx == 0) {
-          continue;
-        }
-
-        // skip physical boundary
-        if (get_nb_rank(dirz, diry, dirx) == MPI_PROC_NULL) {
-          continue;
-        }
-
-        // index range
-        auto Iz = xt::range(recvlb[0][iz], recvub[0][iz] + 1);
-        auto Iy = xt::range(recvlb[1][iy], recvub[1][iy] + 1);
-        auto Ix = xt::range(recvlb[2][ix], recvub[2][ix] + 1);
-
-        // unpack
-        auto     view   = xt::view(uf, Iz, Iy, Ix, Ia);
-        int      dsize  = sizeof(float64) * 6;
-        void    *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
-        float64 *ptr    = static_cast<float64 *>(rcvptr);
-        std::copy(ptr, ptr + view.size(), view.begin());
-      }
-    }
-  }
-}
-
-DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
-{
-  int flag = 0;
-
-  // MPI buffer
-  MpiBuffer *mpibuf = mpibufvec[0].get();
-
-  switch (mode) {
-  case +1: // receive
-    MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUS_IGNORE);
-    break;
-  case -1: // send
-    MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUS_IGNORE);
-    break;
-  case 0: // both send and receive
-    MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUS_IGNORE);
-    MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUS_IGNORE);
-    break;
-  deafult:
-    ERRORPRINT("No such mode is available");
-  }
-
-  return !(flag == 0);
-}
-
-DEFINE_MEMBER(void, set_boundary_physical)(const int mode)
-{
-  // lower boundary in z
-  if (get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-  }
-
-  // upper boundary in z
-  if (get_nb_rank(+1, 0, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-  }
-
-  // lower boundary in y
-  if (get_nb_rank(0, -1, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-  }
-
-  // upper boundary in y
-  if (get_nb_rank(0, +1, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-  }
-
-  // lower boundary in x
-  if (get_nb_rank(0, 0, -1) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-  }
-
-  // upper boundary in x
-  if (get_nb_rank(0, 0, +1) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
-  }
+  end_bc_exchange(mpibuf, uf, false);
 }
 
 // Local Variables:
