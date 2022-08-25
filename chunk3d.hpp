@@ -6,6 +6,7 @@
 #include "chunk.hpp"
 #include "debug.hpp"
 #include "jsonio.hpp"
+#include "particle.hpp"
 #include "xtensorall.hpp"
 
 template <int Nb>
@@ -62,7 +63,11 @@ protected:
 
   void begin_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array);
 
+  void begin_bc_exchange(MpiBuffer *mpibuf, ParticleList &particle);
+
   void end_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append = false);
+
+  void end_bc_exchange(MpiBuffer *mpibuf, ParticleList &particle);
 
   template <typename T>
   void set_mpi_buffer(const int headbyte, const T &elembyte, MpiBuffer *mpibuffer)

@@ -31,7 +31,7 @@ void prepare_sort1d(Particle &particle, const int Nx)
   // prepare for sort
   int last = particle.Ng;
   particle.gindex.fill(0);
-  particle.count.fill(0);
+  particle.pcount.fill(0);
   for (int ip = 0; ip < particle.Np; ip++) {
     int ix = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
     int ii = ix;
@@ -39,8 +39,7 @@ void prepare_sort1d(Particle &particle, const int Nx)
     // take care out-of-bounds particles
     ii = (ix < 0 || ix >= Nx) ? last : ii;
 
-    particle.gindex.at(ip) = ii;
-    particle.count.at(ii)++;
+    particle.increment(ip, ii);
   }
 }
 
@@ -77,7 +76,7 @@ void prepare_sort2d(Particle &particle, const int Nx, const int Ny)
   // prepare for sort
   int last = particle.Ng;
   particle.gindex.fill(0);
-  particle.count.fill(0);
+  particle.pcount.fill(0);
   for (int ip = 0; ip < particle.Np; ip++) {
     int ix = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
     int iy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
@@ -87,8 +86,7 @@ void prepare_sort2d(Particle &particle, const int Nx, const int Ny)
     ii = (ix < 0 || ix >= Nx) ? last : ii;
     ii = (iy < 0 || iy >= Ny) ? last : ii;
 
-    particle.gindex.at(ip) = ii;
-    particle.count.at(ii)++;
+    particle.increment(ip, ii);
   }
 }
 
@@ -127,7 +125,7 @@ void prepare_sort3d(Particle &particle, const int Nx, const int Ny, const int Nz
   // prepare for sort
   int last = particle.Ng;
   particle.gindex.fill(0);
-  particle.count.fill(0);
+  particle.pcount.fill(0);
   for (int ip = 0; ip < particle.Np; ip++) {
     int ix = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
     int iy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
@@ -139,8 +137,7 @@ void prepare_sort3d(Particle &particle, const int Nx, const int Ny, const int Nz
     ii = (iy < 0 || iy >= Ny) ? last : ii;
     ii = (iz < 0 || iz >= Nz) ? last : ii;
 
-    particle.gindex.at(ip) = ii;
-    particle.count.at(ii)++;
+    particle.increment(ip, ii);
   }
 }
 
@@ -297,7 +294,7 @@ TEST_CASE("CreateParticle")
   REQUIRE(particle.xv.size() == Np * Particle::Nc);
   REQUIRE(particle.gindex.size() == Np);
   REQUIRE(particle.pindex.size() == Ng + 1);
-  REQUIRE(particle.count.size() == Ng + 1);
+  REQUIRE(particle.pcount.size() == (Ng + 1) * Particle::simd_width);
 
   // check particle data
   REQUIRE(xt::allclose(particle.xu, 0.0));
@@ -503,7 +500,7 @@ TEST_CASE("Interp3D1st")
         float64 val2 = Particle::interp3d1(eb, iz, iy, ix, ik, wz, wy, wx, 1.0);
 
         // check absolute error for small values, and relative error otherwise
-        status = status & (std::abs(val1 - val2) < std::max(eps, eps*std::abs(val1)));
+        status = status & (std::abs(val1 - val2) < std::max(eps, eps * std::abs(val1)));
       }
     }
 

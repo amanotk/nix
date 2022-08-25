@@ -216,6 +216,11 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4
   }
 }
 
+DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
+{
+  // Implement Me !
+}
+
 DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append)
 {
   auto Ia = xt::all();
@@ -252,13 +257,20 @@ DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> 
         void    *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
         float64 *ptr    = static_cast<float64 *>(rcvptr);
 
-        if (append == false) {
-          view.fill(0);
+        // copy or append
+        if (append) {
+          std::transform(ptr, ptr + view.size(), view.begin(), view.begin(), std::plus<float64>());
+        } else {
+          std::copy(ptr, ptr + view.size(), view.begin());
         }
-        std::transform(ptr, ptr + view.size(), view.begin(), view.begin(), std::plus<float64>());
       }
     }
   }
+}
+
+DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
+{
+  // Implement Me !
 }
 
 DEFINE_MEMBER(bool, set_boundary_query)(const int mode)

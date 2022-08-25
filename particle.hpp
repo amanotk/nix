@@ -17,7 +17,7 @@ using ParticleList = std::vector<std::shared_ptr<Particle>>;
 /// made public for enabling access from everywhere else.
 ///
 /// It also provides some general routines as static inline member functions, including
-/// Buneman-Boris pusher, shape functions, and counting sort.
+/// Buneman-Boris pusher, shape functions, counting sort, interpolation, and Esirkepov's scheme.
 ///
 class Particle
 {
@@ -27,6 +27,8 @@ private:
   Particle(const Particle &particle);
 
 public:
+  static constexpr int simd_width = config_simd_width;
+
   static const int Nc = 7; ///< # component for each particle (including ID)
 
   int Np_total; ///< # total particles
@@ -37,9 +39,9 @@ public:
   float64                 m;      ///< mass
   xt::xtensor<float64, 2> xu;     ///< particle array
   xt::xtensor<float64, 2> xv;     ///< temporary particle array
-  xt::xtensor<float64, 1> gindex; ///< index to grid for each particle
-  xt::xtensor<float64, 1> pindex; ///< index to first particle for each cell
-  xt::xtensor<float64, 1> count;  ///< particle count for each cell
+  xt::xtensor<int32, 1>   gindex; ///< index to grid for each particle
+  xt::xtensor<int32, 1>   pindex; ///< index to first particle for each cell
+  xt::xtensor<int32, 2>   pcount; ///< particle count for each cell
 
   ///
   /// @brief Constructor
@@ -62,11 +64,29 @@ public:
   ///
   virtual ~Particle()
   {
-    xu.resize({0, 0});
-    xv.resize({0, 0});
-    gindex.resize({0});
-    pindex.resize({0});
-    count.resize({0});
+  }
+
+  ///
+  /// @brief memory allocation
+  ///
+  void allocate_memory(const int Np_total, const int Ng)
+  {
+    size_t np = Np_total;
+    size_t ng = Ng;
+    size_t nc = Nc;
+    size_t ns = simd_width;
+
+    xu.resize({np, nc});
+    xv.resize({np, nc});
+    gindex.resize({np});
+    pindex.resize({ng + 1});
+    pcount.resize({ng + 1, ns});
+
+    xu.fill(0);
+    xv.fill(0);
+    gindex.fill(0);
+    pindex.fill(0);
+    pcount.fill(0);
   }
 
   ///
@@ -78,47 +98,25 @@ public:
   }
 
   ///
-  /// @brief memory allocation
-  ///
-  void allocate_memory(const int Np_total, const int Ng)
-  {
-    size_t np = Np_total;
-    size_t ng = Ng;
-    size_t nc = Nc;
-
-    xu.resize({np, nc});
-    xv.resize({np, nc});
-    gindex.resize({np});
-    pindex.resize({ng + 1});
-    count.resize({ng + 1});
-
-    xu.fill(0);
-    xv.fill(0);
-    gindex.fill(0);
-    pindex.fill(0);
-    count.fill(0);
-  }
-
-  ///
   /// @brief pack data into buffer
   ///
   int pack(void *buffer, bool count_only = false)
   {
-    int   c = 0;
-    char *p = static_cast<char *>(buffer);
+    int   cnt = 0;
+    char *ptr = static_cast<char *>(buffer);
 
-    c += common::memcpy_count(&p[c], &Np_total, sizeof(int), count_only);
-    c += common::memcpy_count(&p[c], &Np, sizeof(int), count_only);
-    c += common::memcpy_count(&p[c], &Ng, sizeof(int), count_only);
-    c += common::memcpy_count(&p[c], &q, sizeof(float64), count_only);
-    c += common::memcpy_count(&p[c], &m, sizeof(float64), count_only);
-    c += common::memcpy_count(&p[c], xu.data(), xu.size() * sizeof(float64), count_only);
-    c += common::memcpy_count(&p[c], xv.data(), xu.size() * sizeof(float64), count_only);
-    c += common::memcpy_count(&p[c], gindex.data(), gindex.size() * sizeof(int), count_only);
-    c += common::memcpy_count(&p[c], pindex.data(), pindex.size() * sizeof(int), count_only);
-    c += common::memcpy_count(&p[c], count.data(), count.size() * sizeof(int), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], &Np_total, sizeof(int), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], &Np, sizeof(int), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], &Ng, sizeof(int), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], &q, sizeof(float64), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], &m, sizeof(float64), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], xu.data(), xu.size() * sizeof(float64), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], xv.data(), xu.size() * sizeof(float64), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], gindex.data(), gindex.size() * sizeof(int), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], pindex.data(), pindex.size() * sizeof(int), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], pcount.data(), pcount.size() * sizeof(int), count_only);
 
-    return c;
+    return cnt;
   }
 
   ///
@@ -126,25 +124,25 @@ public:
   ///
   int unpack(void *buffer, bool count_only = false)
   {
-    int   c = 0;
-    char *p = static_cast<char *>(buffer);
+    int   cnt = 0;
+    char *ptr = static_cast<char *>(buffer);
 
-    c += common::memcpy_count(&Np_total, &p[c], sizeof(int), count_only);
-    c += common::memcpy_count(&Np, &p[c], sizeof(int), count_only);
-    c += common::memcpy_count(&Ng, &p[c], sizeof(int), count_only);
-    c += common::memcpy_count(&p[c], &q, sizeof(float64), count_only);
-    c += common::memcpy_count(&p[c], &m, sizeof(float64), count_only);
+    cnt += common::memcpy_count(&Np_total, &ptr[cnt], sizeof(int), count_only);
+    cnt += common::memcpy_count(&Np, &ptr[cnt], sizeof(int), count_only);
+    cnt += common::memcpy_count(&Ng, &ptr[cnt], sizeof(int), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], &q, sizeof(float64), count_only);
+    cnt += common::memcpy_count(&ptr[cnt], &m, sizeof(float64), count_only);
 
     // memory allocation before reading arrays
     allocate_memory(Np_total, Ng);
 
-    c += common::memcpy_count(xu.data(), &p[c], xu.size() * sizeof(float64), count_only);
-    c += common::memcpy_count(xv.data(), &p[c], xu.size() * sizeof(float64), count_only);
-    c += common::memcpy_count(gindex.data(), &p[c], gindex.size() * sizeof(int), count_only);
-    c += common::memcpy_count(pindex.data(), &p[c], pindex.size() * sizeof(int), count_only);
-    c += common::memcpy_count(count.data(), &p[c], count.size() * sizeof(int), count_only);
+    cnt += common::memcpy_count(xu.data(), &ptr[cnt], xu.size() * sizeof(float64), count_only);
+    cnt += common::memcpy_count(xv.data(), &ptr[cnt], xu.size() * sizeof(float64), count_only);
+    cnt += common::memcpy_count(gindex.data(), &ptr[cnt], gindex.size() * sizeof(int), count_only);
+    cnt += common::memcpy_count(pindex.data(), &ptr[cnt], pindex.size() * sizeof(int), count_only);
+    cnt += common::memcpy_count(pcount.data(), &ptr[cnt], pcount.size() * sizeof(int), count_only);
 
-    return c;
+    return cnt;
   }
 
   ///
@@ -186,33 +184,79 @@ public:
   }
 
   ///
+  /// @brief increment particle count
+  ///
+  /// @param[in] ip particle index
+  /// @param[in] ii grid index (where the particle resides)
+  ///
+  void increment(const int ip, const int ii)
+  {
+    int jj = ip % simd_width;
+
+    gindex(ip) = ii;
+    pcount(ii, jj)++;
+  }
+
+  ///
   /// @brief sort particle array
   ///
-  /// This routine assumes that count and gindex are appropriately calculated before calling it.
+  /// This routine performs counting sort of particles using pre-computed pcount and gindex.
+  /// Out-of-bounds particles are eliminated.
   ///
   void sort()
   {
-    // initial setup
-    pindex(0) = 0;
-
+    //
     // cumulative sum of particle count
-    xt::view(count, xt::all()) = xt::cumsum(count);
+    //
+    for (int ii = 0; ii < Ng + 1; ii++) {
+      for (int jj = 0; jj < simd_width - 1; jj++) {
+        pcount(ii, jj + 1) += pcount(ii, jj);
+      }
+    }
+    for (int ii = 0; ii < Ng; ii++) {
+      for (int jj = 0; jj < simd_width; jj++) {
+        pcount(ii + 1, jj) += pcount(ii, simd_width - 1);
+      }
+    }
 
+    //
     // first particle index for each cell
-    xt::view(pindex, xt::range(1, Ng + 1)) = xt::view(count, xt::range(0, Ng));
+    //
+    pindex(0) = 0;
+    for (int ii = 0; ii < Ng; ii++) {
+      pindex(ii + 1) = pcount(ii, simd_width - 1);
+    }
 
+    //
     // particle address for rearrangement
-    xt::view(count, xt::all()) = xt::view(pindex, xt::all());
+    //
+    for (int ii = 0; ii < Ng + 1; ii++) {
+      for (int jj = simd_width - 1; jj > 0; jj--) {
+        pcount(ii, jj) = pcount(ii, jj - 1);
+      }
+    }
+    for (int ii = 0; ii < Ng + 1; ii++) {
+      pcount(ii, 0) = pindex(ii);
+    }
 
+    //
     // rearrange particles
-    for (int ip = 0; ip < Np; ip++) {
-      int ii = gindex(ip);
+    //
+    {
+      float64 *v = xv.data();
+      float64 *u = xu.data();
 
-      // copy particle to temporary at new address
-      xt::view(xv, count(ii), xt::all()) = xt::view(xu, ip, xt::all());
+      for (int ip = 0; ip < Np; ip++) {
+        int ii = gindex(ip);
+        int jj = ip % simd_width;
+        int jp = pcount(ii, jj);
 
-      // increment address
-      count(ii)++;
+        // copy particle to new address
+        std::memcpy(&v[Nc * jp], &u[Nc * ip], Nc * sizeof(float64));
+
+        // increment address
+        pcount(ii, jj)++;
+      }
     }
 
     // swap two particle arrays
