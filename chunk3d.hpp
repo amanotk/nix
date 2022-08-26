@@ -65,13 +65,13 @@ protected:
 
   void count_particle(ParticleList &particle, int *Lbp, int *Ubp, bool reset = true);
 
-  void begin_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array);
-
   void begin_bc_exchange(MpiBuffer *mpibuf, ParticleList &particle);
 
-  void end_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append = false);
-
   void end_bc_exchange(MpiBuffer *mpibuf, ParticleList &particle);
+
+  void begin_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array);
+
+  void end_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append = false);
 
   template <typename T>
   void set_mpi_buffer(const int headbyte, const T &elembyte, MpiBuffer *mpibuffer)

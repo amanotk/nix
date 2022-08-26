@@ -175,47 +175,6 @@ DEFINE_MEMBER(void, set_coordinate)(const float64 delh, const int offset[3])
   xc = xlim[0] + delh * (xt::arange<float64>(Lbx - Nb, Ubx + Nb + 1) - Lbx + 0.5);
 }
 
-DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array)
-{
-  auto Ia = xt::all();
-
-  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
-        // skip send/recv to itself
-        if (dirz == 0 && diry == 0 && dirx == 0) {
-          mpibuf->sendreq(iz, iy, ix) = MPI_REQUEST_NULL;
-          mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
-          continue;
-        }
-
-        // index range
-        auto Iz = xt::range(this->sendlb[0][iz], this->sendub[0][iz] + 1);
-        auto Iy = xt::range(this->sendlb[1][iy], this->sendub[1][iy] + 1);
-        auto Ix = xt::range(this->sendlb[2][ix], this->sendub[2][ix] + 1);
-
-        // MPI
-        auto  view   = xt::view(array, Iz, Iy, Ix, Ia);
-        int   byte   = view.size() * sizeof(float64);
-        int   nbrank = this->get_nb_rank(dirz, diry, dirx);
-        int   sndtag = this->get_sndtag(dirz, diry, dirx);
-        int   rcvtag = this->get_rcvtag(dirz, diry, dirx);
-        void *sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
-        void *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
-
-        // pack
-        std::copy(view.begin(), view.end(), static_cast<float64 *>(sndptr));
-
-        // send/recv calls
-        MPI_Isend(sndptr, byte, MPI_BYTE, nbrank, sndtag, mpibuf->comm,
-                  &mpibuf->sendreq(iz, iy, ix));
-        MPI_Irecv(rcvptr, byte, MPI_BYTE, nbrank, rcvtag, mpibuf->comm,
-                  &mpibuf->recvreq(iz, iy, ix));
-      }
-    }
-  }
-}
-
 DEFINE_MEMBER(void, count_particle)(ParticleList &particle, int *Lbp, int *Ubp, bool reset)
 {
   int     stride[3] = {0};
@@ -359,9 +318,9 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle
           byte += header_size + data_size * send_count(is, iz, iy, ix);
         }
 
-        int   nbrank = this->get_nb_rank(dirz, diry, dirx);
-        int   sndtag = this->get_sndtag(dirz, diry, dirx);
-        int   rcvtag = this->get_rcvtag(dirz, diry, dirx);
+        int   nbrank = get_nb_rank(dirz, diry, dirx);
+        int   sndtag = get_sndtag(dirz, diry, dirx);
+        int   rcvtag = get_rcvtag(dirz, diry, dirx);
         void *sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
         void *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
 
@@ -373,57 +332,6 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle
       }
     }
   }
-}
-
-DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append)
-{
-  auto Ia = xt::all();
-
-  //
-  // wait for MPI recv calls to complete
-  //
-  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
-
-  //
-  // unpack recv buffer
-  //
-  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
-        // skip send/recv to itself
-        if (dirz == 0 && diry == 0 && dirx == 0) {
-          continue;
-        }
-
-        // skip physical boundary
-        if (this->get_nb_rank(dirz, diry, dirx) == MPI_PROC_NULL) {
-          continue;
-        }
-
-        // index range
-        auto Iz = xt::range(this->recvlb[0][iz], this->recvub[0][iz] + 1);
-        auto Iy = xt::range(this->recvlb[1][iy], this->recvub[1][iy] + 1);
-        auto Ix = xt::range(this->recvlb[2][ix], this->recvub[2][ix] + 1);
-
-        // unpack
-        auto     view   = xt::view(array, Iz, Iy, Ix, Ia);
-        void    *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
-        float64 *ptr    = static_cast<float64 *>(rcvptr);
-
-        // copy or append
-        if (append) {
-          std::transform(ptr, ptr + view.size(), view.begin(), view.begin(), std::plus<float64>());
-        } else {
-          std::copy(ptr, ptr + view.size(), view.begin());
-        }
-      }
-    }
-  }
-
-  //
-  // wait for MPI send calls to complete (this is optional)
-  //
-  MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
 }
 
 DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
@@ -455,7 +363,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
         }
 
         // skip physical boundary
-        if (this->get_nb_rank(dirz, diry, dirx) == MPI_PROC_NULL) {
+        if (get_nb_rank(dirz, diry, dirx) == MPI_PROC_NULL) {
           continue;
         }
 
@@ -511,6 +419,98 @@ DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
   MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
 }
 
+DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array)
+{
+  auto Ia = xt::all();
+
+  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
+    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
+      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+        // skip send/recv to itself
+        if (dirz == 0 && diry == 0 && dirx == 0) {
+          mpibuf->sendreq(iz, iy, ix) = MPI_REQUEST_NULL;
+          mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
+          continue;
+        }
+
+        // index range
+        auto Iz = xt::range(sendlb[0][iz], sendub[0][iz] + 1);
+        auto Iy = xt::range(sendlb[1][iy], sendub[1][iy] + 1);
+        auto Ix = xt::range(sendlb[2][ix], sendub[2][ix] + 1);
+
+        // MPI
+        auto  view   = xt::view(array, Iz, Iy, Ix, Ia);
+        int   byte   = view.size() * sizeof(float64);
+        int   nbrank = get_nb_rank(dirz, diry, dirx);
+        int   sndtag = get_sndtag(dirz, diry, dirx);
+        int   rcvtag = get_rcvtag(dirz, diry, dirx);
+        void *sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        void *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+
+        // pack
+        std::copy(view.begin(), view.end(), static_cast<float64 *>(sndptr));
+
+        // send/recv calls
+        MPI_Isend(sndptr, byte, MPI_BYTE, nbrank, sndtag, mpibuf->comm,
+                  &mpibuf->sendreq(iz, iy, ix));
+        MPI_Irecv(rcvptr, byte, MPI_BYTE, nbrank, rcvtag, mpibuf->comm,
+                  &mpibuf->recvreq(iz, iy, ix));
+      }
+    }
+  }
+}
+
+DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append)
+{
+  auto Ia = xt::all();
+
+  //
+  // wait for MPI recv calls to complete
+  //
+  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
+
+  //
+  // unpack recv buffer
+  //
+  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
+    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
+      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+        // skip send/recv to itself
+        if (dirz == 0 && diry == 0 && dirx == 0) {
+          continue;
+        }
+
+        // skip physical boundary
+        if (get_nb_rank(dirz, diry, dirx) == MPI_PROC_NULL) {
+          continue;
+        }
+
+        // index range
+        auto Iz = xt::range(recvlb[0][iz], recvub[0][iz] + 1);
+        auto Iy = xt::range(recvlb[1][iy], recvub[1][iy] + 1);
+        auto Ix = xt::range(recvlb[2][ix], recvub[2][ix] + 1);
+
+        // unpack
+        auto     view   = xt::view(array, Iz, Iy, Ix, Ia);
+        void    *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        float64 *ptr    = static_cast<float64 *>(rcvptr);
+
+        // copy or append
+        if (append) {
+          std::transform(ptr, ptr + view.size(), view.begin(), view.begin(), std::plus<float64>());
+        } else {
+          std::copy(ptr, ptr + view.size(), view.begin());
+        }
+      }
+    }
+  }
+
+  //
+  // wait for MPI send calls to complete (this is optional)
+  //
+  MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
+}
+
 DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
 {
   int  flag   = 0;
@@ -523,7 +523,7 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
   bcmode &= ~RecvMode;
 
   // MPI buffer
-  MpiBuffer *mpibuf = this->mpibufvec[bcmode].get();
+  MpiBuffer *mpibuf = mpibufvec[bcmode].get();
 
   if (send == true && recv == true) {
     // both send/recv
@@ -543,32 +543,32 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
 DEFINE_MEMBER(void, set_boundary_physical)(const int mode)
 {
   // lower boundary in z
-  if (this->get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {
+  if (get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {
     ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // upper boundary in z
-  if (this->get_nb_rank(+1, 0, 0) == MPI_PROC_NULL) {
+  if (get_nb_rank(+1, 0, 0) == MPI_PROC_NULL) {
     ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // lower boundary in y
-  if (this->get_nb_rank(0, -1, 0) == MPI_PROC_NULL) {
+  if (get_nb_rank(0, -1, 0) == MPI_PROC_NULL) {
     ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // upper boundary in y
-  if (this->get_nb_rank(0, +1, 0) == MPI_PROC_NULL) {
+  if (get_nb_rank(0, +1, 0) == MPI_PROC_NULL) {
     ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // lower boundary in x
-  if (this->get_nb_rank(0, 0, -1) == MPI_PROC_NULL) {
+  if (get_nb_rank(0, 0, -1) == MPI_PROC_NULL) {
     ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 
   // upper boundary in x
-  if (this->get_nb_rank(0, 0, +1) == MPI_PROC_NULL) {
+  if (get_nb_rank(0, 0, +1) == MPI_PROC_NULL) {
     ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
   }
 }
