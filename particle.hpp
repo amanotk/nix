@@ -184,6 +184,14 @@ public:
   }
 
   ///
+  /// reset particle count
+  ///
+  void reset_count()
+  {
+    pcount.fill(0);
+  }
+
+  ///
   /// @brief increment particle count
   ///
   /// @param[in] ip particle index

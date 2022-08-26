@@ -28,6 +28,7 @@ public:
 
   /// MPI buffer struct
   struct MpiBuffer {
+    MPI_Comm  comm;
     size_t    bufsize;
     Buffer    sendbuf;
     Buffer    recvbuf;
@@ -41,16 +42,17 @@ public:
   static const int boundary_margin = Nb;
 
 protected:
-  int Lbx;          ///< lower bound in x
-  int Ubx;          ///< upper bound in x
-  int Lby;          ///< lower bound in y
-  int Uby;          ///< upper bound in y
-  int Lbz;          ///< lower bound in z
-  int Ubz;          ///< upper bound in z
-  int sendlb[3][3]; ///< lower bound for send
-  int sendub[3][3]; ///< upper bound for send
-  int recvlb[3][3]; ///< lower bound for recv
-  int recvub[3][3]; ///< upper bound for recv
+  bool require_sort; ///< sort flag
+  int  Lbx;          ///< lower bound in x
+  int  Ubx;          ///< upper bound in x
+  int  Lby;          ///< lower bound in y
+  int  Uby;          ///< upper bound in y
+  int  Lbz;          ///< lower bound in z
+  int  Ubz;          ///< upper bound in z
+  int  sendlb[3][3]; ///< lower bound for send
+  int  sendub[3][3]; ///< upper bound for send
+  int  recvlb[3][3]; ///< lower bound for recv
+  int  recvub[3][3]; ///< upper bound for recv
 
   xt::xtensor<float64, 1> xc;        ///< x coordiante
   xt::xtensor<float64, 1> yc;        ///< y coordiante
@@ -60,6 +62,8 @@ protected:
   float64                 ylim[3];   ///< physical domain in y
   float64                 zlim[3];   ///< physical domain in z
   MpiBufferVec            mpibufvec; ///< MPI buffer vector
+
+  void count_particle(ParticleList &particle, int *Lbp, int *Ubp, bool reset = true);
 
   void begin_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array);
 
@@ -99,6 +103,9 @@ protected:
     // buffer allocation
     mpibuffer->sendbuf.resize(mpibuffer->bufsize);
     mpibuffer->recvbuf.resize(mpibuffer->bufsize);
+
+    // default communicator
+    mpibuffer->comm = MPI_COMM_WORLD;
   }
 
 public:
