@@ -7,6 +7,7 @@ a.out
 *.a
 *.pyc
 test_application
+test_sendrecv
 test_chunk
 test_chunkmap
 test_jsonio1

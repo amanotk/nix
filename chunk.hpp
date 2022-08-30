@@ -34,7 +34,6 @@ protected:
   int     nbid[NB_SIZE[N - 1]];   ///< neighboring chunk ID
   int     nbrank[NB_SIZE[N - 1]]; ///< neighboring chunk MPI rank
   int     dims[N];                ///< number of grids
-  int     offset[N];              ///< global index offset
   float64 load;                   ///< current load
 
   int pack_base(const int mode, void *buffer);

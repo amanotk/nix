@@ -29,7 +29,7 @@ DEFINE_MEMBER(void, initialize)(int argc, char **argv)
     offset[0] = iz * ndims[0] / cdims[0];
     offset[1] = iy * ndims[1] / cdims[1];
     offset[2] = ix * ndims[2] / cdims[2];
-    chunkvec[i]->setup(cc, delh, offset, f);
+    chunkvec[i]->setup(cc, delh, offset, ndims, f);
     chunkvec[i]->set_boundary_begin();
   }
 

@@ -163,10 +163,10 @@ protected:
   }
 
   // default MPI finalization
-  void finalize_mpi_default()
+  void finalize_mpi_default(int cleanup)
   {
     // release stdout/stderr
-    mpistream::finalize();
+    mpistream::finalize(cleanup);
 
     MPI_Finalize();
   }
@@ -260,7 +260,7 @@ public:
     this->load();
   }
 
-  virtual void finalize()
+  virtual void finalize(int cleanup = 0)
   {
     LOGPRINT1(std::cout, "Function %s called\n", __func__);
 
@@ -268,7 +268,7 @@ public:
     this->save();
 
     // MPI
-    finalize_mpi_default();
+    finalize_mpi_default(cleanup);
   }
 
   virtual void diagnostic()

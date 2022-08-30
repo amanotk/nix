@@ -37,7 +37,7 @@ public:
 
   virtual int unpack(const int mode, void *buffer) override;
 
-  virtual void setup(const float64 cc, const float64 delh, const int offset[3],
+  virtual void setup(const float64 cc, const float64 delh, const int *offset, const int *ndims,
                      T_function initializer);
 
   virtual void push(const float64 delt) override;

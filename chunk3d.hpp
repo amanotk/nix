@@ -13,7 +13,7 @@ template <int Nb>
 class Chunk3D : public Chunk<3>
 {
 public:
-  using T_bufaddr = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
+  using T_array3d = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
   using T_request = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
 
   enum SendRecvMode {
@@ -29,10 +29,10 @@ public:
   /// MPI buffer struct
   struct MpiBuffer {
     MPI_Comm  comm;
-    size_t    bufsize;
     Buffer    sendbuf;
     Buffer    recvbuf;
-    T_bufaddr bufaddr;
+    T_array3d bufsize;
+    T_array3d bufaddr;
     T_request sendreq;
     T_request recvreq;
   };
@@ -43,6 +43,8 @@ public:
 
 protected:
   bool require_sort; ///< sort flag
+  int  ndims[3];     ///< number of global grids
+  int  offset[3];    ///< global index offset
   int  Lbx;          ///< lower bound in x
   int  Ubx;          ///< upper bound in x
   int  Lby;          ///< lower bound in y
@@ -62,8 +64,6 @@ protected:
   float64                 ylim[3];   ///< physical domain in y
   float64                 zlim[3];   ///< physical domain in z
   MpiBufferVec            mpibufvec; ///< MPI buffer vector
-
-  void count_particle(ParticleList &particle, int *Lbp, int *Ubp, bool reset = true);
 
   void begin_bc_exchange(MpiBuffer *mpibuf, ParticleList &particle);
 
@@ -90,19 +90,22 @@ protected:
     pos          = pos * elembyte;
     pos(1, 1, 1) = 0;
 
-    mpibuffer->bufsize = headbyte + xt::sum(pos)(); // buffer size
+    // buffer allocation
+    {
+      int size = headbyte + xt::sum(pos)();
+      mpibuffer->sendbuf.resize(size);
+      mpibuffer->recvbuf.resize(size);
+    }
 
-    // calculate buffer address and size
+    // buffer size
+    mpibuffer->bufsize = pos;
+
+    // buffer address
     pos    = xt::cumsum(pos);
     pos    = xt::roll(pos, 1);
     pos(0) = 0;
     pos.reshape({3, 3, 3});
-
-    mpibuffer->bufaddr = headbyte + pos; // buffer address
-
-    // buffer allocation
-    mpibuffer->sendbuf.resize(mpibuffer->bufsize);
-    mpibuffer->recvbuf.resize(mpibuffer->bufsize);
+    mpibuffer->bufaddr = headbyte + pos;
 
     // default communicator
     mpibuffer->comm = MPI_COMM_WORLD;
@@ -121,7 +124,11 @@ public:
 
   virtual int unpack(const int mode, void *buffer) override;
 
-  virtual void set_coordinate(const float64 delh, const int offset[3]);
+  virtual void set_global_context(const int *offset, const int *ndims);
+
+  virtual void count_particle(ParticlePtr particle, int Lbp, int Ubp, bool reset = true);
+
+  virtual void sort_particle(ParticleList &particle);
 
   virtual bool set_boundary_query(const int mode = 0);
 
@@ -132,6 +139,8 @@ public:
   virtual void set_boundary_begin(const int mode) = 0;
 
   virtual void set_boundary_end(const int mode) = 0;
+
+  virtual void set_boundary_particle(ParticlePtr particle, int Lbp, int Ubp) = 0;
 };
 
 // Local Variables:

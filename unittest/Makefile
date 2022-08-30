@@ -11,7 +11,7 @@ SRCS    := test_serial.cpp test_parallel.cpp test_jsonio1.cpp test_jsonio2.cpp \
 
 ### OBJS/DEPS
 EXES    := test_jsonio1 test_jsonio2 test_sfc test_chunk test_chunkmap \
-	test_particle test_application
+	test_particle test_application test_sendrecv
 OBJS    := $(SRCS:%.cpp=%.o)
 DEPS    := $(SRCS:%.cpp=%.d)
 
@@ -38,6 +38,9 @@ test_particle: test_serial.o test_particle.o
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 test_application: test_serial.o test_application.o
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
+
+test_sendrecv: test_serial.o test_sendrecv.o
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix
 
 ### clean

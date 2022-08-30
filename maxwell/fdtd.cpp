@@ -85,12 +85,12 @@ DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
 }
 
 DEFINE_MEMBER(void, setup)
-(const float64 cc, const float64 delh, const int offset[3], T_function initializer)
+(const float64 cc, const float64 delh, const int *offset, const int *ndims, T_function initializer)
 {
-  set_coordinate(delh, offset);
+  this->cc   = cc;
+  this->delh = delh;
 
-  // speed of light
-  this->cc = cc;
+  set_global_context(offset, ndims);
 
   // set initial condition
   for (int iz = Lbz; iz <= Ubz; iz++) {

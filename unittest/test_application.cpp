@@ -28,7 +28,7 @@ public:
   int run_main()
   {
     // command-line arguments
-    std::vector<std::string> args = {"TestApplication", "-e", "1", "-c", "default.json"};
+    std::vector<std::string> args = {"TestApp", "-e", "1", "-c", "default.json"};
 
     cl_argc = args.size();
     cl_argv = new char *[args.size()];

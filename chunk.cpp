@@ -84,7 +84,6 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
   // set dimensions
   for (int i = 0; i < N; i++) {
     this->dims[i] = dims[i];
-    offset[i]     = 0;
   }
 
   initialize_load();

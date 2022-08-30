@@ -5,7 +5,8 @@
   template <int Nb>                                                                                \
   type Chunk3D<Nb>::name
 
-DEFINE_MEMBER(, Chunk3D)(const int dims[3], const int id) : Chunk<3>(dims, id)
+DEFINE_MEMBER(, Chunk3D)
+(const int dims[3], const int id) : Chunk<3>(dims, id), delh(1.0), require_sort(true)
 {
   size_t Nz = this->dims[0] + 2 * Nb;
   size_t Ny = this->dims[1] + 2 * Nb;
@@ -152,9 +153,11 @@ DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
   return count;
 }
 
-DEFINE_MEMBER(void, set_coordinate)(const float64 delh, const int offset[3])
+DEFINE_MEMBER(void, set_global_context)(const int *offset, const int *ndims)
 {
-  this->delh      = delh;
+  this->ndims[0]  = ndims[0];
+  this->ndims[1]  = ndims[1];
+  this->ndims[2]  = ndims[2];
   this->offset[0] = offset[0];
   this->offset[1] = offset[1];
   this->offset[2] = offset[2];
@@ -175,7 +178,15 @@ DEFINE_MEMBER(void, set_coordinate)(const float64 delh, const int offset[3])
   xc = xlim[0] + delh * (xt::arange<float64>(Lbx - Nb, Ubx + Nb + 1) - Lbx + 0.5);
 }
 
-DEFINE_MEMBER(void, count_particle)(ParticleList &particle, int *Lbp, int *Ubp, bool reset)
+DEFINE_MEMBER(void, sort_particle)(ParticleList &particle)
+{
+  for (int is = 0; is < particle.size(); is++) {
+    count_particle(particle[is], 0, particle[is]->Np - 1, true);
+    particle[is]->sort();
+  }
+}
+
+DEFINE_MEMBER(void, count_particle)(ParticlePtr particle, int Lbp, int Ubp, bool reset)
 {
   int     stride[3] = {0};
   int     xrange[2] = {0};
@@ -219,32 +230,28 @@ DEFINE_MEMBER(void, count_particle)(ParticleList &particle, int *Lbp, int *Ubp, 
 
   // reset count
   if (reset) {
-    for (int is = 0; is < particle.size(); is++) {
-      particle[is]->reset_count();
-    }
+    particle->reset_count();
   }
 
   //
   // count particles
   //
-  for (int is = 0; is < particle.size(); is++) {
-    const int out_of_bounds = particle[is]->Ng;
-    float64  *xu            = particle[is]->xu.data();
+  const int out_of_bounds = particle->Ng;
+  float64  *xu            = particle->xu.data();
 
-    // loop over particles
-    for (int ip = Lbp[is]; ip <= Ubp[is]; ip++) {
-      int iz = Particle::digitize(xu[Particle::Nc * ip + 2], zlim[0], rdh[0]);
-      int iy = Particle::digitize(xu[Particle::Nc * ip + 1], ylim[0], rdh[1]);
-      int ix = Particle::digitize(xu[Particle::Nc * ip + 0], xlim[0], rdh[2]);
-      int ii = iz * stride[0] + iy * stride[1] + ix * stride[2];
+  // loop over particles
+  for (int ip = Lbp; ip <= Ubp; ip++) {
+    int iz = Particle::digitize(xu[Particle::Nc * ip + 2], zlim[0], rdh[0]);
+    int iy = Particle::digitize(xu[Particle::Nc * ip + 1], ylim[0], rdh[1]);
+    int ix = Particle::digitize(xu[Particle::Nc * ip + 0], xlim[0], rdh[2]);
+    int ii = iz * stride[0] + iy * stride[1] + ix * stride[2];
 
-      // take care out-of-bounds particles
-      ii = (iz < zrange[0] || iz > zrange[1]) ? out_of_bounds : ii;
-      ii = (iy < yrange[0] || iy > yrange[1]) ? out_of_bounds : ii;
-      ii = (ix < xrange[0] || ix > xrange[1]) ? out_of_bounds : ii;
+    // take care out-of-bounds particles
+    ii = (iz < zrange[0] || iz > zrange[1]) ? out_of_bounds : ii;
+    ii = (iy < yrange[0] || iy > yrange[1]) ? out_of_bounds : ii;
+    ii = (ix < xrange[0] || ix > xrange[1]) ? out_of_bounds : ii;
 
-      particle[is]->increment(ip, ii);
-    }
+    particle->increment(ip, ii);
   }
 }
 
@@ -254,21 +261,7 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle
   const size_t data_size   = sizeof(float64) * Particle::Nc;
   const size_t Ns          = particle.size();
 
-  xt::xtensor<int, 4> send_count = xt::zeros<int>({Ns, 3ul, 3ul, 3ul});
-
-  //
-  // count particles
-  //
-  {
-    int Lbp[Ns];
-    int Ubp[Ns];
-    for (int is = 0; is < Ns; is++) {
-      Lbp[is] = 0;
-      Ubp[is] = particle[is]->Np - 1;
-    }
-
-    count_particle(particle, Lbp, Ubp, true);
-  }
+  xt::xtensor<int, 4> snd_count = xt::zeros<int>({Ns + 1, 3ul, 3ul, 3ul});
 
   //
   // pack out-of-bounds particles
@@ -290,10 +283,24 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle
       int iz  = dirz + 1;
       int iy  = diry + 1;
       int ix  = dirx + 1;
-      int pos = mpibuf->bufaddr(iz, iy, ix) + data_size * send_count(is, iz, iy, ix) +
+      int pos = mpibuf->bufaddr(iz, iy, ix) + data_size * snd_count(Ns, iz, iy, ix) +
                 header_size * (is + 1);
       std::memcpy(mpibuf->sendbuf.get(pos), ptcl, data_size);
-      send_count(is, iz, iy, ix)++;
+      snd_count(is, iz, iy, ix)++;
+      snd_count(Ns, iz, iy, ix)++; // total number of send particles
+#if 0
+      if (is > 0)
+        continue;
+      {
+        char    *ptr = mpibuf->sendbuf.get(pos);
+        int64   *id  = reinterpret_cast<int64 *>(ptr);
+        float64 *p   = reinterpret_cast<float64 *>(ptr);
+
+        tfm::format(std::cerr,
+                    "Chunk[%4d] send[%2d] = %6.3f, %6.3f, %6.3f, %6.3f, %6.3f, %6.3f, %8ld\n", myid,
+                    is, p[0], p[1], p[2], p[3], p[4], p[5], id[6]);
+      }
+#endif
     }
   }
 
@@ -311,11 +318,13 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle
         }
 
         // add header for each species
-        int addr = mpibuf->bufaddr(iz, iy, ix);
-        int byte = 0;
+        int addr     = mpibuf->bufaddr(iz, iy, ix);
+        int rcv_byte = mpibuf->bufsize(iz, iy, ix);
+        int snd_byte = 0;
         for (int is = 0; is < Ns; is++) {
-          std::memcpy(mpibuf->sendbuf.get(addr + byte), &send_count(is, iz, iy, ix), header_size);
-          byte += header_size + data_size * send_count(is, iz, iy, ix);
+          std::memcpy(mpibuf->sendbuf.get(addr + snd_byte), &snd_count(is, iz, iy, ix),
+                      header_size);
+          snd_byte += header_size + data_size * snd_count(is, iz, iy, ix);
         }
 
         int   nbrank = get_nb_rank(dirz, diry, dirx);
@@ -325,9 +334,9 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle
         void *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
 
         // send/recv calls
-        MPI_Isend(sndptr, byte, MPI_BYTE, nbrank, sndtag, mpibuf->comm,
+        MPI_Isend(sndptr, snd_byte, MPI_BYTE, nbrank, sndtag, mpibuf->comm,
                   &mpibuf->sendreq(iz, iy, ix));
-        MPI_Irecv(rcvptr, byte, MPI_BYTE, nbrank, rcvtag, mpibuf->comm,
+        MPI_Irecv(rcvptr, rcv_byte, MPI_BYTE, nbrank, rcvtag, mpibuf->comm,
                   &mpibuf->recvreq(iz, iy, ix));
       }
     }
@@ -340,16 +349,14 @@ DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
   const size_t data_size   = sizeof(float64) * Particle::Nc;
   const size_t Ns          = particle.size();
 
+  // wait for MPI recv calls to complete
+  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
+
   // array to store total number of particles
   std::vector<int> num_particle(Ns);
   for (int is = 0; is < Ns; is++) {
     num_particle[is] = particle[is]->Np;
   }
-
-  //
-  // wait for MPI recv calls to complete
-  //
-  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
 
   //
   // unpack recv buffer
@@ -388,22 +395,22 @@ DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
   }
 
   //
-  // count received particles
+  // set boundary condition and append count for received particles
   //
-  {
-    int Lbp[Ns];
-    int Ubp[Ns];
-    for (int is = 0; is < Ns; is++) {
-      Lbp[is] = particle[is]->Np;
-      Ubp[is] = num_particle[is] - 1;
+  for (int is = 0; is < Ns; is++) {
+    set_boundary_particle(particle[is], particle[is]->Np, num_particle[is] - 1);
+    count_particle(particle[is], particle[is]->Np, num_particle[is] - 1, false);
+#if 0
+    for (int ip = particle[is]->Np; ip <= num_particle[is] - 1; ip++) {
+      float64 *xu   = &particle[is]->xu(ip, 0);
+      int64   *id64 = reinterpret_cast<int64 *>(&xu[6]);
+      tfm::format(std::cerr,
+                  "Chunk[%4d] recv[%2d] = %6.3f, %6.3f, %6.3f, %6.3f, %6.3f, %6.3f, %8ld\n", myid,
+                  is, xu[0], xu[1], xu[2], xu[3], xu[4], xu[5], id64[0]);
     }
-
-    count_particle(particle, Lbp, Ubp, false);
-
+#endif
     // now update number of particles
-    for (int is = 0; is < Ns; is++) {
-      particle[is]->Np = num_particle[is];
-    }
+    particle[is]->Np = num_particle[is];
   }
 
   //
@@ -413,9 +420,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
     particle[is]->sort();
   }
 
-  //
-  // wait for MPI send calls to complete (this is optional)
-  //
+  // wait for MPI send calls to complete (optional)
   MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
 }
 
@@ -460,13 +465,12 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4
   }
 }
 
-DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append)
+DEFINE_MEMBER(void, end_bc_exchange)
+(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append)
 {
   auto Ia = xt::all();
 
-  //
   // wait for MPI recv calls to complete
-  //
   MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
 
   //
@@ -505,9 +509,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> 
     }
   }
 
-  //
-  // wait for MPI send calls to complete (this is optional)
-  //
+  // wait for MPI send calls to complete (optional)
   MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
 }
 

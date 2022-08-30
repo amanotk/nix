@@ -5,12 +5,9 @@
 ///
 /// MPI stream
 ///
-/// Author: Takanobu AMANO <amano@eps.s.u-tokyo.ac.jp>
-/// $Id: mpistream.hpp,v df2a7d00c362 2016/06/23 05:40:52 amano $
-///
 #define MPICH_IGNORE_CXX_SEEK
-#include "common.hpp"
 #include "cmdline.hpp"
+#include "common.hpp"
 #include <mpi.h>
 using namespace common;
 
@@ -20,14 +17,14 @@ class Singleton
 {
 private:
   Singleton(const Singleton &);
-  Singleton& operator=(const Singleton &);
+  Singleton &operator=(const Singleton &);
 
 protected:
-  Singleton() {};
-  virtual ~Singleton() {};
+  Singleton(){};
+  virtual ~Singleton(){};
 
 public:
-  static T* getInstance()
+  static T *getInstance()
   {
     static T instance;
     return &instance;
@@ -60,8 +57,7 @@ private:
   }
 
 public:
-  teebuf(std::streambuf *sb1, std::streambuf *sb2)
-    : m_sb1(sb1), m_sb2(sb2)
+  teebuf(std::streambuf *sb1, std::streambuf *sb2) : m_sb1(sb1), m_sb2(sb2)
   {
   }
 };
@@ -74,7 +70,6 @@ class mpistream : public Singleton<mpistream>
   friend class Singleton<mpistream>;
 
 private:
-
   // for stdout/stderr
   std::string     m_outf;   ///< dummy standard output file
   std::string     m_errf;   ///< dummy standard error file
@@ -85,37 +80,33 @@ private:
   teebuf         *m_outtee; ///< buffer for replicating cout and file
   teebuf         *m_errtee; ///< buffer for replicating cerr and file
 
-  mpistream() {};
-  ~mpistream() {};
+  mpistream(){};
+  ~mpistream(){};
 
   // remain undefined
   mpistream(const mpistream &);
-  mpistream& operator=(const mpistream &);
+  mpistream &operator=(const mpistream &);
 
 public:
   /// initialize MPI call
-  static void initialize(const char* header)
+  static void initialize(const char *header)
   {
     mpistream *instance = getInstance();
-    int thisrank;
+    int        thisrank;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
 
     // open dummy standard output stream
-    instance->m_outf   = tfm::format("%s_PE%04d.stdout", header,
-                                     thisrank);
+    instance->m_outf   = tfm::format("%s_PE%04d.stdout", header, thisrank);
     instance->m_out    = new std::ofstream(instance->m_outf.c_str());
-    instance->m_outtee = new teebuf(std::cout.rdbuf(),
-                                    instance->m_out->rdbuf());
+    instance->m_outtee = new teebuf(std::cout.rdbuf(), instance->m_out->rdbuf());
 
     // open dummy standard error stream
-    instance->m_errf   = tfm::format("%s_PE%04d.stderr", header,
-                                     thisrank);
+    instance->m_errf   = tfm::format("%s_PE%04d.stderr", header, thisrank);
     instance->m_err    = new std::ofstream(instance->m_errf.c_str());
-    instance->m_errtee = new teebuf(std::cerr.rdbuf(),
-                                    instance->m_err->rdbuf());
+    instance->m_errtee = new teebuf(std::cerr.rdbuf(), instance->m_err->rdbuf());
 
-    if( thisrank == 0 ) {
+    if (thisrank == 0) {
       // stdout/stderr are replicated for rank==0
       instance->m_outbuf = std::cout.rdbuf(instance->m_outtee);
       instance->m_errbuf = std::cerr.rdbuf(instance->m_errtee);
@@ -126,11 +117,11 @@ public:
   }
 
   /// finalize MPI call
-  static void finalize()
+  static void finalize(int cleanup = 0)
   {
     mpistream *instance = getInstance();
 
-    // close dummy stndard output
+    // close dummy standard output
     instance->m_out->flush();
     instance->m_out->close();
     std::cout.rdbuf(instance->m_outbuf);
@@ -143,17 +134,25 @@ public:
     std::cerr.rdbuf(instance->m_errbuf);
     delete instance->m_errtee;
     delete instance->m_err;
+
+    switch (cleanup) {
+    case 0: // remove file
+      std::remove(instance->m_outf.c_str());
+      std::remove(instance->m_errf.c_str());
+      break;
+    default:
+      break;
+    }
   }
 
   /// flush
   static void flush()
   {
-    mpistream* instance = getInstance();
+    mpistream *instance = getInstance();
 
     instance->m_out->flush();
     instance->m_err->flush();
   }
-
 };
 
 // Local Variables:

@@ -6,9 +6,8 @@
 #include "xtensorall.hpp"
 
 class Particle;
-
-/// List of particles
-using ParticleList = std::vector<std::shared_ptr<Particle>>;
+using ParticlePtr  = std::shared_ptr<Particle>;
+using ParticleList = std::vector<ParticlePtr>;
 
 ///
 /// @brief Particle Container
