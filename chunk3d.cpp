@@ -178,7 +178,7 @@ DEFINE_MEMBER(void, set_global_context)(const int *offset, const int *ndims)
   xc = xlim[0] + delh * (xt::arange<float64>(Lbx - Nb, Ubx + Nb + 1) - Lbx + 0.5);
 }
 
-DEFINE_MEMBER(void, sort_particle)(ParticleList &particle)
+DEFINE_MEMBER(void, sort_particle)(ParticleVec &particle)
 {
   for (int is = 0; is < particle.size(); is++) {
     count_particle(particle[is], 0, particle[is]->Np - 1, true);
@@ -186,7 +186,7 @@ DEFINE_MEMBER(void, sort_particle)(ParticleList &particle)
   }
 }
 
-DEFINE_MEMBER(void, count_particle)(ParticlePtr particle, int Lbp, int Ubp, bool reset)
+DEFINE_MEMBER(void, count_particle)(PtrParticle particle, int Lbp, int Ubp, bool reset)
 {
   int     stride[3] = {0};
   int     xrange[2] = {0};
@@ -255,7 +255,7 @@ DEFINE_MEMBER(void, count_particle)(ParticlePtr particle, int Lbp, int Ubp, bool
   }
 }
 
-DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
+DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
 {
   const size_t header_size = sizeof(int);
   const size_t data_size   = sizeof(float64) * Particle::Nc;
@@ -288,19 +288,6 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle
       std::memcpy(mpibuf->sendbuf.get(pos), ptcl, data_size);
       snd_count(is, iz, iy, ix)++;
       snd_count(Ns, iz, iy, ix)++; // total number of send particles
-#if 0
-      if (is > 0)
-        continue;
-      {
-        char    *ptr = mpibuf->sendbuf.get(pos);
-        int64   *id  = reinterpret_cast<int64 *>(ptr);
-        float64 *p   = reinterpret_cast<float64 *>(ptr);
-
-        tfm::format(std::cerr,
-                    "Chunk[%4d] send[%2d] = %6.3f, %6.3f, %6.3f, %6.3f, %6.3f, %6.3f, %8ld\n", myid,
-                    is, p[0], p[1], p[2], p[3], p[4], p[5], id[6]);
-      }
-#endif
     }
   }
 
@@ -343,7 +330,7 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle
   }
 }
 
-DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
+DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
 {
   const size_t header_size = sizeof(int);
   const size_t data_size   = sizeof(float64) * Particle::Nc;
@@ -400,15 +387,6 @@ DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
   for (int is = 0; is < Ns; is++) {
     set_boundary_particle(particle[is], particle[is]->Np, num_particle[is] - 1);
     count_particle(particle[is], particle[is]->Np, num_particle[is] - 1, false);
-#if 0
-    for (int ip = particle[is]->Np; ip <= num_particle[is] - 1; ip++) {
-      float64 *xu   = &particle[is]->xu(ip, 0);
-      int64   *id64 = reinterpret_cast<int64 *>(&xu[6]);
-      tfm::format(std::cerr,
-                  "Chunk[%4d] recv[%2d] = %6.3f, %6.3f, %6.3f, %6.3f, %6.3f, %6.3f, %8ld\n", myid,
-                  is, xu[0], xu[1], xu[2], xu[3], xu[4], xu[5], id64[0]);
-    }
-#endif
     // now update number of particles
     particle[is]->Np = num_particle[is];
   }
@@ -424,7 +402,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(MpiBuffer *mpibuf, ParticleList &particle)
   MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
 }
 
-DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array)
+DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array)
 {
   auto Ia = xt::all();
 
@@ -466,7 +444,7 @@ DEFINE_MEMBER(void, begin_bc_exchange)(MpiBuffer *mpibuf, xt::xtensor<float64, 4
 }
 
 DEFINE_MEMBER(void, end_bc_exchange)
-(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append)
+(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool append)
 {
   auto Ia = xt::all();
 
@@ -525,7 +503,7 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
   bcmode &= ~RecvMode;
 
   // MPI buffer
-  MpiBuffer *mpibuf = mpibufvec[bcmode].get();
+  PtrMpiBuffer mpibuf = mpibufvec[bcmode];
 
   if (send == true && recv == true) {
     // both send/recv
@@ -572,6 +550,23 @@ DEFINE_MEMBER(void, set_boundary_physical)(const int mode)
   // upper boundary in x
   if (get_nb_rank(0, 0, +1) == MPI_PROC_NULL) {
     ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+  }
+}
+
+DEFINE_MEMBER(void, set_boundary_particle)(PtrParticle particle, int Lbp, int Ubp)
+{
+  float64 xyzmin[3] = {0.0, 0.0, 0.0};
+  float64 xyzmax[3] = {ndims[2] * delh, ndims[1] * delh, ndims[0] * delh};
+  float64 xyzlen[3] = {ndims[2] * delh, ndims[1] * delh, ndims[0] * delh};
+
+  // push particle position
+  for (int ip = Lbp; ip <= Ubp; ip++) {
+    float64 *xu = &particle->xu(ip, 0);
+
+    // apply periodic boundary condition
+    xu[0] += (xu[0] < xyzmin[0]) * xyzlen[0] - (xu[0] >= xyzmax[0]) * xyzlen[0];
+    xu[1] += (xu[1] < xyzmin[1]) * xyzlen[1] - (xu[1] >= xyzmax[1]) * xyzlen[1];
+    xu[2] += (xu[2] < xyzmin[2]) * xyzlen[2] - (xu[2] >= xyzmax[2]) * xyzlen[2];
   }
 }
 

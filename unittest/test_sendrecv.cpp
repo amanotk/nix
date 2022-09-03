@@ -19,7 +19,7 @@ class TestChunk : public Chunk3D<Nb>
 private:
   rand_type uniform_rand;
 
-  ParticleList            up;
+  ParticleVec             up;
   xt::xtensor<float64, 4> uf;
 
 public:
@@ -53,9 +53,9 @@ public:
 
     // initialize MPI buffer
     mpibufvec.push_back(std::make_unique<MpiBuffer>());
-    set_mpi_buffer(0, sizeof(float64) * 6, mpibufvec[0].get());
+    set_mpi_buffer(mpibufvec[0], 0, sizeof(float64) * 6);
     mpibufvec.push_back(std::make_unique<MpiBuffer>());
-    set_mpi_buffer(1, sizeof(float64) * 7 * Nppc * 10, mpibufvec[1].get());
+    set_mpi_buffer(mpibufvec[1], 1, sizeof(float64) * 7 * Nppc * 10);
   }
 
   virtual void push(const float64 delt) override
@@ -78,10 +78,10 @@ public:
 
     switch (mode) {
     case 0:
-      begin_bc_exchange(mpibufvec[0].get(), uf);
+      begin_bc_exchange(mpibufvec[0], uf);
       break;
     case 1:
-      begin_bc_exchange(mpibufvec[1].get(), up);
+      begin_bc_exchange(mpibufvec[1], up);
       break;
     default:
       break;
@@ -92,33 +92,13 @@ public:
   {
     switch (mode) {
     case 0:
-      end_bc_exchange(mpibufvec[0].get(), uf, false);
+      end_bc_exchange(mpibufvec[0], uf, false);
       break;
     case 1:
-      end_bc_exchange(mpibufvec[1].get(), up);
+      end_bc_exchange(mpibufvec[1], up);
       break;
     default:
       break;
-    }
-  }
-
-  virtual void set_boundary_particle(ParticlePtr particle, int Lbp, int Ubp) override
-  {
-    float64 xrange[2] = {0.0, ndims[2] * delh};
-    float64 yrange[2] = {0.0, ndims[1] * delh};
-    float64 zrange[2] = {0.0, ndims[0] * delh};
-
-    // push particle position
-    for (int ip = Lbp; ip <= Ubp; ip++) {
-      float64 *xu = &particle->xu(ip, 0);
-
-      // apply periodic boundary condition
-      xu[0] = xu[0] < xrange[0] ? xu[0] + xrange[1] : xu[0];
-      xu[0] = xu[0] > xrange[1] ? xu[0] - xrange[1] : xu[0];
-      xu[1] = xu[1] < yrange[0] ? xu[1] + yrange[1] : xu[1];
-      xu[1] = xu[1] > yrange[1] ? xu[1] - yrange[1] : xu[1];
-      xu[2] = xu[2] < zrange[0] ? xu[2] + zrange[1] : xu[2];
-      xu[2] = xu[2] > zrange[1] ? xu[2] - zrange[1] : xu[2];
     }
   }
 
@@ -194,17 +174,18 @@ public:
           int jx = ix - Lbx + offset[2];
           for (int is = 0; is < Ns; is++) {
             for (int ip = nps[is], jp = 0; ip < nps[is] + Nppc; ip++, jp++) {
-              int64 id64 = Nppc * (jz * stride[0] + jy * stride[1] + jx * stride[2]) + jp;
+              float64 *xu   = &up[is]->xu(ip, 0);
+              int64    id64 = Nppc * (jz * stride[0] + jy * stride[1] + jx * stride[2]) + jp;
               mt.seed(id64);
               // position and velocity
-              up[is]->xu(ip, 0) = delh * uniform_rand(mt) * 0.5 + xc(ix);
-              up[is]->xu(ip, 1) = delh * uniform_rand(mt) * 0.5 + yc(iy);
-              up[is]->xu(ip, 2) = delh * uniform_rand(mt) * 0.5 + zc(iz);
-              up[is]->xu(ip, 3) = delh * uniform_rand(mt);
-              up[is]->xu(ip, 4) = delh * uniform_rand(mt);
-              up[is]->xu(ip, 5) = delh * uniform_rand(mt);
+              xu[0] = delh * uniform_rand(mt) * 0.5 + (jx + 0.5) * delh;
+              xu[1] = delh * uniform_rand(mt) * 0.5 + (jy + 0.5) * delh;
+              xu[2] = delh * uniform_rand(mt) * 0.5 + (jz + 0.5) * delh;
+              xu[3] = delh * uniform_rand(mt);
+              xu[4] = delh * uniform_rand(mt);
+              xu[5] = delh * uniform_rand(mt);
               // ID
-              std::memcpy(&up[is]->xu(ip, 6), &id64, sizeof(int64));
+              std::memcpy(&xu[6], &id64, sizeof(int64));
             }
             nps[is] += Nppc;
           }
@@ -221,39 +202,49 @@ public:
   {
     bool status = true;
 
+    int     stride[3] = {ndims[1] * ndims[2], ndims[2], 1};
+    float64 xyzmin[3] = {0.0, 0.0, 0.0};
+    float64 xyzmax[3] = {ndims[2] * delh, ndims[1] * delh, ndims[0] * delh};
+    float64 xyzlen[3] = {ndims[2] * delh, ndims[1] * delh, ndims[0] * delh};
+
     std::mt19937 mt;
 
     for (int is = 0; is < up.size(); is++) {
       for (int ip = 0; ip < up[is]->Np; ip++) {
+        float64 *xu    = &up[is]->xu(ip, 0);
+        float64  xv[7] = {0};
+
         // ID
         int64 id64 = 0;
-        std::memcpy(&id64, &up[is]->xu(ip, 6), sizeof(int64));
+        std::memcpy(&id64, &xu[6], sizeof(int64));
         mt.seed(id64);
 
-        float64 xv[6] = {0};
-        float64 xu[6] = {0};
+        int   jp = id64 % Nppc;
+        int   jx = (id64 % (Nppc * ndims[2])) / Nppc;
+        int   jy = (id64 % (Nppc * ndims[1] * ndims[2])) / (Nppc * ndims[2]);
+        int   jz = id64 / (Nppc * ndims[1] * ndims[2]);
+        int64 id = Nppc * (jz * stride[0] + jy * stride[1] + jx * stride[2]) + jp;
 
-        // position and velocity
-        xv[0] = up[is]->xu(ip, 0) - up[is]->xu(ip, 3) * delt;
-        xv[1] = up[is]->xu(ip, 1) - up[is]->xu(ip, 4) * delt;
-        xv[2] = up[is]->xu(ip, 2) - up[is]->xu(ip, 5) * delt;
-        xv[3] = up[is]->xu(ip, 3);
-        xv[4] = up[is]->xu(ip, 4);
-        xv[5] = up[is]->xu(ip, 5);
+        // check ID
+        status = status & (id64 == id);
 
-        // original position and velocity
-        int ix = Particle::digitize(xv[0], xlim[0], 1 / delh) + Lbx;
-        int iy = Particle::digitize(xv[1], ylim[0], 1 / delh) + Lby;
-        int iz = Particle::digitize(xv[2], zlim[0], 1 / delh) + Lbz;
+        // set position and velocity
+        xv[0] = delh * uniform_rand(mt) * 0.5 + (jx + 0.5) * delh;
+        xv[1] = delh * uniform_rand(mt) * 0.5 + (jy + 0.5) * delh;
+        xv[2] = delh * uniform_rand(mt) * 0.5 + (jz + 0.5) * delh;
+        xv[3] = delh * uniform_rand(mt);
+        xv[4] = delh * uniform_rand(mt);
+        xv[5] = delh * uniform_rand(mt);
 
-        xu[0] = delh * uniform_rand(mt) * 0.5 + xc(ix);
-        xu[1] = delh * uniform_rand(mt) * 0.5 + yc(iy);
-        xu[2] = delh * uniform_rand(mt) * 0.5 + zc(iz);
-        xu[3] = delh * uniform_rand(mt);
-        xu[4] = delh * uniform_rand(mt);
-        xu[5] = delh * uniform_rand(mt);
+        // push position and apply boundary condition
+        xv[0] += xv[3] * delt;
+        xv[1] += xv[4] * delt;
+        xv[2] += xv[5] * delt;
+        xv[0] += (xv[0] < xyzmin[0]) * xyzlen[0] - (xv[0] >= xyzmax[0]) * xyzlen[0];
+        xv[1] += (xv[1] < xyzmin[1]) * xyzlen[1] - (xv[1] >= xyzmax[1]) * xyzlen[1];
+        xv[2] += (xv[2] < xyzmin[2]) * xyzlen[2] - (xv[2] >= xyzmax[2]) * xyzlen[2];
 
-        // check
+        // check position and velocity
         for (int ik = 0; ik < 6; ik++) {
           bool check = (std::abs(xv[ik] - xu[ik]) < 1.0e-14);
           status     = status & check;
@@ -309,7 +300,8 @@ public:
 
   bool check_particle_sendrecv(const int Nppc, const int Ns)
   {
-    const int mode = 1;
+    const int nstep = 3;
+    const int mode  = 1;
 
     int  nps1[Ns] = {0};
     int  nps2[Ns] = {0};
@@ -322,7 +314,7 @@ public:
     }
     MPI_Allreduce(MPI_IN_PLACE, nps1, Ns, MPI_INT32_T, MPI_SUM, MPI_COMM_WORLD);
 
-    for (int step = 0; step < 1; step++) {
+    for (int step = 0; step < nstep; step++) {
       // push and invoke send/recv
       for (int i = 0; i < numchunk; i++) {
         chunkvec[i]->push(delt);
@@ -332,8 +324,15 @@ public:
       // wait send/recv and check results
       for (int i = 0; i < numchunk; i++) {
         chunkvec[i]->set_boundary_end(mode);
-        status = status & chunkvec[i]->check_particle(Nppc, Ns, delt * (step + 1));
+        bool bc_status = chunkvec[i]->check_particle(Nppc, Ns, delt * (step + 1));
         chunkvec[i]->add_num_particle(nps2);
+
+        status = status & bc_status;
+
+        if (bc_status == false) {
+          tfm::format(std::cerr, "check_particle failed for Chunk iD = %5d at step = %3d\n",
+                      chunkvec[i]->get_id(), step);
+        }
       }
 
       // check number of particles
@@ -346,7 +345,13 @@ public:
 
       MPI_Allreduce(MPI_IN_PLACE, nps2, Ns, MPI_INT32_T, MPI_SUM, MPI_COMM_WORLD);
       for (int is = 0; is < Ns; is++) {
-        status = status & (nps1[is] == nps2[is]);
+        bool np_status = (nps1[is] == nps2[is]);
+
+        status = status & np_status;
+
+        if (np_status == false) {
+          tfm::format(std::cerr, "wrong number of particles: %8d != %8d\n", nps1[is], nps2[is]);
+        }
       }
     }
 

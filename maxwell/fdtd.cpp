@@ -17,7 +17,7 @@ DEFINE_MEMBER(, FDTD)(const int dims[3], const int id) : Chunk(dims, id)
 
   // initialize MPI buffer
   mpibufvec.push_back(std::make_unique<MpiBuffer>());
-  set_mpi_buffer(0, sizeof(float64) * 6, mpibufvec[0].get());
+  set_mpi_buffer(mpibufvec[0], 0, sizeof(float64) * 6);
 }
 
 DEFINE_MEMBER(, ~FDTD)()
@@ -167,18 +167,14 @@ DEFINE_MEMBER(void, set_boundary_begin)(const int mode)
   // physical boundary
   set_boundary_physical();
 
-  // MPI buffer
-  MpiBuffer *mpibuf = mpibufvec[0].get();
-  begin_bc_exchange(mpibuf, uf);
+  begin_bc_exchange(mpibufvec[0], uf);
 }
 
 DEFINE_MEMBER(void, set_boundary_end)(const int mode)
 {
   auto Ia = xt::all();
 
-  // MPI buffer
-  MpiBuffer *mpibuf = mpibufvec[0].get();
-  end_bc_exchange(mpibuf, uf, false);
+  end_bc_exchange(mpibufvec[0], uf, false);
 }
 
 // Local Variables:

@@ -36,7 +36,8 @@ public:
     T_request sendreq;
     T_request recvreq;
   };
-  typedef std::vector<std::unique_ptr<MpiBuffer>> MpiBufferVec;
+  using PtrMpiBuffer = std::shared_ptr<MpiBuffer>;
+  using MpiBufferVec = std::vector<PtrMpiBuffer>;
 
   /// boundary margin
   static const int boundary_margin = Nb;
@@ -65,16 +66,16 @@ protected:
   float64                 zlim[3];   ///< physical domain in z
   MpiBufferVec            mpibufvec; ///< MPI buffer vector
 
-  void begin_bc_exchange(MpiBuffer *mpibuf, ParticleList &particle);
+  void begin_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec &particle);
 
-  void end_bc_exchange(MpiBuffer *mpibuf, ParticleList &particle);
+  void end_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec &particle);
 
-  void begin_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array);
+  void begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array);
 
-  void end_bc_exchange(MpiBuffer *mpibuf, xt::xtensor<float64, 4> &array, bool append = false);
+  void end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool append = false);
 
   template <typename T>
-  void set_mpi_buffer(const int headbyte, const T &elembyte, MpiBuffer *mpibuffer)
+  void set_mpi_buffer(PtrMpiBuffer mpibuffer, const int headbyte, const T &elembyte)
   {
     const std::vector<size_t> shape = {3, 3};
 
@@ -83,11 +84,10 @@ protected:
     auto xlb = xt::adapt(&recvlb[0][0], 9, xt::no_ownership(), shape);
     auto xub = xt::adapt(&recvub[0][0], 9, xt::no_ownership(), shape);
     auto xss = xub - xlb + 1;
-    auto pos =
-        xt::eval(xt::view(xss, 0, I, J, J) * xt::view(xss, 1, J, I, J) * xt::view(xss, 2, J, J, I));
+    auto pos = xt::eval(xt::view(xss, 0, I, J, J) * xt::view(xss, 1, J, I, J) *
+                        xt::view(xss, 2, J, J, I) * elembyte);
 
     // no send/recv with itself
-    pos          = pos * elembyte;
     pos(1, 1, 1) = 0;
 
     // buffer allocation
@@ -126,21 +126,21 @@ public:
 
   virtual void set_global_context(const int *offset, const int *ndims);
 
-  virtual void count_particle(ParticlePtr particle, int Lbp, int Ubp, bool reset = true);
+  virtual void count_particle(PtrParticle particle, int Lbp, int Ubp, bool reset = true);
 
-  virtual void sort_particle(ParticleList &particle);
+  virtual void sort_particle(ParticleVec &particle);
 
   virtual bool set_boundary_query(const int mode = 0);
 
   virtual void set_boundary_physical(const int mode = 0);
+
+  virtual void set_boundary_particle(PtrParticle particle, int Lbp, int Ubp);
 
   virtual void push(const float64 delt) = 0;
 
   virtual void set_boundary_begin(const int mode) = 0;
 
   virtual void set_boundary_end(const int mode) = 0;
-
-  virtual void set_boundary_particle(ParticlePtr particle, int Lbp, int Ubp) = 0;
 };
 
 // Local Variables:
