@@ -66,7 +66,7 @@ public:
   }
 
   ///
-  /// @brief memory allocation
+  /// @brief initial memory allocation
   ///
   void allocate_memory(const int Np_total, const int Ng)
   {
@@ -86,6 +86,37 @@ public:
     gindex.fill(0);
     pindex.fill(0);
     pcount.fill(0);
+  }
+
+  ///
+  /// @brief reallocation of memory for increased number of particles
+  ///
+  void reallocate_memory(const int Np_total)
+  {
+    size_t np = Np_total;
+    size_t nc = Nc;
+
+    // new number of particle
+    this->Np_total = Np_total;
+
+    // new shape
+    std::vector<size_t> shape_xu     = {np, nc};
+    std::vector<size_t> shape_xv     = {np, nc};
+    std::vector<size_t> shape_gindex = {np};
+
+    // new buffer and let xtensor manage memory deallocation
+    float64 *buf_xu     = new float64[np * nc];
+    float64 *buf_xv     = new float64[np * nc];
+    int32   *buf_gindex = new int32[np];
+
+    std::memcpy(buf_xu, xu.data(), sizeof(float64) * xu.size());
+    xu = xt::adapt(buf_xu, np * nc, xt::acquire_ownership(), shape_xu);
+
+    std::memcpy(buf_xv, xv.data(), sizeof(float64) * xv.size());
+    xv = xt::adapt(buf_xv, np * nc, xt::acquire_ownership(), shape_xv);
+
+    std::memcpy(buf_gindex, gindex.data(), sizeof(int32) * gindex.size());
+    gindex = xt::adapt(buf_gindex, np, xt::acquire_ownership(), shape_gindex);
   }
 
   ///

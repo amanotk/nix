@@ -55,7 +55,7 @@ public:
     mpibufvec.push_back(std::make_unique<MpiBuffer>());
     set_mpi_buffer(mpibufvec[0], 0, sizeof(float64) * 6);
     mpibufvec.push_back(std::make_unique<MpiBuffer>());
-    set_mpi_buffer(mpibufvec[1], 1, sizeof(float64) * 7 * Nppc * 10);
+    set_mpi_buffer(mpibufvec[1], sizeof(int), sizeof(float64) * Particle::Nc * Nppc * Ns);
   }
 
   virtual void push(const float64 delt) override
@@ -391,6 +391,19 @@ public:
       offset[2] = ix * ndims[2] / cdims[2];
       chunkvec[i]->set_global_context(offset, ndims);
       chunkvec[i]->allocate_memory(Nppc, Ns);
+    }
+
+    // set communicator
+    {
+      MPI_Comm comm0;
+      MPI_Comm comm1;
+      MPI_Comm_dup(MPI_COMM_WORLD, &comm0);
+      MPI_Comm_dup(MPI_COMM_WORLD, &comm1);
+
+      for (int i = 0; i < numchunk; i++) {
+        chunkvec[i]->set_mpi_communicator(0, comm0);
+        chunkvec[i]->set_mpi_communicator(1, comm1);
+      }
     }
   }
 };

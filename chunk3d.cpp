@@ -186,7 +186,16 @@ DEFINE_MEMBER(void, sort_particle)(ParticleVec &particle)
   }
 }
 
-DEFINE_MEMBER(void, count_particle)(PtrParticle particle, int Lbp, int Ubp, bool reset)
+DEFINE_MEMBER(void, set_mpi_communicator)(const int mode, MPI_Comm &comm)
+{
+  if (mode >= 0 && mode < mpibufvec.size()) {
+    mpibufvec[mode]->comm = comm;
+  } else {
+    ERRORPRINT("invalid index %d for mpibufvec\n", mode);
+  }
+}
+
+DEFINE_MEMBER(void, count_particle)(PtrParticle particle, const int Lbp, const int Ubp, bool reset)
 {
   int     stride[3] = {0};
   int     xrange[2] = {0};
@@ -291,6 +300,18 @@ DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particl
     }
   }
 
+  // check buffer size and reallocate if needed
+  {
+    auto I    = xt::all();
+    bool safe = xt::all(
+        xt::greater_equal(mpibuf->bufsize, 2 * data_size * xt::view(snd_count, Ns, I, I, I)));
+
+    if (safe == false) {
+      int elembyte = 2 * data_size * xt::amax(xt::view(snd_count, Ns, I, I, I))();
+      set_mpi_buffer(mpibuf, header_size, elembyte);
+    }
+  }
+
   //
   // begin exchange particles
   //
@@ -368,6 +389,11 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
           int cnt;
           std::memcpy(&cnt, recvptr, header_size);
           recvptr += header_size;
+
+          if (num_particle[is] + cnt > particle[is]->Np_total) {
+            // run out of particle buffer and try to reallocate twice the original
+            particle[is]->reallocate_memory(2 * particle[is]->Np_total);
+          }
 
           // particles
           float64 *ptcl = &particle[is]->xu(num_particle[is], 0);

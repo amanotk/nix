@@ -126,7 +126,10 @@ public:
 
   virtual void set_global_context(const int *offset, const int *ndims);
 
-  virtual void count_particle(PtrParticle particle, int Lbp, int Ubp, bool reset = true);
+  virtual void set_mpi_communicator(const int mode, MPI_Comm &comm);
+
+  virtual void count_particle(PtrParticle particle, const int Lbp, const int Ubp,
+                              bool reset = true);
 
   virtual void sort_particle(ParticleVec &particle);
 
