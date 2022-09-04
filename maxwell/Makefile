@@ -15,6 +15,10 @@ DEPS    := $(SRCS:%.cpp=%.d)
 ### default
 default: $(EXES)
 
+### test
+testall: $(EXES)
+	pytest test_maxwell.py
+
 main.out: $(OBJS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L$(BASEDIR) -lnix
 

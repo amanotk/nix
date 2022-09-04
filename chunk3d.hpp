@@ -4,6 +4,7 @@
 
 #include "buffer.hpp"
 #include "chunk.hpp"
+#include "common.hpp"
 #include "debug.hpp"
 #include "jsonio.hpp"
 #include "particle.hpp"

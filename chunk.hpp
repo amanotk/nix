@@ -6,7 +6,6 @@
 /// Chunk
 ///
 #include "common.hpp"
-
 #include <mpi.h>
 
 static constexpr int DIRTAG_BIT  = 5;

@@ -2,7 +2,7 @@
 
 #include "../sfc.hpp"
 
-#include "../catch.hpp"
+#include "../thirdparty/catch.hpp"
 
 //
 // 2D

@@ -6,9 +6,10 @@
 /// MPI stream
 ///
 #define MPICH_IGNORE_CXX_SEEK
-#include "cmdline.hpp"
 #include "common.hpp"
+#include "thirdparty/cmdline.hpp"
 #include <mpi.h>
+
 using namespace common;
 
 /// template for Singleton class

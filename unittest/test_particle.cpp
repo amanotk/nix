@@ -1,9 +1,10 @@
 // -*- C++ -*-
 
-#include "../particle.hpp"
 #include <iostream>
 
-#include "../catch.hpp"
+#include "../particle.hpp"
+
+#include "../thirdparty/catch.hpp"
 
 using uniform_rand = std::uniform_real_distribution<float64>;
 

@@ -18,6 +18,17 @@ DEPS    := $(SRCS:%.cpp=%.d)
 ### default
 default: $(EXES)
 
+### test
+testall: $(EXES)
+	./test_chunk
+	./test_chunkmap
+	./test_sfc
+	./test_particle
+	./test_jsonio1
+	mpiexec -n 8 ./test_jsonio2 -X 2 -Y 2 -Z 2
+	mpiexec -n 8 ./test_application
+	mpiexec -n 8 ./test_sendrecv
+
 # individual executables
 test_jsonio1: test_serial.o test_jsonio1.o
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) -L../ -lnix

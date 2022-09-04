@@ -2,7 +2,7 @@
 #ifndef _DEBUG_HPP_
 #define _DEBUG_HPP_
 
-#include "tinyformat.hpp"
+#include "thirdparty/tinyformat.hpp"
 #include <cstring>
 #include <iomanip>
 #include <iostream>

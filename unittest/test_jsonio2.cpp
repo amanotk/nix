@@ -1,11 +1,12 @@
 // -*- C++ -*-
 
-#include "../catch.hpp"
+#include <fstream>
+#include <iostream>
+
 #include "../jsonio.hpp"
 #include "../xtensorall.hpp"
 
-#include <fstream>
-#include <iostream>
+#include "../thirdparty/catch.hpp"
 
 using jsonio::float32;
 using jsonio::float64;
@@ -525,9 +526,9 @@ TEST_CASE("ReadSubarray")
     MPI_File fh;
     size_t   disp;
     size_t   nd = ndim;
-    size_t * gs = gshape.data();
-    size_t * ls = lshape.data();
-    size_t * os = offset.data();
+    size_t  *gs = gshape.data();
+    size_t  *ls = lshape.data();
+    size_t  *os = offset.data();
 
     // local array
     xt::xarray<int32_t> in_i32a(lshape);
@@ -594,9 +595,9 @@ TEST_CASE("WriteSubarray")
     MPI_File fh;
     size_t   disp;
     size_t   nd = ndim;
-    size_t * gs = gshape.data();
-    size_t * ls = lshape.data();
-    size_t * os = offset.data();
+    size_t  *gs = gshape.data();
+    size_t  *ls = lshape.data();
+    size_t  *os = offset.data();
 
     // local array
     xt::xarray<int32_t> local_i32a(lshape);

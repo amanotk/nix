@@ -1,9 +1,10 @@
 // -*- C++ -*-
 
-#include "../chunk.hpp"
 #include <iostream>
 
-#include "../catch.hpp"
+#include "../chunk.hpp"
+
+#include "../thirdparty/catch.hpp"
 
 //
 // Chunk<1>

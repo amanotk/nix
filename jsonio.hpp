@@ -8,10 +8,8 @@
 /// $Id$
 ///
 #include "common.hpp"
-#include "json.hpp"
-#include "tinyformat.hpp"
-#include <cstddef>
-#include <iostream>
+#include "thirdparty/json.hpp"
+#include "thirdparty/tinyformat.hpp"
 #include <mpi.h>
 
 namespace jsonio

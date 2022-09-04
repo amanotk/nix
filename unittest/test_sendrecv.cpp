@@ -3,8 +3,7 @@
 #include "../application.hpp"
 #include "../chunk3d.hpp"
 #include "../chunkmap.hpp"
-
-#include "../catch.hpp"
+#include "../thirdparty/catch.hpp"
 
 constexpr int Nb = 1;
 

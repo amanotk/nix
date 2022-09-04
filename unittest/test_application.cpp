@@ -4,7 +4,7 @@
 #include "../chunk.hpp"
 #include "../chunkmap.hpp"
 
-#include "../catch.hpp"
+#include "../thirdparty/catch.hpp"
 
 using BaseApp = Application<Chunk<3>, ChunkMap<3>>;
 

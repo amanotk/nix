@@ -3,7 +3,7 @@
 #include "../jsonio.hpp"
 #include <iostream>
 
-#include "../catch.hpp"
+#include "../thirdparty/catch.hpp"
 
 static const auto json_to_check = R"(
 {
