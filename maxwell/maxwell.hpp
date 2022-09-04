@@ -31,7 +31,7 @@ public:
 
   virtual void push() override;
 
-  virtual void diagnostic() override;
+  virtual void diagnostic(std::ostream &out) override;
 
   virtual void initializer(float64 z, float64 y, float64 x, float64 *eb);
 };

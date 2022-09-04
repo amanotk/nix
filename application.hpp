@@ -115,7 +115,7 @@ protected:
                  "Nx, Ny, Nz = [%4d, %4d, %4d]\n"
                  "Cx, Cy, Cz = [%4d, %4d, %4d]\n",
                  nx, ny, nz, cx, cy, cz);
-      finalize();
+      finalize(-1);
       exit(-1);
     }
 
@@ -271,11 +271,10 @@ public:
     finalize_mpi_default(cleanup);
   }
 
-  virtual void diagnostic()
+  virtual void diagnostic(std::ostream &out)
   {
-    LOGPRINT1(std::cout, "Function %s called\n", __func__);
-
-    print_info(std::cout, 1);
+    out << tfm::format("*** step = %8d (time = %10.5f)\n", curstep, curtime);
+    print_info(out, 1);
   }
 
   virtual void push()
@@ -333,7 +332,7 @@ public:
       ERRORPRINT("number of chunk   = %8d\n"
                  "number of process = %8d\n",
                  nc, nprocess);
-      finalize();
+      finalize(-1);
       exit(-1);
     }
 
@@ -495,7 +494,7 @@ public:
                    "current rank = %4d\n"
                    "newrank      = %4d\n",
                    id, thisrank, newrank[id]);
-        finalize();
+        finalize(-1);
         exit(-1);
       }
     }
@@ -650,25 +649,20 @@ public:
 
   virtual int main(std::ostream &out)
   {
-
     //
     // + initialize object
     // + setup
-    // + output diagnostic if needed
     //
     initialize(cl_argc, cl_argv);
     setup();
-    diagnostic();
 
     // main loop
     while (is_push_needed()) {
-      out << tfm::format("*** step = %8d (time = %10.5f)\n", curstep, curtime);
+      // output diagnostic if needed
+      diagnostic(out);
 
       // advance everything by one step
       push();
-
-      // output diagnostic if needed
-      diagnostic();
 
       // exit if elapsed time exceed a limit
       if (get_available_etime() < 0) {

@@ -17,6 +17,11 @@ public:
     mpi_init_with_nullptr = true;
   }
 
+  virtual void diagnostic(std::ostream &out) override
+  {
+    // do nothing
+  }
+
   virtual void rebuild_chunkmap() override
   {
     BaseApp::rebuild_chunkmap();
@@ -36,9 +41,11 @@ public:
       cl_argv[i] = const_cast<char *>(args[i].c_str());
     }
 
+    // main application loop
     REQUIRE(main(std::cout) == 0);
 
     delete[] cl_argv;
+
     return 0;
   }
 };

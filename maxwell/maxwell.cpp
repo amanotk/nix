@@ -67,7 +67,7 @@ DEFINE_MEMBER(void, push)()
   curstep++;
 }
 
-DEFINE_MEMBER(void, diagnostic)()
+DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
 {
   if (curstep % interval != 0) {
     return;
