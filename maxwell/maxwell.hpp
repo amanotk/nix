@@ -14,6 +14,9 @@ using BaseApp = Application<FDTD, ChunkMap<3>>;
 //
 class Maxwell : public BaseApp
 {
+private:
+  using json = nlohmann::ordered_json;
+
 protected:
   using Chunk = FDTD;
 

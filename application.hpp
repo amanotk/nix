@@ -16,16 +16,17 @@
 template <class Chunk, class ChunkMap>
 class Application
 {
-protected:
+private:
   using cmdparser = cmdline::parser;
   using json      = nlohmann::ordered_json;
 
-  typedef std::unique_ptr<Balancer>  PtrBalancer;
-  typedef std::unique_ptr<Chunk>     PtrChunk;
-  typedef std::unique_ptr<ChunkMap>  PtrChunkMap;
-  typedef std::unique_ptr<char[]>    PtrByte;
-  typedef std::unique_ptr<float64[]> PtrFloat;
-  typedef std::vector<PtrChunk>      ChunkVec;
+protected:
+  using PtrBalancer = std::unique_ptr<Balancer>;
+  using PtrChunk    = std::unique_ptr<Chunk>;
+  using PtrChunkMap = std::unique_ptr<ChunkMap>;
+  using PtrByte     = std::unique_ptr<char[]>;
+  using PtrFloat    = std::unique_ptr<float64[]>;
+  using ChunkVec    = std::vector<PtrChunk>;
 
   int         cl_argc;  ///< command-line argc
   char      **cl_argv;  ///< command-line argv
@@ -60,10 +61,10 @@ protected:
   int    bufsize;               ///< size of buffer
   Buffer sendbuf;               ///< send buffer
   Buffer recvbuf;               ///< recv buffer
-  bool   mpi_init_with_nullptr; ///< for testing purspose
+  bool   mpi_init_with_nullptr; ///< for testing purpose
 
   // setup default command-line options
-  void setup_cmd_default()
+  virtual void setup_cmd()
   {
     const float64     etmax = 60 * 60 * 24;
     const float64     ptmax = common::HUGEVAL;
@@ -77,8 +78,12 @@ protected:
   }
 
   // default command-line parsing
-  void parse_cmd_default(int argc, char **argv)
+  virtual void parse_cmd(int argc, char **argv)
   {
+    // setup command-line parser
+    setup_cmd();
+
+    // parse
     parser.parse_check(argc, argv);
 
     tmax     = parser.get<float64>("tmax");
@@ -89,12 +94,12 @@ protected:
   }
 
   // default configuration file parsing
-  void parse_cfg_default()
+  virtual void parse_cfg()
   {
     // read configuration file
     {
       std::ifstream f(cfg_file.c_str());
-      f >> cfg_json;
+      cfg_json = json::parse(f, nullptr, true, true);
     }
 
     // delt and delh
@@ -203,14 +208,11 @@ public:
   {
     LOGPRINT1(std::cout, "Function %s called\n", __func__);
 
-    // setup command line parser
-    setup_cmd_default();
+    // parse command line arguments
+    parse_cmd(argc, argv);
 
-    // parse command line
-    parse_cmd_default(argc, argv);
-
-    // configuration file
-    parse_cfg_default();
+    // parse configuration file
+    parse_cfg();
 
     // initialize current physical time and time step
     curstep = 0;
