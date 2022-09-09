@@ -18,12 +18,6 @@ static constexpr int NB_SIZE[3]  = {3, 9, 27};
 template <int N>
 class Chunk
 {
-public:
-  enum PackMode {
-    PackAll = 1,
-    PackAllQuery,
-  };
-
 protected:
   static int nbsize;              ///< number of neighbors
   static int tagmask;             ///< mask for directional tag
@@ -34,10 +28,6 @@ protected:
   int     nbrank[NB_SIZE[N - 1]]; ///< neighboring chunk MPI rank
   int     dims[N];                ///< number of grids
   float64 load;                   ///< current load
-
-  int pack_base(const int mode, void *buffer);
-
-  int unpack_base(const int mode, void *buffer);
 
   virtual void initialize(const int dims[N], const int id);
 
@@ -58,10 +48,10 @@ public:
   virtual float64 get_load();
 
   // pack
-  virtual int pack(const int mode, void *buffer);
+  virtual int pack(void *buffer, const int address);
 
   // unpack
-  virtual int unpack(const int mode, void *buffer);
+  virtual int unpack(void *buffer, const int address);
 
   // set ID
   void set_id(const int id)

@@ -25,61 +25,28 @@ DEFINE_MEMBER(, ~FDTD)()
   uf.resize({0});
 }
 
-DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
+DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 {
   using common::memcpy_count;
 
-  int   count = 0;
-  char *ptr   = static_cast<char *>(buffer);
+  int count = address;
 
-  switch (mode) {
-  case PackAllQuery:
-    count += Chunk::pack(Chunk::PackAllQuery, &ptr[count]);
-    count += memcpy_count(&ptr[count], uf.data(), uf.size() * sizeof(float64), true);
-    count += memcpy_count(&ptr[count], &cc, sizeof(float64), true);
-    break;
-  case PackAll:
-    count += Chunk::pack(Chunk::PackAll, &ptr[count]);
-    count += memcpy_count(&ptr[count], uf.data(), uf.size() * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], &cc, sizeof(float64), false);
-    break;
-  case PackEmf:
-    count = pack_diagnostic(buffer, false);
-    break;
-  case PackEmfQuery:
-    count = pack_diagnostic(buffer, true);
-    break;
-  default:
-    ERRORPRINT("No such packing mode");
-    break;
-  }
+  count += Chunk::pack(buffer, address);
+  count += memcpy_count(buffer, uf.data(), uf.size() * sizeof(float64), count, 0);
+  count += memcpy_count(buffer, &cc, sizeof(float64), count, 0);
 
   return count;
 }
 
-DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
+DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
 {
   using common::memcpy_count;
 
-  int   count = 0;
-  char *ptr   = static_cast<char *>(buffer);
+  int count = address;
 
-  switch (mode) {
-  case PackAll:
-    count += Chunk::unpack(Chunk::PackAll, &ptr[count]);
-    count += memcpy_count(uf.data(), &ptr[count], uf.size() * sizeof(float64), false);
-    count += memcpy_count(&cc, &ptr[count], sizeof(float64), false);
-    break;
-  case PackEmf:
-    ERRORPRINT("Not implemented yet");
-    break;
-  case PackEmfQuery:
-    ERRORPRINT("Not implemented yet");
-    break;
-  default:
-    ERRORPRINT("No such unpacking mode");
-    break;
-  }
+  count += Chunk::unpack(buffer, address);
+  count += memcpy_count(uf.data(), buffer, uf.size() * sizeof(float64), 0, count);
+  count += memcpy_count(&cc, buffer, sizeof(float64), 0, count);
 
   return count;
 }
@@ -140,12 +107,11 @@ DEFINE_MEMBER(void, push)(const float64 delt)
   load += common::etime() - etime;
 }
 
-DEFINE_MEMBER(int, pack_diagnostic)(void *buffer, const bool query)
+DEFINE_MEMBER(int, pack_diagnostic)(void *buffer, const int address)
 {
-  size_t   size = dims[2] * dims[1] * dims[0] * 6;
-  float64 *buf  = static_cast<float64 *>(buffer);
+  size_t size = dims[2] * dims[1] * dims[0] * 6;
 
-  if (query) {
+  if (buffer == nullptr) {
     return sizeof(float64) * size;
   }
 
@@ -155,7 +121,8 @@ DEFINE_MEMBER(int, pack_diagnostic)(void *buffer, const bool query)
   auto uu = xt::view(uf, Iz, Iy, Ix, xt::all());
 
   // packing
-  std::copy(uu.begin(), uu.end(), buf);
+  char *ptr = &static_cast<char *>(buffer)[address];
+  std::copy(uu.begin(), uu.end(), ptr);
 
   return sizeof(float64) * size;
 }

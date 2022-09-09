@@ -130,49 +130,51 @@ public:
   ///
   /// @brief pack data into buffer
   ///
-  int pack(void *buffer, bool count_only = false)
+  int pack(void *buffer, const int address)
   {
-    int   cnt = 0;
-    char *ptr = static_cast<char *>(buffer);
+    using common::memcpy_count;
 
-    cnt += common::memcpy_count(&ptr[cnt], &Np_total, sizeof(int), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], &Np, sizeof(int), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], &Ng, sizeof(int), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], &q, sizeof(float64), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], &m, sizeof(float64), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], xu.data(), xu.size() * sizeof(float64), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], xv.data(), xu.size() * sizeof(float64), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], gindex.data(), gindex.size() * sizeof(int), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], pindex.data(), pindex.size() * sizeof(int), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], pcount.data(), pcount.size() * sizeof(int), count_only);
+    int count = address;
 
-    return cnt;
+    count += memcpy_count(buffer, &Np_total, sizeof(int), count, 0);
+    count += memcpy_count(buffer, &Np, sizeof(int), count, 0);
+    count += memcpy_count(buffer, &Ng, sizeof(int), count, 0);
+    count += memcpy_count(buffer, &q, sizeof(float64), count, 0);
+    count += memcpy_count(buffer, &m, sizeof(float64), count, 0);
+    count += memcpy_count(buffer, xu.data(), xu.size() * sizeof(float64), count, 0);
+    count += memcpy_count(buffer, xv.data(), xu.size() * sizeof(float64), count, 0);
+    count += memcpy_count(buffer, gindex.data(), gindex.size() * sizeof(int), count, 0);
+    count += memcpy_count(buffer, pindex.data(), pindex.size() * sizeof(int), count, 0);
+    count += memcpy_count(buffer, pcount.data(), pcount.size() * sizeof(int), count, 0);
+
+    return count;
   }
 
   ///
   /// @brief unpack data from buffer
   ///
-  int unpack(void *buffer, bool count_only = false)
+  int unpack(void *buffer, const int address)
   {
-    int   cnt = 0;
-    char *ptr = static_cast<char *>(buffer);
+    using common::memcpy_count;
 
-    cnt += common::memcpy_count(&Np_total, &ptr[cnt], sizeof(int), count_only);
-    cnt += common::memcpy_count(&Np, &ptr[cnt], sizeof(int), count_only);
-    cnt += common::memcpy_count(&Ng, &ptr[cnt], sizeof(int), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], &q, sizeof(float64), count_only);
-    cnt += common::memcpy_count(&ptr[cnt], &m, sizeof(float64), count_only);
+    int count = address;
+
+    count += memcpy_count(&Np_total, buffer, sizeof(int), 0, count);
+    count += memcpy_count(&Np, buffer, sizeof(int), 0, count);
+    count += memcpy_count(&Ng, buffer, sizeof(int), 0, count);
+    count += memcpy_count(&q, buffer, sizeof(float64), 0, count);
+    count += memcpy_count(&m, buffer, sizeof(float64), 0, count);
 
     // memory allocation before reading arrays
     allocate_memory(Np_total, Ng);
 
-    cnt += common::memcpy_count(xu.data(), &ptr[cnt], xu.size() * sizeof(float64), count_only);
-    cnt += common::memcpy_count(xv.data(), &ptr[cnt], xu.size() * sizeof(float64), count_only);
-    cnt += common::memcpy_count(gindex.data(), &ptr[cnt], gindex.size() * sizeof(int), count_only);
-    cnt += common::memcpy_count(pindex.data(), &ptr[cnt], pindex.size() * sizeof(int), count_only);
-    cnt += common::memcpy_count(pcount.data(), &ptr[cnt], pcount.size() * sizeof(int), count_only);
+    count += memcpy_count(xu.data(), buffer, xu.size() * sizeof(float64), 0, count);
+    count += memcpy_count(xv.data(), buffer, xu.size() * sizeof(float64), 0, count);
+    count += memcpy_count(gindex.data(), buffer, gindex.size() * sizeof(int), 0, count);
+    count += memcpy_count(pindex.data(), buffer, pindex.size() * sizeof(int), 0, count);
+    count += memcpy_count(pcount.data(), buffer, pcount.size() * sizeof(int), 0, count);
 
-    return cnt;
+    return count;
   }
 
   ///

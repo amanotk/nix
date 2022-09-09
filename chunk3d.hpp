@@ -22,11 +22,6 @@ public:
     RecvMode = 0b10000000000000, // 8192
   };
 
-  enum PackMode {
-    PackAllQuery = 0,
-    PackAll      = 1,
-  };
-
   /// MPI buffer struct
   struct MpiBuffer {
     MPI_Comm  comm;
@@ -121,9 +116,9 @@ public:
 
   virtual float64 get_load() override;
 
-  virtual int pack(const int mode, void *buffer) override;
+  virtual int pack(void *buffer, const int address) override;
 
-  virtual int unpack(const int mode, void *buffer) override;
+  virtual int unpack(void *buffer, const int address) override;
 
   virtual void set_global_context(const int *offset, const int *ndims);
 

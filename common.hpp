@@ -53,10 +53,12 @@ const std::ios::openmode text_read   = std::ios::in;
 //@{
 
 //// wrapper of std::memcpy
-inline size_t memcpy_count(void *dst, const void *src, size_t count, bool count_only = false)
+inline size_t memcpy_count(void *dst, void *src, size_t count, size_t dstaddr, size_t srcaddr)
 {
-  if (!count_only) {
-    std::memcpy(dst, src, count);
+  if (dst != nullptr && src != nullptr) {
+    char *dstptr = &static_cast<char *>(dst)[dstaddr];
+    char *srcptr = &static_cast<char *>(src)[srcaddr];
+    std::memcpy(dstptr, srcptr, count);
   }
   return count;
 }

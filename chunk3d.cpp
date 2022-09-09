@@ -91,64 +91,38 @@ DEFINE_MEMBER(float64, get_load)()
   return load;
 }
 
-DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
+DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 {
   using common::memcpy_count;
 
-  int   count = 0;
-  char *ptr   = static_cast<char *>(buffer);
+  int count = address;
 
-  switch (mode) {
-  case PackAllQuery:
-    count += Chunk<3>::pack(Chunk<3>::PackAllQuery, &ptr[count]);
-    count += memcpy_count(&ptr[count], xc.data(), xc.size() * sizeof(float64), true);
-    count += memcpy_count(&ptr[count], yc.data(), yc.size() * sizeof(float64), true);
-    count += memcpy_count(&ptr[count], zc.data(), zc.size() * sizeof(float64), true);
-    count += memcpy_count(&ptr[count], &delh, sizeof(float64), true);
-    count += memcpy_count(&ptr[count], xlim, 3 * sizeof(float64), true);
-    count += memcpy_count(&ptr[count], ylim, 3 * sizeof(float64), true);
-    count += memcpy_count(&ptr[count], zlim, 3 * sizeof(float64), true);
-    break;
-  case PackAll:
-    count += Chunk<3>::pack(Chunk<3>::PackAll, &ptr[count]);
-    count += memcpy_count(&ptr[count], xc.data(), xc.size() * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], yc.data(), yc.size() * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], zc.data(), zc.size() * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], &delh, sizeof(float64), false);
-    count += memcpy_count(&ptr[count], xlim, 3 * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], ylim, 3 * sizeof(float64), false);
-    count += memcpy_count(&ptr[count], zlim, 3 * sizeof(float64), false);
-    break;
-  default:
-    ERRORPRINT("No such packing mode");
-    break;
-  }
+  count += Chunk<3>::pack(buffer, count);
+  count += memcpy_count(buffer, xc.data(), xc.size() * sizeof(float64), count, 0);
+  count += memcpy_count(buffer, yc.data(), yc.size() * sizeof(float64), count, 0);
+  count += memcpy_count(buffer, zc.data(), zc.size() * sizeof(float64), count, 0);
+  count += memcpy_count(buffer, &delh, sizeof(float64), count, 0);
+  count += memcpy_count(buffer, xlim, 3 * sizeof(float64), count, 0);
+  count += memcpy_count(buffer, ylim, 3 * sizeof(float64), count, 0);
+  count += memcpy_count(buffer, zlim, 3 * sizeof(float64), count, 0);
 
   return count;
 }
 
-DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
+DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
 {
   using common::memcpy_count;
 
-  int   count = 0;
-  char *ptr   = static_cast<char *>(buffer);
+  int count = address;
 
-  switch (mode) {
-  case PackAll:
-    count += Chunk<3>::unpack(Chunk<3>::PackAll, &ptr[count]);
-    count += memcpy_count(xc.data(), &ptr[count], xc.size() * sizeof(float64), false);
-    count += memcpy_count(yc.data(), &ptr[count], yc.size() * sizeof(float64), false);
-    count += memcpy_count(zc.data(), &ptr[count], zc.size() * sizeof(float64), false);
-    count += memcpy_count(&delh, &ptr[count], sizeof(float64), false);
-    count += memcpy_count(xlim, &ptr[count], 3 * sizeof(float64), false);
-    count += memcpy_count(ylim, &ptr[count], 3 * sizeof(float64), false);
-    count += memcpy_count(zlim, &ptr[count], 3 * sizeof(float64), false);
-    break;
-  default:
-    ERRORPRINT("No such unpacking mode");
-    break;
-  }
+  count += Chunk<3>::unpack(buffer, count);
+  count += memcpy_count(xc.data(), buffer, xc.size() * sizeof(float64), 0, count);
+  count += memcpy_count(yc.data(), buffer, yc.size() * sizeof(float64), 0, count);
+  count += memcpy_count(zc.data(), buffer, zc.size() * sizeof(float64), 0, count);
+  count += memcpy_count(&delh, buffer, sizeof(float64), 0, count);
+  count += memcpy_count(xlim, buffer, 3 * sizeof(float64), 0, count);
+  count += memcpy_count(ylim, buffer, 3 * sizeof(float64), 0, count);
+  count += memcpy_count(zlim, buffer, 3 * sizeof(float64), 0, count);
 
   return count;
 }

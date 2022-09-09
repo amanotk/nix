@@ -14,13 +14,6 @@ public:
   using Chunk      = Chunk3D<1>;
   using T_function = std::function<void(float64, float64, float64, float64 *)>;
 
-  enum PackMode {
-    PackAllQuery = 0,
-    PackAll      = 1,
-    PackEmf      = 2,
-    PackEmfQuery = 3,
-  };
-
   /// boundary margin
   static const int Nb = Chunk::boundary_margin;
 
@@ -33,16 +26,16 @@ public:
 
   virtual ~FDTD() override;
 
-  virtual int pack(const int mode, void *buffer) override;
+  virtual int pack(void *buffer, const int address) override;
 
-  virtual int unpack(const int mode, void *buffer) override;
+  virtual int unpack(void *buffer, const int address) override;
 
   virtual void setup(const float64 cc, const float64 delh, const int *offset, const int *ndims,
                      T_function initializer);
 
   virtual void push(const float64 delt) override;
 
-  virtual int pack_diagnostic(void *buffer, const bool query);
+  virtual int pack_diagnostic(void *buffer, const int address);
 
   virtual void set_boundary_begin(const int mode = 0) override;
 

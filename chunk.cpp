@@ -5,62 +5,6 @@
   template <int N>                                                                                 \
   type Chunk<N>::name
 
-DEFINE_MEMBER(int, pack_base)(const int mode, void *buffer)
-{
-  using common::memcpy_count;
-
-  int   count = 0;
-  char *ptr   = static_cast<char *>(buffer);
-
-  switch (mode) {
-  case PackAll:
-    count += memcpy_count(&ptr[count], &myid, sizeof(int), false);
-    count += memcpy_count(&ptr[count], &nbid[0], nbsize * sizeof(int), false);
-    count += memcpy_count(&ptr[count], &nbrank[0], nbsize * sizeof(int), false);
-    count += memcpy_count(&ptr[count], &load, sizeof(float64), false);
-    break;
-  case PackAllQuery:
-    count += memcpy_count(&ptr[count], &myid, sizeof(int), true);
-    count += memcpy_count(&ptr[count], &nbid[0], nbsize * sizeof(int), true);
-    count += memcpy_count(&ptr[count], &nbrank[0], nbsize * sizeof(int), true);
-    count += memcpy_count(&ptr[count], &load, sizeof(float64), true);
-    break;
-  default:
-    count = -1;
-    break;
-  }
-
-  return count;
-}
-
-DEFINE_MEMBER(int, unpack_base)(const int mode, void *buffer)
-{
-  using common::memcpy_count;
-
-  int   count = 0;
-  char *ptr   = static_cast<char *>(buffer);
-
-  switch (mode) {
-  case PackAll:
-    count += memcpy_count(&myid, &ptr[count], sizeof(int), false);
-    count += memcpy_count(&nbid[0], &ptr[count], nbsize * sizeof(int), false);
-    count += memcpy_count(&nbrank[0], &ptr[count], nbsize * sizeof(int), false);
-    count += memcpy_count(&load, &ptr[count], sizeof(float64), false);
-    break;
-  case PackAllQuery:
-    count += memcpy_count(&myid, &ptr[count], sizeof(int), true);
-    count += memcpy_count(&nbid[0], &ptr[count], nbsize * sizeof(int), true);
-    count += memcpy_count(&nbrank[0], &ptr[count], nbsize * sizeof(int), true);
-    count += memcpy_count(&load, &ptr[count], sizeof(float64), true);
-    break;
-  default:
-    count = -1;
-    break;
-  }
-
-  return count;
-}
-
 DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
 {
   int shift;
@@ -123,14 +67,32 @@ DEFINE_MEMBER(float64, get_load)()
   return load;
 }
 
-DEFINE_MEMBER(int, pack)(const int mode, void *buffer)
+DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 {
-  return pack_base(mode, buffer);
+  using common::memcpy_count;
+
+  int count = address;
+
+  count += memcpy_count(buffer, &myid, sizeof(int), count, 0);
+  count += memcpy_count(buffer, &nbid[0], nbsize * sizeof(int), count, 0);
+  count += memcpy_count(buffer, &nbrank[0], nbsize * sizeof(int), count, 0);
+  count += memcpy_count(buffer, &load, sizeof(float64), count, 0);
+
+  return count;
 }
 
-DEFINE_MEMBER(int, unpack)(const int mode, void *buffer)
+DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
 {
-  return unpack_base(mode, buffer);
+  using common::memcpy_count;
+
+  int count = address;
+
+  count += memcpy_count(&myid, buffer, sizeof(int), 0, count);
+  count += memcpy_count(&nbid[0], buffer, nbsize * sizeof(int), 0, count);
+  count += memcpy_count(&nbrank[0], buffer, nbsize * sizeof(int), 0, count);
+  count += memcpy_count(&load, buffer, sizeof(float64), 0, count);
+
+  return count;
 }
 
 template class Chunk<1>;

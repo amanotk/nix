@@ -97,26 +97,26 @@ DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
   // json metadata
   jsonio::put_metadata(json_dataset, "uf", "f8", "", disp, size, ndim, dims);
 
-  // assume buffer size for each chunk is equal
-  bufsize = chunkvec[0]->pack(FDTD::PackEmfQuery, nullptr);
-  for (int i = 0; i < numchunk; i++) {
-    assert(bufsize == chunkvec[i]->pack(FDTD::PackEmfQuery, nullptr));
-  }
+  // buffer size (assuming constant)
+  bufsize = chunkvec[0]->pack_diagnostic(nullptr, 0);
   sendbuf.resize(bufsize);
-  disp += bufsize * chunkvec[0]->get_id();
 
-  // write data for each chunk
   for (int i = 0; i < numchunk; i++) {
     MPI_Request req;
 
-    chunkvec[i]->pack(FDTD::PackEmf, sendbuf.get());
+    // pack
+    assert(bufsize == chunkvec[i]->pack_diagnostic(sendbuf.get(), 0));
 
+    // write
+    size_t chunkdisp = disp + bufsize * chunkvec[i]->get_id();
     jsonio::write_contiguous_at(&fh, &disp, sendbuf.get(), bufsize, 1, &req);
-    disp += bufsize;
 
     MPI_Wait(&req, MPI_STATUS_IGNORE);
   }
 
+  disp += size;
+
+  // close file
   jsonio::close_file(&fh);
 
   //

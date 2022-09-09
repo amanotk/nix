@@ -447,9 +447,9 @@ public:
         int id = chunkvec[i]->get_id();
 
         if (newrank[id] == thisrank - 1) {
-          sendsize_l += chunkvec[i]->pack(Chunk::PackAllQuery, nullptr);
+          sendsize_l += chunkvec[i]->pack(nullptr, 0);
         } else if (newrank[id] == thisrank + 1) {
-          sendsize_r += chunkvec[i]->pack(Chunk::PackAllQuery, nullptr);
+          sendsize_r += chunkvec[i]->pack(nullptr, 0);
         }
       }
 
@@ -479,12 +479,12 @@ public:
 
       if (newrank[id] == thisrank - 1) {
         // send to left
-        int size = chunkvec[i]->pack(Chunk::PackAll, sbuf_l);
+        int size = chunkvec[i]->pack(sbuf_l, 0);
         sbuf_l += size;
         chunkvec[i]->set_id(ncmax); // to be removed
       } else if (newrank[id] == thisrank + 1) {
         // send to right
-        int size = chunkvec[i]->pack(Chunk::PackAll, sbuf_r);
+        int size = chunkvec[i]->pack(sbuf_r, 0);
         sbuf_r += size;
         chunkvec[i]->set_id(ncmax); // to be removed
       } else if (newrank[id] == thisrank) {
@@ -539,7 +539,7 @@ public:
 
         while ((rbuf_l - rbuf_l0) < rbufcnt_l) {
           PtrChunk p(new Chunk(dims, 0));
-          size = p->unpack(Chunk::PackAll, rbuf_l);
+          size = p->unpack(rbuf_l, 0);
           chunkvec.push_back(std::move(p));
           rbuf_l += size;
         }
@@ -552,7 +552,7 @@ public:
 
         while ((rbuf_r - rbuf_r0) < rbufcnt_r) {
           PtrChunk p(new Chunk(dims, 0));
-          size = p->unpack(Chunk::PackAll, rbuf_r);
+          size = p->unpack(rbuf_r, 0);
           chunkvec.push_back(std::move(p));
           rbuf_r += size;
         }
