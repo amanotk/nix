@@ -30,7 +30,7 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
     this->dims[i] = dims[i];
   }
 
-  initialize_load();
+  reset_load();
 }
 
 DEFINE_MEMBER(, Chunk)()
@@ -48,7 +48,7 @@ DEFINE_MEMBER(, ~Chunk)()
 {
 }
 
-DEFINE_MEMBER(void, initialize_load)()
+DEFINE_MEMBER(void, reset_load)()
 {
   static std::random_device                      rd;
   static std::mt19937                            mt(rd());

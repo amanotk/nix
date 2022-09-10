@@ -41,8 +41,8 @@ public:
   // destructor
   virtual ~Chunk();
 
-  // initialize load
-  virtual void initialize_load();
+  // reset load
+  virtual void reset_load();
 
   // return load
   virtual float64 get_load();

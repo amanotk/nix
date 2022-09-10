@@ -57,6 +57,10 @@ public:
     set_mpi_buffer(mpibufvec[1], sizeof(int), sizeof(float64) * Particle::Nc * Nppc * Ns);
   }
 
+  virtual void setup(json &config) override
+  {
+  }
+
   virtual void push(const float64 delt) override
   {
     // push particle position

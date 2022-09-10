@@ -14,6 +14,7 @@ template <int Nb>
 class Chunk3D : public Chunk<3>
 {
 public:
+  using json      = nlohmann::ordered_json;
   using T_array3d = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
   using T_request = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
 
@@ -112,7 +113,7 @@ public:
 
   virtual ~Chunk3D() override;
 
-  virtual void initialize_load() override;
+  virtual void reset_load() override;
 
   virtual float64 get_load() override;
 
@@ -134,6 +135,8 @@ public:
   virtual void set_boundary_physical(const int mode = 0);
 
   virtual void set_boundary_particle(PtrParticle particle, int Lbp, int Ubp);
+
+  virtual void setup(json &config) = 0;
 
   virtual void push(const float64 delt) = 0;
 

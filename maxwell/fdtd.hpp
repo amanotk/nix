@@ -30,8 +30,7 @@ public:
 
   virtual int unpack(void *buffer, const int address) override;
 
-  virtual void setup(const float64 cc, const float64 delh, const int *offset, const int *ndims,
-                     T_function initializer);
+  virtual void setup(json &config) override;
 
   virtual void push(const float64 delt) override;
 

@@ -5,12 +5,6 @@
 
 DEFINE_MEMBER(void, initialize)(int argc, char **argv)
 {
-  using std::placeholders::_1;
-  using std::placeholders::_2;
-  using std::placeholders::_3;
-  using std::placeholders::_4;
-  FDTD::T_function f = std::bind(&Maxwell::initializer, this, _1, _2, _3, _4);
-
   // default initialize()
   BaseApp::initialize(argc, argv);
 
@@ -20,7 +14,7 @@ DEFINE_MEMBER(void, initialize)(int argc, char **argv)
   cc       = cfg_json["cc"].get<float64>();
   kdir     = cfg_json["kdir"].get<int>();
 
-  // set initial condition
+  // set auxiliary information for chunk
   for (int i = 0; i < numchunk; i++) {
     int ix, iy, iz;
     int offset[3];
@@ -29,7 +23,15 @@ DEFINE_MEMBER(void, initialize)(int argc, char **argv)
     offset[0] = iz * ndims[0] / cdims[0];
     offset[1] = iy * ndims[1] / cdims[1];
     offset[2] = ix * ndims[2] / cdims[2];
-    chunkvec[i]->setup(cc, delh, offset, ndims, f);
+    chunkvec[i]->set_global_context(offset, ndims);
+  }
+}
+
+DEFINE_MEMBER(void, setup)()
+{
+  // set initial condition
+  for (int i = 0; i < numchunk; i++) {
+    chunkvec[i]->setup(cfg_json);
     chunkvec[i]->set_boundary_begin();
   }
 
@@ -140,50 +142,6 @@ DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
     ofs.close();
   }
   MPI_Barrier(MPI_COMM_WORLD);
-}
-
-DEFINE_MEMBER(void, initializer)(float64 z, float64 y, float64 x, float64 *eb)
-{
-  switch (kdir) {
-  case 0: {
-    // propagation in z dir
-    float64 kk = common::pi2 / zlim[2];
-    float64 ff = cos(kk * z);
-    float64 gg = sin(kk * z);
-    eb[0]      = ff;
-    eb[1]      = gg;
-    eb[2]      = 0;
-    eb[3]      = gg;
-    eb[4]      = ff;
-    eb[5]      = 0;
-  } break;
-  case 1: {
-    // propagation in y dir
-    float64 kk = common::pi2 / ylim[2];
-    float64 ff = cos(kk * y);
-    float64 gg = sin(kk * y);
-    eb[0]      = gg;
-    eb[1]      = 0;
-    eb[2]      = ff;
-    eb[3]      = ff;
-    eb[4]      = 0;
-    eb[5]      = gg;
-  } break;
-  case 2: {
-    // propagation in x dir
-    float64 kk = common::pi2 / xlim[2];
-    float64 ff = cos(kk * x);
-    float64 gg = sin(kk * x);
-    eb[0]      = 0;
-    eb[1]      = ff;
-    eb[2]      = gg;
-    eb[3]      = 0;
-    eb[4]      = gg;
-    eb[5]      = ff;
-  } break;
-  default:
-    break;
-  }
 }
 
 // Local Variables:

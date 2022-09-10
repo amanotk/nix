@@ -81,7 +81,7 @@ DEFINE_MEMBER(, ~Chunk3D)()
   xc.resize({0});
 }
 
-DEFINE_MEMBER(void, initialize_load)()
+DEFINE_MEMBER(void, reset_load)()
 {
   load = 0;
 }
