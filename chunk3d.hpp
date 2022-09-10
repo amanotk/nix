@@ -138,8 +138,6 @@ public:
 
   virtual void setup(json &config) = 0;
 
-  virtual void push(const float64 delt) = 0;
-
   virtual void set_boundary_begin(const int mode) = 0;
 
   virtual void set_boundary_end(const int mode) = 0;

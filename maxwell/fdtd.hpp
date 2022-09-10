@@ -32,7 +32,7 @@ public:
 
   virtual void setup(json &config) override;
 
-  virtual void push(const float64 delt) override;
+  virtual void push(const float64 delt);
 
   virtual int pack_diagnostic(void *buffer, const int address);
 

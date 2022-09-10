@@ -22,7 +22,6 @@ class Particle
 {
 private:
   // these constructors are disabled for safety
-  Particle();
   Particle(const Particle &particle);
 
 public:
@@ -43,6 +42,15 @@ public:
   xt::xtensor<int32, 2>   pcount; ///< particle count for each cell
 
   ///
+  /// @brief Default constructor
+  ///
+  Particle()
+  {
+    Np_total = 0;
+    Ng       = 0;
+  }
+
+  ///
   /// @brief Constructor
   ///
   /// @param[in] Np_total Total number of particle for memory allocation
@@ -55,7 +63,7 @@ public:
     Np             = 0;
 
     // allocate and initialize arrays
-    allocate_memory(Np_total, Ng);
+    allocate(Np_total, Ng);
   }
 
   ///
@@ -68,7 +76,7 @@ public:
   ///
   /// @brief initial memory allocation
   ///
-  void allocate_memory(const int Np_total, const int Ng)
+  void allocate(const int Np_total, const int Ng)
   {
     size_t np = Np_total;
     size_t ng = Ng;
@@ -89,9 +97,9 @@ public:
   }
 
   ///
-  /// @brief reallocation of memory for increased number of particles
+  /// @brief resize particle array
   ///
-  void reallocate_memory(const int Np_total)
+  void resize(const int Np_total)
   {
     size_t np = Np_total;
     size_t nc = Nc;
@@ -107,15 +115,15 @@ public:
     // new buffer and let xtensor manage memory deallocation
     float64 *buf_xu     = new float64[np * nc];
     float64 *buf_xv     = new float64[np * nc];
-    int32   *buf_gindex = new int32[np];
+    int32 *  buf_gindex = new int32[np];
 
-    std::memcpy(buf_xu, xu.data(), sizeof(float64) * xu.size());
+    std::memcpy(buf_xu, xu.data(), sizeof(float64) * Np * Nc);
     xu = xt::adapt(buf_xu, np * nc, xt::acquire_ownership(), shape_xu);
 
-    std::memcpy(buf_xv, xv.data(), sizeof(float64) * xv.size());
+    std::memcpy(buf_xv, xv.data(), sizeof(float64) * Np * Nc);
     xv = xt::adapt(buf_xv, np * nc, xt::acquire_ownership(), shape_xv);
 
-    std::memcpy(buf_gindex, gindex.data(), sizeof(int32) * gindex.size());
+    std::memcpy(buf_gindex, gindex.data(), sizeof(int32) * Np);
     gindex = xt::adapt(buf_gindex, np, xt::acquire_ownership(), shape_gindex);
   }
 
@@ -166,7 +174,7 @@ public:
     count += memcpy_count(&m, buffer, sizeof(float64), 0, count);
 
     // memory allocation before reading arrays
-    allocate_memory(Np_total, Ng);
+    allocate(Np_total, Ng);
 
     count += memcpy_count(xu.data(), buffer, xu.size() * sizeof(float64), 0, count);
     count += memcpy_count(xv.data(), buffer, xu.size() * sizeof(float64), 0, count);

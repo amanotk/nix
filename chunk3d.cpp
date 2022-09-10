@@ -366,7 +366,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
 
           if (num_particle[is] + cnt > particle[is]->Np_total) {
             // run out of particle buffer and try to reallocate twice the original
-            particle[is]->reallocate_memory(2 * particle[is]->Np_total);
+            particle[is]->resize(2 * particle[is]->Np_total);
           }
 
           // particles
