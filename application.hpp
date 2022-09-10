@@ -18,7 +18,7 @@ class Application
 {
 private:
   using cmdparser = cmdline::parser;
-  using json      = nlohmann::ordered_json;
+  using json      = common::json;
 
 protected:
   using PtrBalancer = std::unique_ptr<Balancer>;

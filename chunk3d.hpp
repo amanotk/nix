@@ -14,7 +14,7 @@ template <int Nb>
 class Chunk3D : public Chunk<3>
 {
 public:
-  using json      = nlohmann::ordered_json;
+  using json      = common::json;
   using T_array3d = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
   using T_request = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
 

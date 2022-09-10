@@ -133,7 +133,7 @@ bool is_array_equal(const int N, T x[], T y[])
 //
 TEST_CASE("Attribute")
 {
-  using json = nlohmann::ordered_json;
+  using json = common::json;
   using jsonio::float32;
   using jsonio::float64;
 

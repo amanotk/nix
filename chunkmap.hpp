@@ -30,7 +30,7 @@ template <int N>
 class ChunkMap
 {
 protected:
-  using json = nlohmann::ordered_json;
+  using json = common::json;
   typedef xt::xtensor<int, 1> IntArray1D;
   typedef xt::xtensor<int, 2> IntArray2D;
   typedef xt::xtensor<int, N> IntArrayND;

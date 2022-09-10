@@ -24,8 +24,12 @@
 #include <sys/time.h>
 #include <vector>
 
+#include "thirdparty/json.hpp"
+
 namespace common
 {
+using json = nlohmann::ordered_json;
+
 // common variables
 //@{
 // mathematical constants
