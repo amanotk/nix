@@ -23,7 +23,9 @@ public:
     RecvMode = 0b10000000000000, // 8192
   };
 
+  ///
   /// MPI buffer struct
+  ///
   struct MpiBuffer {
     MPI_Comm  comm;
     Buffer    sendbuf;
@@ -32,6 +34,51 @@ public:
     T_array3d bufaddr;
     T_request sendreq;
     T_request recvreq;
+
+    // constructor
+    MpiBuffer() : comm(MPI_COMM_WORLD)
+    {
+    }
+
+    // packing
+    int pack(void *buffer, const int address)
+    {
+      using common::memcpy_count;
+
+      int count = address;
+      int ssize = sendbuf.size;
+      int rsize = recvbuf.size;
+      int asize = bufsize.size() * sizeof(int);
+
+      count += memcpy_count(buffer, &ssize, sizeof(int), count, 0);
+      count += memcpy_count(buffer, &rsize, sizeof(int), count, 0);
+      count += memcpy_count(buffer, bufsize.data(), asize, count, 0);
+      count += memcpy_count(buffer, bufaddr.data(), asize, count, 0);
+
+      return count;
+    }
+
+    // unpacking
+    int unpack(void *buffer, const int address)
+    {
+      using common::memcpy_count;
+
+      int count = address;
+      int ssize = 0;
+      int rsize = 0;
+      int asize = bufsize.size() * sizeof(int);
+
+      count += memcpy_count(&ssize, buffer, sizeof(int), 0, count);
+      count += memcpy_count(&rsize, buffer, sizeof(int), 0, count);
+      count += memcpy_count(bufsize.data(), buffer, asize, 0, count);
+      count += memcpy_count(bufaddr.data(), buffer, asize, 0, count);
+
+      // memory allocation
+      sendbuf.resize(ssize);
+      recvbuf.resize(rsize);
+
+      return count;
+    }
   };
   using PtrMpiBuffer = std::shared_ptr<MpiBuffer>;
   using MpiBufferVec = std::vector<PtrMpiBuffer>;
@@ -103,9 +150,6 @@ protected:
     pos(0) = 0;
     pos.reshape({3, 3, 3});
     mpibuffer->bufaddr = headbyte + pos;
-
-    // default communicator
-    mpibuffer->comm = MPI_COMM_WORLD;
   }
 
 public:

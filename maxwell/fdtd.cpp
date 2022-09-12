@@ -14,10 +14,6 @@ DEFINE_MEMBER(, FDTD)(const int dims[3], const int id) : Chunk(dims, id)
   // memory allocation
   uf.resize({Nz, Ny, Nx, 6});
   uf.fill(0);
-
-  // initialize MPI buffer
-  mpibufvec.push_back(std::make_unique<MpiBuffer>());
-  set_mpi_buffer(mpibufvec[0], 0, sizeof(float64) * 6);
 }
 
 DEFINE_MEMBER(, ~FDTD)()
@@ -118,6 +114,11 @@ DEFINE_MEMBER(void, setup)(json &config)
       }
     }
   }
+
+  // initialize MPI buffer (one buffer object)
+  mpibufvec.resize(1);
+  mpibufvec[0] = std::make_unique<MpiBuffer>();
+  set_mpi_buffer(mpibufvec[0], 0, sizeof(float64) * 6);
 }
 
 DEFINE_MEMBER(void, push)(const float64 delt)

@@ -61,7 +61,7 @@ public:
   {
   }
 
-  virtual void push(const float64 delt) override
+  virtual void push(const float64 delt)
   {
     // push particle position
     for (int is = 0; is < up.size(); is++) {

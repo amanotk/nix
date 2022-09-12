@@ -105,6 +105,15 @@ DEFINE_MEMBER(int, pack)(void *buffer, const int address)
   count += memcpy_count(buffer, xlim, 3 * sizeof(float64), count, 0);
   count += memcpy_count(buffer, ylim, 3 * sizeof(float64), count, 0);
   count += memcpy_count(buffer, zlim, 3 * sizeof(float64), count, 0);
+  // MPI buffer (NOTE: MPI communicator is NOT packed)
+  {
+    int nmode = mpibufvec.size();
+    count += memcpy_count(buffer, &nmode, sizeof(int), count, 0);
+
+    for (int mode = 0; mode < nmode; mode++) {
+      count += mpibufvec[mode]->pack(buffer, count);
+    }
+  }
 
   return count;
 }
@@ -123,6 +132,17 @@ DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
   count += memcpy_count(xlim, buffer, 3 * sizeof(float64), 0, count);
   count += memcpy_count(ylim, buffer, 3 * sizeof(float64), 0, count);
   count += memcpy_count(zlim, buffer, 3 * sizeof(float64), 0, count);
+  // MPI buffer (NOTE: MPI communicator is NOT unpacked)
+  {
+    int nmode = 0;
+    count += memcpy_count(&nmode, buffer, sizeof(int), 0, count);
+    mpibufvec.resize(nmode);
+
+    for (int mode = 0; mode < nmode; mode++) {
+      mpibufvec[mode] = std::make_shared<MpiBuffer>();
+      count += mpibufvec[mode]->unpack(buffer, count);
+    }
+  }
 
   return count;
 }
