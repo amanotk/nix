@@ -174,7 +174,7 @@ DEFINE_MEMBER(int, pack_diagnostic)(void *buffer, const int address)
 
   // packing
   char *ptr = &static_cast<char *>(buffer)[address];
-  std::copy(uu.begin(), uu.end(), ptr);
+  std::copy(uu.begin(), uu.end(), reinterpret_cast<float64 *>(ptr));
 
   return sizeof(float64) * size;
 }
