@@ -29,7 +29,7 @@ protected:
   using ChunkVec    = std::vector<PtrChunk>;
 
   int         cl_argc;  ///< command-line argc
-  char      **cl_argv;  ///< command-line argv
+  char **     cl_argv;  ///< command-line argv
   std::string cfg_file; ///< configuration file name
   json        cfg_json; ///< configuration json object
   cmdparser   parser;   ///< command line parser
@@ -66,8 +66,8 @@ protected:
   // setup default command-line options
   virtual void setup_cmd()
   {
-    const float64     etmax = 60 * 60 * 24;
-    const float64     ptmax = common::HUGEVAL;
+    const float64     etmax = 60 * 60;         // elapsed time limit (1 hour by default)
+    const float64     ptmax = common::HUGEVAL; // unlimited physical time
     const std::string fn    = "default.json";
 
     parser.add<std::string>("config", 'c', "configuration file", false, fn);
@@ -191,19 +191,6 @@ protected:
     return cdir;
   }
 
-public:
-  /// default constructor
-  Application() : mpi_init_with_nullptr(false)
-  {
-  }
-
-  /// Constructor
-  Application(int argc, char **argv) : mpi_init_with_nullptr(false)
-  {
-    cl_argc = argc;
-    cl_argv = argv;
-  }
-
   virtual void initialize(int argc, char **argv)
   {
     LOGPRINT1(std::cout, "Function %s called\n", __func__);
@@ -260,17 +247,6 @@ public:
 
     // load snapshot
     this->load();
-  }
-
-  virtual void finalize(int cleanup = 0)
-  {
-    LOGPRINT1(std::cout, "Function %s called\n", __func__);
-
-    // save snapshot
-    this->save();
-
-    // MPI
-    finalize_mpi_default(cleanup);
   }
 
   virtual void diagnostic(std::ostream &out)
@@ -649,35 +625,69 @@ public:
     LOGPRINT0(out, "\n");
   }
 
+public:
+  /// default constructor
+  Application() : mpi_init_with_nullptr(false)
+  {
+  }
+
+  /// Constructor
+  Application(int argc, char **argv) : mpi_init_with_nullptr(false)
+  {
+    cl_argc = argc;
+    cl_argv = argv;
+  }
+
+  virtual void finalize(int cleanup = 0)
+  {
+    LOGPRINT1(std::cout, "Function %s called\n", __func__);
+
+    // save snapshot
+    this->save();
+
+    // MPI
+    finalize_mpi_default(cleanup);
+  }
+
   virtual int main(std::ostream &out)
   {
     //
-    // + initialize object
-    // + setup
+    // initialize the application
     //
     initialize(cl_argc, cl_argv);
+
+    //
+    // set initial condition
+    //
     setup();
 
     // main loop
     while (is_push_needed()) {
-      // output diagnostic if needed
+      //
+      // output diagnostics
+      //
       diagnostic(out);
 
-      // advance everything by one step
+      //
+      // advance physical quantities by one step
+      //
       push();
 
-      // exit if elapsed time exceed a limit
+      //
+      // exit if elapsed time exceeds a limit
+      //
       if (get_available_etime() < 0) {
         break;
       }
 
+      //
       // rebuild chankmap if needed
+      //
       rebuild_chunkmap();
     }
 
     //
-    // + save current snapshot if needed
-    // + finalize MPI
+    // finalize the application
     //
     finalize();
 
