@@ -30,6 +30,7 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
     this->dims[i] = dims[i];
   }
 
+  load.resize(1);
   reset_load();
 }
 
@@ -54,7 +55,7 @@ DEFINE_MEMBER(void, reset_load)()
   static std::mt19937                            mt(rd());
   static std::uniform_real_distribution<float64> rand(0.75, +1.25);
 
-  load = rand(mt);
+  load[0] = rand(mt);
 }
 
 DEFINE_MEMBER(float64, get_load)()
@@ -63,8 +64,8 @@ DEFINE_MEMBER(float64, get_load)()
   static std::mt19937                            mt(rd());
   static std::uniform_real_distribution<float64> rand(0.75, +1.25);
 
-  load = rand(mt);
-  return load;
+  load[0] = rand(mt);
+  return load[0];
 }
 
 DEFINE_MEMBER(int, pack)(void *buffer, const int address)
@@ -76,7 +77,13 @@ DEFINE_MEMBER(int, pack)(void *buffer, const int address)
   count += memcpy_count(buffer, &myid, sizeof(int), count, 0);
   count += memcpy_count(buffer, &nbid[0], nbsize * sizeof(int), count, 0);
   count += memcpy_count(buffer, &nbrank[0], nbsize * sizeof(int), count, 0);
-  count += memcpy_count(buffer, &load, sizeof(float64), count, 0);
+
+  // load
+  {
+    int size = load.size();
+    count += memcpy_count(buffer, &size, sizeof(int), count, 0);
+    count += memcpy_count(buffer, load.data(), sizeof(float64) * size, count, 0);
+  }
 
   return count;
 }
@@ -90,7 +97,14 @@ DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
   count += memcpy_count(&myid, buffer, sizeof(int), 0, count);
   count += memcpy_count(&nbid[0], buffer, nbsize * sizeof(int), 0, count);
   count += memcpy_count(&nbrank[0], buffer, nbsize * sizeof(int), 0, count);
-  count += memcpy_count(&load, buffer, sizeof(float64), 0, count);
+
+  // load
+  {
+    int size = 0;
+    count += memcpy_count(&size, buffer, sizeof(int), 0, count);
+    load.resize(size);
+    count += memcpy_count(load.data(), buffer, sizeof(float64) * size, 0, count);
+  }
 
   return count;
 }

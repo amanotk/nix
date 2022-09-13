@@ -156,7 +156,7 @@ DEFINE_MEMBER(void, push)(const float64 delt)
   }
 
   // store computation time
-  load += common::etime() - etime;
+  load[0] += common::etime() - etime;
 }
 
 DEFINE_MEMBER(int, pack_diagnostic)(void *buffer, const int address)

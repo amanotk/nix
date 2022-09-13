@@ -10,7 +10,10 @@
 
 static constexpr int DIRTAG_BIT  = 5;
 static constexpr int DIRTAG_SIZE = 1 << DIRTAG_BIT;
-static constexpr int NB_SIZE[3]  = {3, 9, 27};
+
+// template trick to set number of neighbors
+template <int N>
+struct NbSize;
 
 ///
 /// Chunk class
@@ -19,15 +22,15 @@ template <int N>
 class Chunk
 {
 protected:
-  static int nbsize;              ///< number of neighbors
-  static int tagmask;             ///< mask for directional tag
-  static int dirtag[DIRTAG_SIZE]; ///< directional tag
+  static constexpr int nbsize = NbSize<N>::size; ///< number of neighbors
+  static int           tagmask;                  ///< mask for directional tag
+  static int           dirtag[DIRTAG_SIZE];      ///< directional tag
 
-  int     myid;                   ///< chunk ID
-  int     nbid[NB_SIZE[N - 1]];   ///< neighboring chunk ID
-  int     nbrank[NB_SIZE[N - 1]]; ///< neighboring chunk MPI rank
-  int     dims[N];                ///< number of grids
-  float64 load;                   ///< current load
+  int                  myid;           ///< chunk ID
+  int                  nbid[nbsize];   ///< neighboring chunk ID
+  int                  nbrank[nbsize]; ///< neighboring chunk MPI rank
+  int                  dims[N];        ///< number of grids
+  std::vector<float64> load;           ///< load array of chunk
 
   virtual void initialize(const int dims[N], const int id);
 
@@ -117,8 +120,21 @@ public:
   int get_rcvtag(const int dirz, const int diry, const int dirx);
 };
 
+template <>
+struct NbSize<1> {
+  static constexpr int size = 3;
+};
+template <>
+struct NbSize<2> {
+  static constexpr int size = 9;
+};
+template <>
+struct NbSize<3> {
+  static constexpr int size = 27;
+};
+
 template <int N>
-int Chunk<N>::nbsize = NB_SIZE[N - 1];
+constexpr int Chunk<N>::nbsize;
 template <int N>
 int Chunk<N>::tagmask;
 template <int N>
