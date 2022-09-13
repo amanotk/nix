@@ -80,9 +80,9 @@ DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
   std::string fn_json  = filename + ".json";
   std::string fn_data  = filename + ".data";
 
-  json     json_root;
-  json     json_chunkmap;
-  json     json_dataset;
+  json     root;
+  json     obj_chunkmap;
+  json     obj_dataset;
   MPI_File fh;
   size_t   disp;
   int      bufsize;
@@ -94,10 +94,10 @@ DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
   jsonio::open_file(fn_data.c_str(), &fh, &disp, "w");
 
   // save chunkmap
-  chunkmap->save(json_chunkmap, &fh, &disp);
+  chunkmap->save_json(obj_chunkmap);
 
   // json metadata
-  jsonio::put_metadata(json_dataset, "uf", "f8", "", disp, size, ndim, dims);
+  jsonio::put_metadata(obj_dataset, "uf", "f8", "", disp, size, ndim, dims);
 
   // buffer size (assuming constant)
   bufsize = chunkvec[0]->pack_diagnostic(nullptr, 0);
@@ -126,19 +126,19 @@ DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
   //
 
   // meta data
-  json_root["meta"] = {{"endian", common::get_endian_flag()},
-                       {"rawfile", fn_data},
-                       {"order", 1},
-                       {"time", curtime},
-                       {"step", curstep}};
+  root["meta"] = {{"endian", common::get_endian_flag()},
+                  {"rawfile", fn_data},
+                  {"order", 1},
+                  {"time", curtime},
+                  {"step", curstep}};
   // chunkmap
-  json_root["chunkmap"] = json_chunkmap;
+  root["chunkmap"] = obj_chunkmap;
   // dataset
-  json_root["dataset"] = json_dataset;
+  root["dataset"] = obj_dataset;
 
   if (thisrank == 0) {
     std::ofstream ofs(fn_json);
-    ofs << std::setw(2) << json_root;
+    ofs << std::setw(2) << root;
     ofs.close();
   }
   MPI_Barrier(MPI_COMM_WORLD);

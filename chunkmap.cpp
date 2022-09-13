@@ -120,46 +120,8 @@ DEFINE_MEMBER3(bool, validate)()
   return sfc::check_index(chunkid) & sfc::check_locality3d(coord);
 }
 
-DEFINE_MEMBER(void, save)(json &obj, MPI_File *fh, size_t *disp)
+DEFINE_MEMBER1(void, save_json)(json &obj)
 {
-  int32_t nd;
-  int32_t sh[3];
-  size_t  datasize;
-
-  datasize = sizeof(int);
-  jsonio::put_attribute(obj, "size", *disp, size);
-  jsonio::write_single(fh, disp, &size, datasize);
-
-  datasize = sizeof(int) * 3;
-  jsonio::put_attribute(obj, "dims", *disp, 3, dims);
-  jsonio::write_single(fh, disp, &dims[0], datasize);
-
-  nd       = 1;
-  sh[0]    = size;
-  datasize = sizeof(int) * rank.size();
-  jsonio::put_metadata(obj, "rank", "i4", "", *disp, datasize, nd, sh);
-  jsonio::write_single(fh, disp, rank.data(), datasize);
-
-  nd       = 2;
-  sh[0]    = size;
-  sh[1]    = N;
-  datasize = sizeof(int) * coord.size();
-  jsonio::put_metadata(obj, "coord", "i4", "", *disp, datasize, nd, sh);
-  jsonio::write_single(fh, disp, coord.data(), datasize);
-
-  nd       = N;
-  sh[0]    = dims[0];
-  sh[1]    = dims[1];
-  sh[2]    = dims[2];
-  datasize = sizeof(int) * chunkid.size();
-  jsonio::put_metadata(obj, "chunkid", "i4", "", *disp, datasize, nd, sh);
-  jsonio::write_single(fh, disp, chunkid.data(), datasize);
-}
-
-DEFINE_MEMBER1(void, json_save)(std::ostream &out)
-{
-  json obj;
-
   // meta data
   {
     obj["size"]  = size;
@@ -171,7 +133,7 @@ DEFINE_MEMBER1(void, json_save)(std::ostream &out)
   {
     json chunkid_obj = json::array();
 
-    for (int ix = 0; ix < dims[1]; ix++) {
+    for (int ix = 0; ix < dims[0]; ix++) {
       chunkid_obj.push_back(chunkid(ix));
     }
     obj["chunkid"] = chunkid_obj;
@@ -199,19 +161,10 @@ DEFINE_MEMBER1(void, json_save)(std::ostream &out)
     }
     obj["rank"] = rank_obj;
   }
-
-  // output
-  {
-    json root;
-    root = {{"chunkmap", obj}};
-    out << std::setw(2) << root << std::endl;
-  }
 }
 
-DEFINE_MEMBER2(void, json_save)(std::ostream &out)
+DEFINE_MEMBER2(void, save_json)(json &obj)
 {
-  json obj;
-
   // meta data
   {
     obj["size"]  = size;
@@ -255,19 +208,10 @@ DEFINE_MEMBER2(void, json_save)(std::ostream &out)
     }
     obj["rank"] = rank_obj;
   }
-
-  // output
-  {
-    json root;
-    root = {{"chunkmap", obj}};
-    out << std::setw(2) << root << std::endl;
-  }
 }
 
-DEFINE_MEMBER3(void, json_save)(std::ostream &out)
+DEFINE_MEMBER3(void, save_json)(json &obj)
 {
-  json obj;
-
   // meta data
   {
     obj["size"]  = size;
@@ -315,12 +259,194 @@ DEFINE_MEMBER3(void, json_save)(std::ostream &out)
     }
     obj["rank"] = rank_obj;
   }
+}
 
-  // output
+DEFINE_MEMBER1(void, load_json)(json &obj)
+{
+  if (obj["ndim"].get<int>() != 1) {
+    ERRORPRINT("Invalid input to ChunkMap<1>::load_json\n");
+  }
+
+  // meta data
   {
-    json root;
-    root = {{"chunkmap", obj}};
-    out << std::setw(2) << root << std::endl;
+    size    = obj["size"].get<int>();
+    dims[0] = obj["shape"][0].get<int>();
+  }
+
+  // memory allocation
+  {
+    int Cx = dims[0];
+
+    std::vector<size_t> dims1 = {static_cast<size_t>(size)};
+    std::vector<size_t> dims2 = {static_cast<size_t>(size), 1};
+    std::vector<size_t> dims3 = {static_cast<size_t>(Cx)};
+
+    rank.resize(dims1);
+    coord.resize(dims2);
+    chunkid.resize(dims3);
+
+    rank.fill(0);
+    coord.fill(0);
+    chunkid.fill(0);
+  }
+
+  // id
+  {
+    json chunkid_obj = obj["chunkid"];
+
+    for (int ix = 0; ix < dims[0]; ix++) {
+      chunkid[ix] = chunkid_obj[ix].get<int>();
+    }
+  }
+
+  // coordinate
+  {
+    json coord_obj = obj["coord"];
+
+    for (int id = 0; id < size; id++) {
+      coord(id, 0) = coord_obj[id][0].get<int>();
+    }
+  }
+
+  // rank
+  {
+    json rank_obj = obj["rank"];
+
+    for (int id = 0; id < size; id++) {
+      rank(id) = rank_obj[id].get<int>();
+    }
+  }
+}
+
+DEFINE_MEMBER2(void, load_json)(json &obj)
+{
+  if (obj["ndim"].get<int>() != 2) {
+    ERRORPRINT("Invalid input to ChunkMap<2>::load_json\n");
+  }
+
+  // meta data
+  {
+    size    = obj["size"].get<int>();
+    dims[0] = obj["shape"][0].get<int>();
+    dims[1] = obj["shape"][1].get<int>();
+  }
+
+  // memory allocation
+  {
+    int Cy   = dims[0];
+    int Cx   = dims[1];
+    int size = Cy * Cx;
+
+    std::vector<size_t> dims1 = {static_cast<size_t>(size)};
+    std::vector<size_t> dims2 = {static_cast<size_t>(size), 2};
+    std::vector<size_t> dims3 = {static_cast<size_t>(Cy), static_cast<size_t>(Cx)};
+
+    rank.resize(dims1);
+    coord.resize(dims2);
+    chunkid.resize(dims3);
+
+    rank.fill(0);
+    coord.fill(0);
+    chunkid.fill(0);
+  }
+
+  // id
+  {
+    json chunkid_obj = obj["chunkid"];
+
+    for (int iy = 0; iy < dims[0]; iy++) {
+      for (int ix = 0; ix < dims[1]; ix++) {
+        chunkid(iy, ix) = chunkid_obj[iy][ix].get<int>();
+      }
+    }
+  }
+
+  // coordinate
+  {
+    json coord_obj = obj["coord"];
+
+    for (int id = 0; id < size; id++) {
+      coord(id, 0) = coord_obj[id][0].get<int>();
+      coord(id, 1) = coord_obj[id][1].get<int>();
+    }
+  }
+
+  // rank
+  {
+    json rank_obj = obj["rank"];
+
+    for (int id = 0; id < size; id++) {
+      rank(id) = rank_obj[id].get<int>();
+    }
+  }
+}
+
+DEFINE_MEMBER3(void, load_json)(json &obj)
+{
+  if (obj["ndim"].get<int>() != 3) {
+    ERRORPRINT("Invalid input to ChunkMap<3>::load_json\n");
+  }
+
+  // meta data
+  {
+    size    = obj["size"].get<int>();
+    dims[0] = obj["shape"][0].get<int>();
+    dims[1] = obj["shape"][1].get<int>();
+    dims[2] = obj["shape"][2].get<int>();
+  }
+
+  // memory allocation
+  {
+    int Cz   = dims[0];
+    int Cy   = dims[1];
+    int Cx   = dims[2];
+    int size = Cz * Cy * Cx;
+
+    std::vector<size_t> dims1 = {static_cast<size_t>(size)};
+    std::vector<size_t> dims2 = {static_cast<size_t>(size), 3};
+    std::vector<size_t> dims3 = {static_cast<size_t>(Cz), static_cast<size_t>(Cy),
+                                 static_cast<size_t>(Cx)};
+
+    rank.resize(dims1);
+    coord.resize(dims2);
+    chunkid.resize(dims3);
+
+    rank.fill(0);
+    coord.fill(0);
+    chunkid.fill(0);
+  }
+
+  // id
+  {
+    json chunkid_obj = obj["chunkid"];
+
+    for (int iz = 0; iz < dims[0]; iz++) {
+      for (int iy = 0; iy < dims[1]; iy++) {
+        for (int ix = 0; ix < dims[2]; ix++) {
+          chunkid(iz, iy, ix) = chunkid_obj[iz][iy][ix].get<int>();
+        }
+      }
+    }
+  }
+
+  // coordinate
+  {
+    json coord_obj = obj["coord"];
+
+    for (int id = 0; id < size; id++) {
+      coord(id, 0) = coord_obj[id][0].get<int>();
+      coord(id, 1) = coord_obj[id][1].get<int>();
+      coord(id, 2) = coord_obj[id][2].get<int>();
+    }
+  }
+
+  // rank
+  {
+    json rank_obj = obj["rank"];
+
+    for (int id = 0; id < size; id++) {
+      rank(id) = rank_obj[id].get<int>();
+    }
   }
 }
 

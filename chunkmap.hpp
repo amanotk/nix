@@ -11,7 +11,6 @@
 #include "jsonio.hpp"
 #include "sfc.hpp"
 #include "xtensorall.hpp"
-#include <mpi.h>
 
 ///
 /// ChunkMap
@@ -30,10 +29,10 @@ template <int N>
 class ChunkMap
 {
 protected:
-  using json = common::json;
-  typedef xt::xtensor<int, 1> IntArray1D;
-  typedef xt::xtensor<int, 2> IntArray2D;
-  typedef xt::xtensor<int, N> IntArrayND;
+  using json       = common::json;
+  using IntArray1D = xt::xtensor<int, 1>;
+  using IntArray2D = xt::xtensor<int, 2>;
+  using IntArrayND = xt::xtensor<int, N>;
 
   int        size;    ///< number of total chunkes
   int        dims[3]; ///< chunk dimension
@@ -52,9 +51,9 @@ public:
 
   virtual bool validate();
 
-  virtual void save(json &obj, MPI_File *fh, size_t *disp);
+  virtual void save_json(json &obj);
 
-  virtual void json_save(std::ostream &out);
+  virtual void load_json(json &obj);
 
   // set rank for chunk id
   void set_rank(const int id, const int r)
