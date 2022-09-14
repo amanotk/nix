@@ -24,7 +24,7 @@
 #include <sys/time.h>
 #include <vector>
 
-#include "thirdparty/json.hpp"
+#include <nlohmann/json.hpp>
 
 namespace common
 {

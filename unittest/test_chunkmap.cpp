@@ -4,9 +4,9 @@
 #include <iostream>
 
 #include "../chunkmap.hpp"
-#include "../thirdparty/json.hpp"
+#include <nlohmann/json.hpp>
 
-#include "../thirdparty/catch.hpp"
+#include "catch.hpp"
 
 using json = nlohmann::ordered_json;
 
@@ -30,7 +30,7 @@ TEST_CASE("ChunkMap1D")
     chunkmap.save_json(obj1);
 
     std::ofstream ofs(filename);
-    ofs << obj1;
+    ofs << std::setw(2) << obj1;
   }
 
   // load
@@ -69,7 +69,7 @@ TEST_CASE("ChunkMap2D")
     chunkmap.save_json(obj1);
 
     std::ofstream ofs(filename);
-    ofs << obj1;
+    ofs << std::setw(2) << obj1;
   }
 
   // load
@@ -109,7 +109,7 @@ TEST_CASE("ChunkMap3D")
     chunkmap.save_json(obj1);
 
     std::ofstream ofs(filename);
-    ofs << obj1;
+    ofs << std::setw(2) << obj1;
   }
 
   // load

@@ -4,11 +4,11 @@
 
 #include "balancer.hpp"
 #include "buffer.hpp"
+#include "cmdline.hpp"
 #include "common.hpp"
 #include "mpistream.hpp"
-#include "thirdparty/cmdline.hpp"
-#include "thirdparty/json.hpp"
-#include "thirdparty/tinyformat.hpp"
+#include "tinyformat.hpp"
+#include <nlohmann/json.hpp>
 
 ///
 /// Definition of Application Class

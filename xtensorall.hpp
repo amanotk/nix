@@ -6,6 +6,7 @@
 #include <xtensor/xarray.hpp>
 #include <xtensor/xview.hpp>
 #include <xtensor/xio.hpp>
+#include <xtensor/xjson.hpp>
 #include <xtensor/xsort.hpp>
 #include <xtensor/xrandom.hpp>
 

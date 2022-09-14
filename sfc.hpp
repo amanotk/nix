@@ -3,9 +3,8 @@
 #define _SFC_HPP_
 
 #include "common.hpp"
+#include "tinyformat.hpp"
 #include "xtensorall.hpp"
-
-#include "thirdparty/tinyformat.hpp"
 
 ///
 /// Space-Filling Curve

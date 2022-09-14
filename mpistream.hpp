@@ -6,8 +6,8 @@
 /// MPI stream
 ///
 #define MPICH_IGNORE_CXX_SEEK
+#include "cmdline.hpp"
 #include "common.hpp"
-#include "thirdparty/cmdline.hpp"
 #include <mpi.h>
 
 using namespace common;
@@ -74,12 +74,12 @@ private:
   // for stdout/stderr
   std::string     m_outf;   ///< dummy standard output file
   std::string     m_errf;   ///< dummy standard error file
-  std::ofstream  *m_out;    ///< dummy standard output
-  std::ofstream  *m_err;    ///< dummy standard error
+  std::ofstream * m_out;    ///< dummy standard output
+  std::ofstream * m_err;    ///< dummy standard error
   std::streambuf *m_errbuf; ///< buffer of original cerr
   std::streambuf *m_outbuf; ///< buffer of original cout
-  teebuf         *m_outtee; ///< buffer for replicating cout and file
-  teebuf         *m_errtee; ///< buffer for replicating cerr and file
+  teebuf *        m_outtee; ///< buffer for replicating cout and file
+  teebuf *        m_errtee; ///< buffer for replicating cerr and file
 
   mpistream(){};
   ~mpistream(){};
