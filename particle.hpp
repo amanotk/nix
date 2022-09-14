@@ -27,7 +27,7 @@ private:
 public:
   static constexpr int simd_width = config_simd_width;
 
-  static const int Nc = 7; ///< # component for each particle (including ID)
+  static constexpr int Nc = 7; ///< # component for each particle (including ID)
 
   int Np_total; ///< # total particles
   int Np;       ///< # particles in active
@@ -162,7 +162,7 @@ public:
     count += memcpy_count(buffer, &q, sizeof(float64), count, 0);
     count += memcpy_count(buffer, &m, sizeof(float64), count, 0);
     count += memcpy_count(buffer, xu.data(), xu.size() * sizeof(float64), count, 0);
-    count += memcpy_count(buffer, xv.data(), xu.size() * sizeof(float64), count, 0);
+    count += memcpy_count(buffer, xv.data(), xv.size() * sizeof(float64), count, 0);
     count += memcpy_count(buffer, gindex.data(), gindex.size() * sizeof(int), count, 0);
     count += memcpy_count(buffer, pindex.data(), pindex.size() * sizeof(int), count, 0);
     count += memcpy_count(buffer, pcount.data(), pcount.size() * sizeof(int), count, 0);
@@ -189,7 +189,7 @@ public:
     allocate(Np_total, Ng);
 
     count += memcpy_count(xu.data(), buffer, xu.size() * sizeof(float64), 0, count);
-    count += memcpy_count(xv.data(), buffer, xu.size() * sizeof(float64), 0, count);
+    count += memcpy_count(xv.data(), buffer, xv.size() * sizeof(float64), 0, count);
     count += memcpy_count(gindex.data(), buffer, gindex.size() * sizeof(int), 0, count);
     count += memcpy_count(pindex.data(), buffer, pindex.size() * sizeof(int), 0, count);
     count += memcpy_count(pcount.data(), buffer, pcount.size() * sizeof(int), 0, count);
