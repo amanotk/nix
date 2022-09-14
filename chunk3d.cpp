@@ -240,7 +240,7 @@ DEFINE_MEMBER(void, count_particle)(PtrParticle particle, const int Lbp, const i
   // count particles
   //
   const int out_of_bounds = particle->Ng;
-  float64  *xu            = particle->xu.data();
+  float64 * xu            = particle->xu.data();
 
   // loop over particles
   for (int ip = Lbp; ip <= Ubp; ip++) {
@@ -420,6 +420,29 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
 
   // wait for MPI send calls to complete (optional)
   MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
+
+  //
+  // automatically resize particle buffer
+  //
+  for (int is = 0; is < Ns; is++) {
+    const float64 fraction1 = 0.8; // increase when > 80% is used
+    const float64 fraction2 = 0.2; // decrease when < 20% is used
+
+    int new_np = particle[is]->Np_total;
+
+    // increase particle buffer
+    if (particle[is]->Np > fraction1 * particle[is]->Np_total) {
+      new_np = 2.0 * particle[is]->Np_total;
+    }
+
+    // decrease particle buffer
+    if (particle[is]->Np < fraction2 * particle[is]->Np_total) {
+      new_np = 0.5 * particle[is]->Np_total;
+    }
+
+    // resize if needed
+    particle[is]->resize(new_np);
+  }
 }
 
 DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array)
@@ -494,7 +517,7 @@ DEFINE_MEMBER(void, end_bc_exchange)
 
         // unpack
         auto     view   = xt::view(array, Iz, Iy, Ix, Ia);
-        void    *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        void *   rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
         float64 *ptr    = static_cast<float64 *>(rcvptr);
 
         // copy or append

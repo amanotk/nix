@@ -78,10 +78,10 @@ public:
   ///
   void allocate(const int Np_total, const int Ng)
   {
-    size_t np = Np_total;
-    size_t ng = Ng;
-    size_t nc = Nc;
-    size_t ns = simd_width;
+    const size_t np = Np_total;
+    const size_t ng = Ng;
+    const size_t nc = Nc;
+    const size_t ns = simd_width;
 
     xu.resize({np, nc});
     xv.resize({np, nc});
@@ -101,30 +101,42 @@ public:
   ///
   void resize(const int Np_total)
   {
-    size_t np = Np_total;
-    size_t nc = Nc;
+    const size_t np = Np_total;
+    const size_t nc = Nc;
 
-    // new number of particle
+    // should not resize
+    if (Np_total == this->Np_total || Np_total <= Np) {
+      return;
+    }
+
+    //
+    // The following implementation of resize is not ideal as it requires copy of buffer twice, one
+    // from the original to the temporary and another from the temporary to the resized buffer.
+    //
+
+    {
+      auto tmp(xu);
+
+      xu.resize({np, nc});
+      std::memcpy(xu.data(), tmp.data(), sizeof(float64) * Np * Nc);
+    }
+
+    {
+      auto tmp(xv);
+
+      xv.resize({np, nc});
+      std::memcpy(xv.data(), tmp.data(), sizeof(float64) * Np * Nc);
+    }
+
+    {
+      auto tmp(gindex);
+
+      gindex.resize({np});
+      std::memcpy(gindex.data(), tmp.data(), sizeof(int32) * Np);
+    }
+
+    // set new total number of particles
     this->Np_total = Np_total;
-
-    // new shape
-    std::vector<size_t> shape_xu     = {np, nc};
-    std::vector<size_t> shape_xv     = {np, nc};
-    std::vector<size_t> shape_gindex = {np};
-
-    // new buffer and let xtensor manage memory deallocation
-    float64 *buf_xu     = new float64[np * nc];
-    float64 *buf_xv     = new float64[np * nc];
-    int32 *  buf_gindex = new int32[np];
-
-    std::memcpy(buf_xu, xu.data(), sizeof(float64) * Np * Nc);
-    xu = xt::adapt(buf_xu, np * nc, xt::acquire_ownership(), shape_xu);
-
-    std::memcpy(buf_xv, xv.data(), sizeof(float64) * Np * Nc);
-    xv = xt::adapt(buf_xv, np * nc, xt::acquire_ownership(), shape_xv);
-
-    std::memcpy(buf_gindex, gindex.data(), sizeof(int32) * Np);
-    gindex = xt::adapt(buf_gindex, np, xt::acquire_ownership(), shape_gindex);
   }
 
   ///
