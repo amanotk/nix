@@ -83,12 +83,20 @@ DEFINE_MEMBER(, ~Chunk3D)()
 
 DEFINE_MEMBER(void, reset_load)()
 {
-  load[0] = 0;
+  for(int i=0; i < load.size(); i++) {
+    load[i] = 0;
+  }
 }
 
 DEFINE_MEMBER(float64, get_load)()
 {
-  return load[0];
+  float64 loadsum = 0;
+
+  for(int i=0; i < load.size(); i++) {
+    loadsum += load[i];
+  }
+
+  return loadsum;
 }
 
 DEFINE_MEMBER(int, pack)(void *buffer, const int address)
