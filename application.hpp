@@ -6,6 +6,7 @@
 #include "buffer.hpp"
 #include "cmdline.hpp"
 #include "common.hpp"
+#include "jsonio.hpp"
 #include "mpistream.hpp"
 #include "tinyformat.hpp"
 #include <nlohmann/json.hpp>
@@ -28,6 +29,7 @@ protected:
   using PtrFloat    = std::unique_ptr<float64[]>;
   using ChunkVec    = std::vector<PtrChunk>;
 
+  int         retcode;  ///< default return code
   int         cl_argc;  ///< command-line argc
   char **     cl_argv;  ///< command-line argv
   std::string cfg_file; ///< configuration file name
@@ -585,6 +587,59 @@ protected:
     }
   }
 
+  virtual void write_chunk_all(MPI_File &fh, size_t &disp, const int mode)
+  {
+    MPI_Request req[numchunk];
+
+    // buffer size (assuming constant)
+    int bufsize = chunkvec[0]->pack_diagnostic(mode, nullptr, 0);
+    int allsize = numchunk * bufsize;
+
+    if (sendbuf.size < allsize) {
+      sendbuf.resize(allsize);
+      recvbuf.resize(allsize);
+    }
+
+    // write for each chunk
+    char *sendptr = sendbuf.get();
+    for (int i = 0, pos = 0; i < numchunk; i++) {
+      // pack
+      assert(bufsize + pos == chunkvec[i]->pack_diagnostic(mode, sendptr, pos));
+
+      // write
+      size_t chunkdisp = disp + bufsize * chunkvec[i]->get_id();
+      char * chunkptr  = &sendptr[pos];
+      jsonio::write_contiguous_at(&fh, &chunkdisp, chunkptr, bufsize, 1, &req[i]);
+
+      pos += bufsize;
+    }
+
+    // wait
+    MPI_Waitall(numchunk, req, MPI_STATUS_IGNORE);
+
+    // update pointer
+    disp += bufsize * cdims[3];
+  }
+
+  virtual void wait_bc_exchange(std::set<int> &queue, const int mode)
+  {
+    int recvmode = common::RecvMode | mode;
+
+    while (queue.empty() == false) {
+      // find chunk for unpacking
+      auto iter = std::find_if(queue.begin(), queue.end(),
+                               [&](int i) { return chunkvec[i]->set_boundary_query(recvmode); });
+
+      // not found
+      if (iter == queue.end())
+        continue;
+
+      // unpack
+      chunkvec[*iter]->set_boundary_end(mode);
+      queue.erase(*iter);
+    }
+  }
+
   virtual void print_info(std::ostream &out, int verbose = 0)
   {
     LOGPRINT0(out, "\n");
@@ -625,19 +680,6 @@ protected:
     LOGPRINT0(out, "\n");
   }
 
-public:
-  /// default constructor
-  Application() : mpi_init_with_nullptr(false)
-  {
-  }
-
-  /// Constructor
-  Application(int argc, char **argv) : mpi_init_with_nullptr(false)
-  {
-    cl_argc = argc;
-    cl_argv = argv;
-  }
-
   virtual void finalize(int cleanup = 0)
   {
     LOGPRINT1(std::cout, "Function %s called\n", __func__);
@@ -646,7 +688,23 @@ public:
     this->save();
 
     // MPI
+    if (cleanup == 0) {
+      cleanup = retcode;
+    }
     finalize_mpi_default(cleanup);
+  }
+
+public:
+  /// default constructor
+  Application() : mpi_init_with_nullptr(false), retcode(0)
+  {
+  }
+
+  /// Constructor
+  Application(int argc, char **argv) : mpi_init_with_nullptr(false)
+  {
+    cl_argc = argc;
+    cl_argv = argv;
   }
 
   virtual int main(std::ostream &out)

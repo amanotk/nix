@@ -109,6 +109,29 @@ DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
   return count;
 }
 
+DEFINE_MEMBER(int, pack_diagnostic)(const int mode, void *buffer, const int address)
+{
+  return 0;
+}
+
+DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
+{
+  return true;
+}
+
+DEFINE_MEMBER(void, set_boundary_physical)(const int mode)
+{
+}
+
+DEFINE_MEMBER(void, set_boundary_begin)(const int mode)
+{
+}
+
+DEFINE_MEMBER(void, set_boundary_end)(const int mode)
+{
+}
+
+// explicit instantiation
 template class Chunk<1>;
 template class Chunk<2>;
 template class Chunk<3>;

@@ -266,6 +266,59 @@ DEFINE_MEMBER(void, count_particle)(PtrParticle particle, const int Lbp, const i
   }
 }
 
+DEFINE_MEMBER(int, pack_diagnostic_coord)(void *buffer, const int address, const int dir)
+{
+  size_t size  = dims[dir];
+  int    count = address + sizeof(float64) * size;
+
+  if (buffer == nullptr) {
+    return count;
+  }
+
+  float64 *ptr = reinterpret_cast<float64 *>(static_cast<char *>(buffer) + address);
+
+  switch (dir) {
+  case 0: {
+    auto zz = xt::view(zc, xt::range(Lbz, Ubz + 1));
+    std::copy(zz.begin(), zz.end(), ptr);
+  } break;
+  case 1: {
+    auto yy = xt::view(yc, xt::range(Lby, Uby + 1));
+    std::copy(yy.begin(), yy.end(), ptr);
+  } break;
+  case 2: {
+    auto xx = xt::view(xc, xt::range(Lbx, Ubx + 1));
+    std::copy(xx.begin(), xx.end(), ptr);
+  } break;
+  default:
+    break;
+  }
+
+  return count;
+}
+
+DEFINE_MEMBER(int, pack_diagnostic_field)
+(void *buffer, const int address, xt::xtensor<float64, 4> &u)
+{
+  size_t size  = dims[2] * dims[1] * dims[0] * u.shape(3);
+  int    count = address + sizeof(float64) * size;
+
+  if (buffer == nullptr) {
+    return count;
+  }
+
+  auto Iz = xt::range(Lbz, Ubz + 1);
+  auto Iy = xt::range(Lby, Uby + 1);
+  auto Ix = xt::range(Lbx, Ubx + 1);
+  auto vv = xt::view(u, Iz, Iy, Ix, xt::all());
+
+  // packing
+  char *ptr = &static_cast<char *>(buffer)[address];
+  std::copy(vv.begin(), vv.end(), reinterpret_cast<float64 *>(ptr));
+
+  return count;
+}
+
 DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
 {
   const size_t header_size = sizeof(int);
@@ -569,12 +622,12 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
 {
   int  flag   = 0;
   int  bcmode = mode;
-  bool send   = (mode & SendMode) == SendMode; // send flag
-  bool recv   = (mode & RecvMode) == RecvMode; // recv flag
+  bool send   = (mode & common::SendMode) == common::SendMode; // send flag
+  bool recv   = (mode & common::RecvMode) == common::RecvMode; // recv flag
 
   // remove send/recv bits
-  bcmode &= ~SendMode;
-  bcmode &= ~RecvMode;
+  bcmode &= ~common::SendMode;
+  bcmode &= ~common::RecvMode;
 
   // MPI buffer
   PtrMpiBuffer mpibuf = mpibufvec[bcmode];

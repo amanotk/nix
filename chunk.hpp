@@ -55,6 +55,21 @@ public:
   // unpack
   virtual int unpack(void *buffer, const int address);
 
+  // pack diagnostic information
+  virtual int pack_diagnostic(const int mode, void *buffer, const int address);
+
+  // query boundary exhange status
+  virtual bool set_boundary_query(const int mode);
+
+  // set physical boundary condition
+  virtual void set_boundary_physical(const int mode);
+
+  // begin boundary exchange
+  virtual void set_boundary_begin(const int mode);
+
+  // end boundary exchange
+  virtual void set_boundary_end(const int mode);
+
   // set ID
   void set_id(const int id)
   {

@@ -409,6 +409,11 @@ public:
       }
     }
   }
+
+  void finalize(int cleanup = 0)
+  {
+    BaseApp::finalize(cleanup);
+  }
 };
 
 //

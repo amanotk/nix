@@ -159,24 +159,9 @@ DEFINE_MEMBER(void, push)(const float64 delt)
   load[0] += common::etime() - etime;
 }
 
-DEFINE_MEMBER(int, pack_diagnostic)(void *buffer, const int address)
+DEFINE_MEMBER(int, pack_diagnostic)(int mode, void *buffer, const int address)
 {
-  size_t size = dims[2] * dims[1] * dims[0] * 6;
-
-  if (buffer == nullptr) {
-    return sizeof(float64) * size;
-  }
-
-  auto Iz = xt::range(Lbz, Ubz + 1);
-  auto Iy = xt::range(Lby, Uby + 1);
-  auto Ix = xt::range(Lbx, Ubx + 1);
-  auto uu = xt::view(uf, Iz, Iy, Ix, xt::all());
-
-  // packing
-  char *ptr = &static_cast<char *>(buffer)[address];
-  std::copy(uu.begin(), uu.end(), reinterpret_cast<float64 *>(ptr));
-
-  return sizeof(float64) * size;
+  return this->pack_diagnostic_field(buffer, address, uf);
 }
 
 DEFINE_MEMBER(void, set_boundary_begin)(const int mode)

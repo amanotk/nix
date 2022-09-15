@@ -53,6 +53,12 @@ const std::ios::openmode text_write  = std::ios::out | std::ios::trunc;
 const std::ios::openmode text_append = std::ios::out | std::ios::app;
 const std::ios::openmode text_read   = std::ios::in;
 
+// send/recv mode
+enum SendRecvMode {
+  SendMode = 0b01000000000000, // 4096
+  RecvMode = 0b10000000000000, // 8192
+};
+
 // common functions
 //@{
 

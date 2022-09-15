@@ -42,28 +42,18 @@ DEFINE_MEMBER(void, setup)()
 
 DEFINE_MEMBER(void, push)()
 {
-  int recvmode = Chunk::RecvMode;
+  int recvmode = common::RecvMode;
 
-  std::set<int> waiting;
+  std::set<int> queue;
 
   for (int i = 0; i < numchunk; i++) {
     chunkvec[i]->push(delt);
     chunkvec[i]->set_boundary_begin();
-    waiting.insert(i);
+    queue.insert(i);
   }
 
-  while (waiting.empty() == false) {
-    // try to find a chunk ready for unpacking
-    auto iter = std::find_if(waiting.begin(), waiting.end(),
-                             [&](int i) { return chunkvec[i]->set_boundary_query(recvmode); });
-    if (iter == waiting.end()) {
-      continue;
-    }
-
-    // unpack and remove from the waiting queue
-    chunkvec[*iter]->set_boundary_end();
-    waiting.erase(*iter);
-  }
+  // wait for boundary exchange
+  this->wait_bc_exchange(queue, recvmode);
 
   curtime += delt;
   curstep++;
@@ -80,43 +70,27 @@ DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
   std::string fn_json  = filename + ".json";
   std::string fn_data  = filename + ".data";
 
-  json     root;
-  json     obj_chunkmap;
-  json     obj_dataset;
   MPI_File fh;
   size_t   disp;
-  int      bufsize;
-  int      ndim    = 5;
-  int      dims[5] = {cdims[3], ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2], 6};
-  int      size    = dims[0] * dims[1] * dims[2] * dims[3] * dims[4] * sizeof(float64);
+  json     dataset;
 
   // open file
   jsonio::open_file(fn_data.c_str(), &fh, &disp, "w");
 
-  // save chunkmap
-  chunkmap->save_json(obj_chunkmap);
+  {
+    const char name[]  = "uf";
+    const char desc[]  = "";
+    const int  nc      = cdims[3];
+    const int  nz      = ndims[0] / cdims[0];
+    const int  ny      = ndims[1] / cdims[1];
+    const int  nx      = ndims[2] / cdims[2];
+    const int  ndim    = 5;
+    const int  dims[5] = {nc, nz, ny, nx, 6};
+    const int  size    = nc * nz * ny * nx * 6 * sizeof(float64);
 
-  // json metadata
-  jsonio::put_metadata(obj_dataset, "uf", "f8", "", disp, size, ndim, dims);
-
-  // buffer size (assuming constant)
-  bufsize = chunkvec[0]->pack_diagnostic(nullptr, 0);
-  sendbuf.resize(bufsize);
-
-  for (int i = 0; i < numchunk; i++) {
-    MPI_Request req;
-
-    // pack
-    assert(bufsize == chunkvec[i]->pack_diagnostic(sendbuf.get(), 0));
-
-    // write
-    size_t chunkdisp = disp + bufsize * chunkvec[i]->get_id();
-    jsonio::write_contiguous_at(&fh, &disp, sendbuf.get(), bufsize, 1, &req);
-
-    MPI_Wait(&req, MPI_STATUS_IGNORE);
+    jsonio::put_metadata(dataset, name, "f8", desc, disp, size, ndim, dims);
+    this->write_chunk_all(fh, disp, 0);
   }
-
-  disp += size;
 
   // close file
   jsonio::close_file(&fh);
@@ -124,24 +98,32 @@ DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
   //
   // output json file
   //
+  {
+    json root;
+    json cmap;
 
-  // meta data
-  root["meta"] = {{"endian", common::get_endian_flag()},
-                  {"rawfile", fn_data},
-                  {"order", 1},
-                  {"time", curtime},
-                  {"step", curstep}};
-  // chunkmap
-  root["chunkmap"] = obj_chunkmap;
-  // dataset
-  root["dataset"] = obj_dataset;
+    // convert chunkmap into json
+    chunkmap->save_json(cmap);
 
-  if (thisrank == 0) {
-    std::ofstream ofs(fn_json);
-    ofs << std::setw(2) << root;
-    ofs.close();
+    // meta data
+    root["meta"] = {{"endian", common::get_endian_flag()},
+                    {"rawfile", fn_data},
+                    {"order", 1},
+                    {"time", curtime},
+                    {"step", curstep}};
+    // chunkmap
+    root["chunkmap"] = cmap;
+    // dataset
+    root["dataset"] = dataset;
+
+    if (thisrank == 0) {
+      std::ofstream ofs(fn_json);
+      ofs << std::setw(2) << root;
+      ofs.close();
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
   }
-  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 // Local Variables:

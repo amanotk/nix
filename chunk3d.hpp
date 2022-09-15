@@ -18,11 +18,6 @@ public:
   using T_array3d = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
   using T_request = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
 
-  enum SendRecvMode {
-    SendMode = 0b01000000000000, // 4096
-    RecvMode = 0b10000000000000, // 8192
-  };
-
   ///
   /// MPI buffer struct
   ///
@@ -109,6 +104,10 @@ protected:
   float64                 ylim[3];   ///< physical domain in y
   float64                 zlim[3];   ///< physical domain in z
   MpiBufferVec            mpibufvec; ///< MPI buffer vector
+
+  int pack_diagnostic_coord(void *buffer, const int address, const int dir);
+
+  int pack_diagnostic_field(void *buffer, const int address, xt::xtensor<float64, 4> &u);
 
   void begin_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec &particle);
 

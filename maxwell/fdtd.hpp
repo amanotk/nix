@@ -15,7 +15,7 @@ public:
   using T_function = std::function<void(float64, float64, float64, float64 *)>;
 
   /// boundary margin
-  static const int Nb = Chunk::boundary_margin;
+  static constexpr int Nb = Chunk::boundary_margin;
 
 protected:
   xt::xtensor<float64, 4> uf; ///< electromagnetic field
@@ -34,7 +34,7 @@ public:
 
   virtual void push(const float64 delt);
 
-  virtual int pack_diagnostic(void *buffer, const int address);
+  virtual int pack_diagnostic(int mode, void *buffer, const int address);
 
   virtual void set_boundary_begin(const int mode = 0) override;
 
