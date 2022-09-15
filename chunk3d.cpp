@@ -83,7 +83,7 @@ DEFINE_MEMBER(, ~Chunk3D)()
 
 DEFINE_MEMBER(void, reset_load)()
 {
-  for(int i=0; i < load.size(); i++) {
+  for (int i = 0; i < load.size(); i++) {
     load[i] = 0;
   }
 }
@@ -92,7 +92,7 @@ DEFINE_MEMBER(float64, get_load)()
 {
   float64 loadsum = 0;
 
-  for(int i=0; i < load.size(); i++) {
+  for (int i = 0; i < load.size(); i++) {
     loadsum += load[i];
   }
 
@@ -453,7 +453,8 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
   }
 }
 
-DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array)
+DEFINE_MEMBER(void, begin_bc_exchange)
+(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool moment)
 {
   auto Ia = xt::all();
 
@@ -467,22 +468,34 @@ DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, xt::xtensor<float64,
           continue;
         }
 
-        // index range
-        auto Iz = xt::range(sendlb[0][iz], sendub[0][iz] + 1);
-        auto Iy = xt::range(sendlb[1][iy], sendub[1][iy] + 1);
-        auto Ix = xt::range(sendlb[2][ix], sendub[2][ix] + 1);
-
-        // MPI
-        auto  view   = xt::view(array, Iz, Iy, Ix, Ia);
-        int   byte   = view.size() * sizeof(float64);
+        int   byte   = 0;
         int   nbrank = get_nb_rank(dirz, diry, dirx);
         int   sndtag = get_sndtag(dirz, diry, dirx);
         int   rcvtag = get_rcvtag(dirz, diry, dirx);
         void *sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
         void *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
 
-        // pack
-        std::copy(view.begin(), view.end(), static_cast<float64 *>(sndptr));
+        if (moment == true) {
+          // index range
+          auto Iz   = xt::range(recvlb[0][iz], recvub[0][iz] + 1);
+          auto Iy   = xt::range(recvlb[1][iy], recvub[1][iy] + 1);
+          auto Ix   = xt::range(recvlb[2][ix], recvub[2][ix] + 1);
+          auto view = xt::view(array, Iz, Iy, Ix, Ia);
+
+          // pack
+          byte = view.size() * sizeof(float64);
+          std::copy(view.begin(), view.end(), static_cast<float64 *>(sndptr));
+        } else {
+          // index range
+          auto Iz   = xt::range(sendlb[0][iz], sendub[0][iz] + 1);
+          auto Iy   = xt::range(sendlb[1][iy], sendub[1][iy] + 1);
+          auto Ix   = xt::range(sendlb[2][ix], sendub[2][ix] + 1);
+          auto view = xt::view(array, Iz, Iy, Ix, Ia);
+
+          // pack
+          byte = view.size() * sizeof(float64);
+          std::copy(view.begin(), view.end(), static_cast<float64 *>(sndptr));
+        }
 
         // send/recv calls
         MPI_Isend(sndptr, byte, MPI_BYTE, nbrank, sndtag, mpibuf->comm,
@@ -495,7 +508,7 @@ DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, xt::xtensor<float64,
 }
 
 DEFINE_MEMBER(void, end_bc_exchange)
-(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool append)
+(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool moment)
 {
   auto Ia = xt::all();
 
@@ -518,20 +531,30 @@ DEFINE_MEMBER(void, end_bc_exchange)
           continue;
         }
 
-        // index range
-        auto Iz = xt::range(recvlb[0][iz], recvub[0][iz] + 1);
-        auto Iy = xt::range(recvlb[1][iy], recvub[1][iy] + 1);
-        auto Ix = xt::range(recvlb[2][ix], recvub[2][ix] + 1);
+        if (moment == true) {
+          // index range
+          auto Iz   = xt::range(sendlb[0][iz], sendub[0][iz] + 1);
+          auto Iy   = xt::range(sendlb[1][iy], sendub[1][iy] + 1);
+          auto Ix   = xt::range(sendlb[2][ix], sendub[2][ix] + 1);
+          auto view = xt::view(array, Iz, Iy, Ix, Ia);
 
-        // unpack
-        auto     view   = xt::view(array, Iz, Iy, Ix, Ia);
-        void *   rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
-        float64 *ptr    = static_cast<float64 *>(rcvptr);
+          // unpack
+          void *   rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+          float64 *ptr    = static_cast<float64 *>(rcvptr);
 
-        // copy or append
-        if (append) {
+          // accumulate
           std::transform(ptr, ptr + view.size(), view.begin(), view.begin(), std::plus<float64>());
         } else {
+          // index range
+          auto Iz   = xt::range(recvlb[0][iz], recvub[0][iz] + 1);
+          auto Iy   = xt::range(recvlb[1][iy], recvub[1][iy] + 1);
+          auto Ix   = xt::range(recvlb[2][ix], recvub[2][ix] + 1);
+          auto view = xt::view(array, Iz, Iy, Ix, Ia);
+
+          // unpack
+          void *   rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+          float64 *ptr    = static_cast<float64 *>(rcvptr);
+
           std::copy(ptr, ptr + view.size(), view.begin());
         }
       }

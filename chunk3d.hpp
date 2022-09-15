@@ -114,9 +114,9 @@ protected:
 
   void end_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec &particle);
 
-  void begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array);
+  void begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool moment = false);
 
-  void end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool append = false);
+  void end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool momet = false);
 
   template <typename T>
   void set_mpi_buffer(PtrMpiBuffer mpibuffer, const int headbyte, const T &elembyte)
