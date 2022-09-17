@@ -604,7 +604,7 @@ protected:
     char *sendptr = sendbuf.get();
     for (int i = 0, pos = 0; i < numchunk; i++) {
       // pack
-      assert(bufsize + pos == chunkvec[i]->pack_diagnostic(mode, sendptr, pos));
+      assert(bufsize == chunkvec[i]->pack_diagnostic(mode, sendptr, pos));
 
       // write
       size_t chunkdisp = disp + bufsize * chunkvec[i]->get_id();

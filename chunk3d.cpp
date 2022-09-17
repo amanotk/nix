@@ -269,7 +269,7 @@ DEFINE_MEMBER(void, count_particle)(PtrParticle particle, const int Lbp, const i
 DEFINE_MEMBER(int, pack_diagnostic_coord)(void *buffer, const int address, const int dir)
 {
   size_t size  = dims[dir];
-  int    count = address + sizeof(float64) * size;
+  int    count = sizeof(float64) * size;
 
   if (buffer == nullptr) {
     return count;
@@ -301,7 +301,7 @@ DEFINE_MEMBER(int, pack_diagnostic_field)
 (void *buffer, const int address, xt::xtensor<float64, 4> &u)
 {
   size_t size  = dims[2] * dims[1] * dims[0] * u.shape(3);
-  int    count = address + sizeof(float64) * size;
+  int    count = sizeof(float64) * size;
 
   if (buffer == nullptr) {
     return count;
