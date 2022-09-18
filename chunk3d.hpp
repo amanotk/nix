@@ -105,6 +105,8 @@ protected:
   float64                 zlim[3];   ///< physical domain in z
   MpiBufferVec            mpibufvec; ///< MPI buffer vector
 
+  int pack_diagnostic_load(void *buffer, const int address);
+
   int pack_diagnostic_coord(void *buffer, const int address, const int dir);
 
   int pack_diagnostic_field(void *buffer, const int address, xt::xtensor<float64, 4> &u);
@@ -158,7 +160,9 @@ public:
 
   virtual void reset_load() override;
 
-  virtual float64 get_load() override;
+  virtual std::vector<float64> get_load() override;
+
+  virtual float64 get_total_load() override;
 
   virtual int pack(void *buffer, const int address) override;
 

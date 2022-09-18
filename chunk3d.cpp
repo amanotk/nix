@@ -72,6 +72,9 @@ DEFINE_MEMBER(, Chunk3D)
   zc.fill(0);
   yc.fill(0);
   xc.fill(0);
+
+  // reset load
+  reset_load();
 }
 
 DEFINE_MEMBER(, ~Chunk3D)()
@@ -88,15 +91,14 @@ DEFINE_MEMBER(void, reset_load)()
   }
 }
 
-DEFINE_MEMBER(float64, get_load)()
+DEFINE_MEMBER(std::vector<float64>, get_load)()
 {
-  float64 loadsum = 0;
+  return load;
+}
 
-  for (int i = 0; i < load.size(); i++) {
-    loadsum += load[i];
-  }
-
-  return loadsum;
+DEFINE_MEMBER(float64, get_total_load)()
+{
+  return std::accumulate(load.begin(), load.end(), 0.0);
 }
 
 DEFINE_MEMBER(int, pack)(void *buffer, const int address)
@@ -266,10 +268,24 @@ DEFINE_MEMBER(void, count_particle)(PtrParticle particle, const int Lbp, const i
   }
 }
 
+DEFINE_MEMBER(int, pack_diagnostic_load)(void *buffer, const int address)
+{
+  int count = sizeof(float64) * load.size() + address;
+
+  if (buffer == nullptr) {
+    return count;
+  }
+
+  std::copy(load.begin(), load.end(),
+            reinterpret_cast<float64 *>(static_cast<char *>(buffer) + address));
+
+  return count;
+}
+
 DEFINE_MEMBER(int, pack_diagnostic_coord)(void *buffer, const int address, const int dir)
 {
   size_t size  = dims[dir];
-  int    count = sizeof(float64) * size;
+  int    count = sizeof(float64) * size + address;
 
   if (buffer == nullptr) {
     return count;
@@ -301,7 +317,7 @@ DEFINE_MEMBER(int, pack_diagnostic_field)
 (void *buffer, const int address, xt::xtensor<float64, 4> &u)
 {
   size_t size  = dims[2] * dims[1] * dims[0] * u.shape(3);
-  int    count = sizeof(float64) * size;
+  int    count = sizeof(float64) * size + address;
 
   if (buffer == nullptr) {
     return count;

@@ -46,8 +46,11 @@ public:
   // reset load
   virtual void reset_load();
 
-  // return load
-  virtual float64 get_load();
+  // return load vector
+  virtual std::vector<float64> get_load();
+
+  // return total load
+  virtual float64 get_total_load();
 
   // pack
   virtual int pack(void *buffer, const int address);

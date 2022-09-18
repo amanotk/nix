@@ -25,8 +25,7 @@ protected:
   using PtrBalancer = std::unique_ptr<Balancer>;
   using PtrChunk    = std::unique_ptr<Chunk>;
   using PtrChunkMap = std::unique_ptr<ChunkMap>;
-  using PtrByte     = std::unique_ptr<char[]>;
-  using PtrFloat    = std::unique_ptr<float64[]>;
+  using FloatVec    = std::vector<float64>;
   using ChunkVec    = std::vector<PtrChunk>;
 
   int         retcode;  ///< default return code
@@ -40,7 +39,7 @@ protected:
   int         numchunk; ///< number of chunkes in current process
   ChunkVec    chunkvec; ///< chunk array
   PtrChunkMap chunkmap; ///< global chunkmap
-  PtrFloat    workload; ///< global load array
+  FloatVec    workload; ///< global load array
   float64     tmax;     ///< maximum physical time
   float64     emax;     ///< maximum elapsed time
   std::string loadfile; ///< snapshot to be loaded
@@ -295,11 +294,11 @@ protected:
     // local workload
     for (int i = 0; i < numchunk; i++) {
       int id       = chunkvec[i]->get_id();
-      workload[id] = chunkvec[i]->get_load();
+      workload[id] = chunkvec[i]->get_total_load();
     }
 
     // global workload
-    MPI_Allreduce(MPI_IN_PLACE, workload.get(), nc, MPI_REAL8, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, workload.data(), nc, MPI_REAL8, MPI_SUM, MPI_COMM_WORLD);
   }
 
   virtual void initialize_chunkmap()
@@ -344,7 +343,7 @@ protected:
     //
     // allocate workload and initialize
     //
-    workload.reset(new float64[nc]);
+    workload.resize(nc);
 
     for (int i = 0; i < nc; i++) {
       workload[i] = 0.0;
@@ -353,19 +352,23 @@ protected:
 
   virtual void rebuild_chunkmap()
   {
-    const int nc = cdims[3];
-    int       rank[nc];
+    const int        nc = cdims[3];
+    std::vector<int> rank(nc + 1);
 
     // calculate global workload
     calc_workload();
 
     // calculate new decomposition
-    balancer->partition(nc, nprocess, workload.get(), rank);
+    balancer->partition(nc, nprocess, workload, rank);
+
+    for (int i = 0; i < nc; i++) {
+      int r = chunkmap->get_rank(i);
+    }
 
     //
     // chunk send/recv
     //
-    sendrecv_chunk(rank);
+    sendrecv_chunk(rank.data());
 
     //
     // reset rank
@@ -424,10 +427,16 @@ protected:
       for (int i = 0; i < numchunk; i++) {
         int id = chunkvec[i]->get_id();
 
-        if (newrank[id] == thisrank - 1) {
+        if (newrank[id] == thisrank) {
+          // no need for transfer
+        } else if (newrank[id] == thisrank - 1) {
+          // send to left
           sendsize_l += chunkvec[i]->pack(nullptr, 0);
         } else if (newrank[id] == thisrank + 1) {
+          // send to right
           sendsize_r += chunkvec[i]->pack(nullptr, 0);
+        } else {
+          // FIXME; error handling
         }
       }
 
@@ -589,36 +598,48 @@ protected:
 
   virtual void write_chunk_all(MPI_File &fh, size_t &disp, const int mode)
   {
-    MPI_Request req[numchunk];
+    int allsize = 0;
+    int maxsize = 0;
+    int bufaddr = 0;
+    int bufsize[numchunk];
 
-    // buffer size (assuming constant)
-    int bufsize = chunkvec[0]->pack_diagnostic(mode, nullptr, 0);
-    int allsize = numchunk * bufsize;
+    // calculate local address
+    for (int i = 0; i < numchunk; i++) {
+      bufsize[i] = chunkvec[i]->pack_diagnostic(mode, nullptr, 0);
+      allsize += bufsize[i];
+    }
+    MPI_Exscan(&allsize, &bufaddr, 1, MPI_INT32_T, MPI_SUM, MPI_COMM_WORLD);
 
-    if (sendbuf.size < allsize) {
-      sendbuf.resize(allsize);
-      recvbuf.resize(allsize);
+    // resize buffer if needed
+    maxsize = *std::max_element(bufsize, bufsize + numchunk);
+    if (sendbuf.size < maxsize) {
+      sendbuf.resize(maxsize);
+      recvbuf.resize(maxsize);
     }
 
     // write for each chunk
-    char *sendptr = sendbuf.get();
-    for (int i = 0, pos = 0; i < numchunk; i++) {
-      // pack
-      assert(bufsize == chunkvec[i]->pack_diagnostic(mode, sendptr, pos));
+    {
+      MPI_Request req;
+      size_t      chunkdisp = disp + bufaddr;
+      char *      sendptr   = sendbuf.get();
 
-      // write
-      size_t chunkdisp = disp + bufsize * chunkvec[i]->get_id();
-      char * chunkptr  = &sendptr[pos];
-      jsonio::write_contiguous_at(&fh, &chunkdisp, chunkptr, bufsize, 1, &req[i]);
+      for (int i = 0; i < numchunk; i++) {
+        // pack
+        assert(bufsize[i] == chunkvec[i]->pack_diagnostic(mode, sendptr, 0));
 
-      pos += bufsize;
+        // write
+        jsonio::write_contiguous_at(&fh, &chunkdisp, sendptr, bufsize[i], 1, &req);
+        MPI_Wait(&req, MPI_STATUS_IGNORE);
+
+        chunkdisp += bufsize[i];
+      }
     }
 
-    // wait
-    MPI_Waitall(numchunk, req, MPI_STATUS_IGNORE);
+    // get total size
+    MPI_Allreduce(MPI_IN_PLACE, &allsize, 1, MPI_INT32_T, MPI_SUM, MPI_COMM_WORLD);
 
     // update pointer
-    disp += bufsize * cdims[3];
+    disp += allsize;
   }
 
   virtual void wait_bc_exchange(std::set<int> &queue, const int mode)
@@ -741,7 +762,9 @@ public:
       //
       // rebuild chankmap if needed
       //
+#if 0
       rebuild_chunkmap();
+#endif
     }
 
     //

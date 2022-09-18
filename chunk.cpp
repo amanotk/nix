@@ -55,17 +55,27 @@ DEFINE_MEMBER(void, reset_load)()
   static std::mt19937                            mt(rd());
   static std::uniform_real_distribution<float64> rand(0.75, +1.25);
 
-  load[0] = rand(mt);
+  for (int i = 0; i < load.size(); i++) {
+    load[i] = rand(mt);
+  }
 }
 
-DEFINE_MEMBER(float64, get_load)()
+DEFINE_MEMBER(std::vector<float64>, get_load)()
 {
   static std::random_device                      rd;
   static std::mt19937                            mt(rd());
   static std::uniform_real_distribution<float64> rand(0.75, +1.25);
 
-  load[0] = rand(mt);
-  return load[0];
+  for (int i = 0; i < load.size(); i++) {
+    load[i] = rand(mt);
+  }
+
+  return load;
+}
+
+DEFINE_MEMBER(float64, get_total_load)()
+{
+  return std::accumulate(load.begin(), load.end(), 0.0);
 }
 
 DEFINE_MEMBER(int, pack)(void *buffer, const int address)

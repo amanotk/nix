@@ -16,7 +16,8 @@ class Balancer
 {
 public:
   /// calculate decomposition from load array
-  virtual void partition(const int nc, const int nr, float64 load[], int rank[])
+  virtual void partition(const int nc, const int nr, std::vector<float64> &load,
+                         std::vector<int> &rank)
   {
     float64 boundary[nr + 1];
     float64 avgload, prv, cur, difc, difp;
