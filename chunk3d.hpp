@@ -158,12 +158,6 @@ public:
 
   virtual ~Chunk3D() override;
 
-  virtual void reset_load() override;
-
-  virtual std::vector<float64> get_load() override;
-
-  virtual float64 get_total_load() override;
-
   virtual int pack(void *buffer, const int address) override;
 
   virtual int unpack(void *buffer, const int address) override;

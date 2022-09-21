@@ -353,22 +353,18 @@ protected:
   virtual void rebuild_chunkmap()
   {
     const int        nc = cdims[3];
-    std::vector<int> rank(nc + 1);
+    std::vector<int> rank(nc);
 
     // calculate global workload
     calc_workload();
 
     // calculate new decomposition
-    balancer->partition(nc, nprocess, workload, rank);
-
-    for (int i = 0; i < nc; i++) {
-      int r = chunkmap->get_rank(i);
-    }
+    balancer->partition(nprocess, workload, rank);
 
     //
     // chunk send/recv
     //
-    sendrecv_chunk(rank.data());
+    sendrecv_chunk(rank);
 
     //
     // reset rank
@@ -411,7 +407,7 @@ protected:
     return status;
   }
 
-  virtual void sendrecv_chunk(int newrank[])
+  virtual void sendrecv_chunk(std::vector<int> &newrank)
   {
     const int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
     const int ncmax   = Chunk::get_max_id();
@@ -762,9 +758,7 @@ public:
       //
       // rebuild chankmap if needed
       //
-#if 0
       rebuild_chunkmap();
-#endif
     }
 
     //

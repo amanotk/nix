@@ -84,23 +84,6 @@ DEFINE_MEMBER(, ~Chunk3D)()
   xc.resize({0});
 }
 
-DEFINE_MEMBER(void, reset_load)()
-{
-  for (int i = 0; i < load.size(); i++) {
-    load[i] = 0;
-  }
-}
-
-DEFINE_MEMBER(std::vector<float64>, get_load)()
-{
-  return load;
-}
-
-DEFINE_MEMBER(float64, get_total_load)()
-{
-  return std::accumulate(load.begin(), load.end(), 0.0);
-}
-
 DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 {
   using common::memcpy_count;

@@ -6,7 +6,28 @@
 
 #include "../thirdparty/catch.hpp"
 
-using BaseApp = Application<Chunk<3>, ChunkMap<3>>;
+class TestChunk;
+
+using BaseApp = Application<TestChunk, ChunkMap<3>>;
+
+class TestChunk : public Chunk<3>
+{
+public:
+  using Chunk<3>::Chunk;
+
+  virtual float64 get_total_load() override
+  {
+    static std::random_device                      rd;
+    static std::mt19937                            mt(rd());
+    static std::uniform_real_distribution<float64> rand(0.75, +1.25);
+
+    for(int i=0; i < load.size() ;i++) {
+      load[i] = rand(mt);
+    }
+
+    return Chunk<3>::get_total_load();
+  }
+};
 
 // class for testing Application
 class TestApp : public BaseApp
