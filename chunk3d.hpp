@@ -111,6 +111,8 @@ protected:
 
   int pack_diagnostic_field(void *buffer, const int address, xt::xtensor<float64, 4> &u);
 
+  int pack_diagnostic_particle(void *buffer, const int address, PtrParticle p);
+
   void begin_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec &particle);
 
   void end_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec &particle);

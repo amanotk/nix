@@ -318,6 +318,18 @@ DEFINE_MEMBER(int, pack_diagnostic_field)
   return count;
 }
 
+DEFINE_MEMBER(int, pack_diagnostic_particle)
+(void *buffer, const int address, PtrParticle p)
+{
+  using common::memcpy_count;
+
+  int count = address;
+
+  count += memcpy_count(buffer, p->xu.data(), p->Np * Particle::Nc * sizeof(float64), count, 0);
+
+  return count;
+}
+
 DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
 {
   const size_t header_size = sizeof(int);

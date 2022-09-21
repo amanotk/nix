@@ -521,7 +521,7 @@ protected:
         char *rbuf_l0 = rbuf_l;
 
         while ((rbuf_l - rbuf_l0) < rbufcnt_l) {
-          PtrChunk p(new Chunk(dims, 0));
+          PtrChunk p = std::make_unique<Chunk>(dims, 0);
           size = p->unpack(rbuf_l, 0);
           chunkvec.push_back(std::move(p));
           rbuf_l += size;
@@ -534,7 +534,7 @@ protected:
         char *rbuf_r0 = rbuf_r;
 
         while ((rbuf_r - rbuf_r0) < rbufcnt_r) {
-          PtrChunk p(new Chunk(dims, 0));
+          PtrChunk p = std::make_unique<Chunk>(dims, 0);
           size = p->unpack(rbuf_r, 0);
           chunkvec.push_back(std::move(p));
           rbuf_r += size;
