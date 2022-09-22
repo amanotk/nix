@@ -117,43 +117,14 @@ protected:
 
   void end_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec &particle);
 
-  void begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool moment = false);
-
-  void end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool momet = false);
+  template <typename T>
+  void begin_bc_exchange(PtrMpiBuffer mpibuf, T &array, bool moment = false);
 
   template <typename T>
-  void set_mpi_buffer(PtrMpiBuffer mpibuffer, const int headbyte, const T &elembyte)
-  {
-    const std::vector<size_t> shape = {3, 3};
+  void end_bc_exchange(PtrMpiBuffer mpibuf, T &array, bool moment = false);
 
-    auto I   = xt::all();
-    auto J   = xt::newaxis();
-    auto xlb = xt::adapt(&recvlb[0][0], 9, xt::no_ownership(), shape);
-    auto xub = xt::adapt(&recvub[0][0], 9, xt::no_ownership(), shape);
-    auto xss = xub - xlb + 1;
-    auto pos = xt::eval(xt::view(xss, 0, I, J, J) * xt::view(xss, 1, J, I, J) *
-                        xt::view(xss, 2, J, J, I) * elembyte);
-
-    // no send/recv with itself
-    pos(1, 1, 1) = 0;
-
-    // buffer allocation
-    {
-      int size = headbyte + xt::sum(pos)();
-      mpibuffer->sendbuf.resize(size);
-      mpibuffer->recvbuf.resize(size);
-    }
-
-    // buffer size
-    mpibuffer->bufsize = pos;
-
-    // buffer address
-    pos    = xt::cumsum(pos);
-    pos    = xt::roll(pos, 1);
-    pos(0) = 0;
-    pos.reshape({3, 3, 3});
-    mpibuffer->bufaddr = headbyte + pos;
-  }
+  template <typename T>
+  void set_mpi_buffer(PtrMpiBuffer mpibuf, const int headbyte, const T &elembyte);
 
 public:
   Chunk3D(const int dims[3], const int id = 0);

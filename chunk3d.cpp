@@ -517,11 +517,9 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
   }
 }
 
-DEFINE_MEMBER(void, begin_bc_exchange)
-(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool moment)
+DEFINE_MEMBER(template <typename T> void, begin_bc_exchange)
+(PtrMpiBuffer mpibuf, T &array, bool moment)
 {
-  auto Ia = xt::all();
-
   for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
     for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
       for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
@@ -544,7 +542,7 @@ DEFINE_MEMBER(void, begin_bc_exchange)
           auto Iz   = xt::range(recvlb[0][iz], recvub[0][iz] + 1);
           auto Iy   = xt::range(recvlb[1][iy], recvub[1][iy] + 1);
           auto Ix   = xt::range(recvlb[2][ix], recvub[2][ix] + 1);
-          auto view = xt::view(array, Iz, Iy, Ix, Ia);
+          auto view = xt::strided_view(array, {Iz, Iy, Ix, xt::ellipsis()});
 
           // pack
           byte = view.size() * sizeof(float64);
@@ -554,7 +552,7 @@ DEFINE_MEMBER(void, begin_bc_exchange)
           auto Iz   = xt::range(sendlb[0][iz], sendub[0][iz] + 1);
           auto Iy   = xt::range(sendlb[1][iy], sendub[1][iy] + 1);
           auto Ix   = xt::range(sendlb[2][ix], sendub[2][ix] + 1);
-          auto view = xt::view(array, Iz, Iy, Ix, Ia);
+          auto view = xt::strided_view(array, {Iz, Iy, Ix, xt::ellipsis()});
 
           // pack
           byte = view.size() * sizeof(float64);
@@ -571,11 +569,9 @@ DEFINE_MEMBER(void, begin_bc_exchange)
   }
 }
 
-DEFINE_MEMBER(void, end_bc_exchange)
-(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array, bool moment)
+DEFINE_MEMBER(template <typename T> void, end_bc_exchange)
+(PtrMpiBuffer mpibuf, T &array, bool moment)
 {
-  auto Ia = xt::all();
-
   // wait for MPI recv calls to complete
   MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
 
@@ -600,7 +596,7 @@ DEFINE_MEMBER(void, end_bc_exchange)
           auto Iz   = xt::range(sendlb[0][iz], sendub[0][iz] + 1);
           auto Iy   = xt::range(sendlb[1][iy], sendub[1][iy] + 1);
           auto Ix   = xt::range(sendlb[2][ix], sendub[2][ix] + 1);
-          auto view = xt::view(array, Iz, Iy, Ix, Ia);
+          auto view = xt::strided_view(array, {Iz, Iy, Ix, xt::ellipsis()});
 
           // unpack
           void *   rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
@@ -613,7 +609,7 @@ DEFINE_MEMBER(void, end_bc_exchange)
           auto Iz   = xt::range(recvlb[0][iz], recvub[0][iz] + 1);
           auto Iy   = xt::range(recvlb[1][iy], recvub[1][iy] + 1);
           auto Ix   = xt::range(recvlb[2][ix], recvub[2][ix] + 1);
-          auto view = xt::view(array, Iz, Iy, Ix, Ia);
+          auto view = xt::strided_view(array, {Iz, Iy, Ix, xt::ellipsis()});
 
           // unpack
           void *   rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
@@ -627,6 +623,40 @@ DEFINE_MEMBER(void, end_bc_exchange)
 
   // wait for MPI send calls to complete (optional)
   MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
+}
+
+DEFINE_MEMBER(template <typename T> void, set_mpi_buffer)
+(PtrMpiBuffer mpibuf, const int headbyte, const T &elembyte)
+{
+  const std::vector<size_t> shape = {3, 3};
+
+  auto I   = xt::all();
+  auto J   = xt::newaxis();
+  auto xlb = xt::adapt(&recvlb[0][0], 9, xt::no_ownership(), shape);
+  auto xub = xt::adapt(&recvub[0][0], 9, xt::no_ownership(), shape);
+  auto xss = xub - xlb + 1;
+  auto pos = xt::eval(xt::view(xss, 0, I, J, J) * xt::view(xss, 1, J, I, J) *
+                      xt::view(xss, 2, J, J, I) * elembyte);
+
+  // no send/recv with itself
+  pos(1, 1, 1) = 0;
+
+  // buffer allocation
+  {
+    int size = headbyte + xt::sum(pos)();
+    mpibuf->sendbuf.resize(size);
+    mpibuf->recvbuf.resize(size);
+  }
+
+  // buffer size
+  mpibuf->bufsize = pos;
+
+  // buffer address
+  pos    = xt::cumsum(pos);
+  pos    = xt::roll(pos, 1);
+  pos(0) = 0;
+  pos.reshape({3, 3, 3});
+  mpibuf->bufaddr = headbyte + pos;
 }
 
 DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
@@ -708,10 +738,61 @@ DEFINE_MEMBER(void, set_boundary_particle)(PtrParticle particle, int Lbp, int Ub
   }
 }
 
+// explicit instantiation for boundary margin of 1
 template class Chunk3D<1>;
+template void Chunk3D<1>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+                                            bool moment);
+template void Chunk3D<1>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+                                            bool moment);
+template void Chunk3D<1>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+                                          bool moment);
+template void Chunk3D<1>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+                                          bool moment);
+template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t &);
+template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t &);
+template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t &);
+
+// explicit instantiation for boundary margin of 2
 template class Chunk3D<2>;
+template void Chunk3D<2>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+                                            bool moment);
+template void Chunk3D<2>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+                                            bool moment);
+template void Chunk3D<2>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+                                          bool moment);
+template void Chunk3D<2>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+                                          bool moment);
+template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t &);
+template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t &);
+template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t &);
+
+// explicit instantiation for boundary margin of 3
 template class Chunk3D<3>;
+template void Chunk3D<3>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+                                            bool moment);
+template void Chunk3D<3>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+                                            bool moment);
+template void Chunk3D<3>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+                                          bool moment);
+template void Chunk3D<3>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+                                          bool moment);
+template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t &);
+template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t &);
+template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t &);
+
+// explicit instantiation for boundary margin of 4
 template class Chunk3D<4>;
+template void Chunk3D<4>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+                                            bool moment);
+template void Chunk3D<4>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+                                            bool moment);
+template void Chunk3D<4>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+                                          bool moment);
+template void Chunk3D<4>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+                                          bool moment);
+template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t &);
+template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t &);
+template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t &);
 
 // Local Variables:
 // c-file-style   : "gnu"
