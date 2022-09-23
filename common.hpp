@@ -5,12 +5,16 @@
 ///
 /// common includes and definitions
 ///
-#include "config.hpp"
 #include "debug.hpp"
+
 #include <algorithm>
 #include <bitset>
 #include <cassert>
+#include <cinttypes>
 #include <cmath>
+#include <cstdarg>
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -26,22 +30,35 @@
 
 #include <nlohmann/json.hpp>
 
+// integer types
+using int32  = int32_t;
+using int64  = int64_t;
+using uint32 = uint32_t;
+using uint64 = uint64_t;
+
+// floating point number types
+using float32 = float;
+using float64 = double;
+using real    = float64;
+
+//
+// SIMD width (512 bit for 64bit float by default)
+//
+#ifndef NIX_SIMD_WIDTH
+#define NIX_SIMD_WIDTH 8
+#endif
+
+constexpr int nix_simd_width = NIX_SIMD_WIDTH;
+
+
 namespace common
 {
 using json = nlohmann::ordered_json;
 
-// common variables
-//@{
 // mathematical constants
 const float64 pi  = M_PI;     ///< pi
 const float64 pi2 = 2 * M_PI; ///< 2 pi
 const float64 pi4 = 4 * M_PI; ///< 4 pi
-
-// utility constants
-const float64 HUGEVAL   = HUGE_VAL;
-const float64 TOLERANCE = 1.0e-08; ///< default tolerance
-const float64 EPSILON   = 1.0e-15; ///< machine epsilon
-const float64 NORMMIN   = 1.0e-12; ///< minimum norm (for matrix solvers)
 
 // binary mode
 const std::ios::openmode binary_write  = std::ios::binary | std::ios::out | std::ios::trunc;
@@ -59,10 +76,46 @@ enum SendRecvMode {
   RecvMode = 0b10000000000000, // 8192
 };
 
-// common functions
-//@{
+///
+/// @brief return elapsed time
+/// @return elapsed time in second
+///
+inline double etime()
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv.tv_sec + (double)tv.tv_usec * 1.0e-6;
+}
 
-//// wrapper of std::memcpy
+///
+/// @brief return flag to determine endian of the system
+/// @return 1 on little endian and 16777216 on big endian
+///
+inline int32_t get_endian_flag()
+{
+  union {
+    int32_t flag;
+    uint8_t byte[4] = {1, 0, 0, 0};
+  } endian_flag;
+
+  return endian_flag.flag;
+}
+
+///
+/// @brief convinient wrapper for std::memcpy
+/// @param dst destination buffer pointer
+/// @param src source buffer pointer
+/// @param count number of bytes to be copied
+/// @param dstaddr offset from dst pointer
+/// @param srcaddr offset from src pointer
+/// @return number of bytes copied
+///
+/// If both `dst` or `src` are not `nullptr`, then data copy will be performed and it return the
+/// number of bytes that are copied from `src` to `dst`. Otherwise, it will be in a query mode, in
+/// which the copy operation will not be performed but the number of bytes to be copied will be
+/// returned.
+/// For coninience, `dstaddr` and `srcaddr` can be specified as offsets to the buffer pointers.
+///
 inline size_t memcpy_count(void *dst, void *src, size_t count, size_t dstaddr, size_t srcaddr)
 {
   if (dst != nullptr && src != nullptr) {
@@ -72,27 +125,6 @@ inline size_t memcpy_count(void *dst, void *src, size_t count, size_t dstaddr, s
   }
   return count;
 }
-
-//// return 1 on little endian and 16777216 on big endian
-inline int32_t get_endian_flag()
-{
-  union {
-    int32_t  flag;
-    uint8_t byte[4] = {1, 0, 0, 0};
-  } endian_flag;
-
-  return endian_flag.flag;
-}
-
-/// return elapsed time in second
-inline double etime()
-{
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return tv.tv_sec + (double)tv.tv_usec * 1.0e-6;
-}
-
-//@}
 
 } // namespace common
 

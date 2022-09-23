@@ -7,6 +7,11 @@
 
 namespace sfc
 {
+void gilbert2d(array2d &index, int &id, int &x, int &y, int ax, int ay, int bx, int by);
+
+void gilbert3d(array3d &index, int &id, int &x, int &y, int &z, int ax, int ay, int az, int bx,
+               int by, int bz, int cx, int cy, int cz);
+
 inline int sign(const int x)
 {
   return x == 0 ? 0 : (x > 0 ? +1 : -1);
@@ -34,7 +39,7 @@ inline void push3d(array3d &index, int &id, int &x, int &y, int &z, int dx, int 
 void get_map1d(size_t Nx, array1d &index, array2d &coord)
 {
   for (int ix = 0; ix < Nx; ix++) {
-    index(ix) = ix;
+    index(ix)    = ix;
     coord(ix, 0) = ix;
   }
 }
@@ -42,14 +47,14 @@ void get_map1d(size_t Nx, array1d &index, array2d &coord)
 void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord)
 {
   // calculate coordiante to ID map
-  if( Ny != 1 && Nx != 1 ) {
+  if (Ny != 1 && Nx != 1) {
     // 2D mapping
     assert(Nx % 2 == 0);
     assert(Ny % 2 == 0);
 
     int id = -1;
-    int x = 0;
-    int y = 0;
+    int x  = 0;
+    int y  = 0;
     push2d(index, id, x, y, 0, 0);
 
     if (Nx >= Ny) {
@@ -57,12 +62,12 @@ void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord)
     } else {
       gilbert2d(index, id, x, y, 0, Ny, Nx, 0);
     }
-  } else if ( Ny == 1 && Nx != 1 ) {
+  } else if (Ny == 1 && Nx != 1) {
     // 1D mapping along x
     array1d index1d = xt::zeros<int>({Nx});
     get_map1d(Nx, index1d, coord);
     xt::view(index, 1, xt::all()) = index1d;
-  } else if ( Ny != 1 && Nx == 1 ) {
+  } else if (Ny != 1 && Nx == 1) {
     // 1D mapping along y
     array1d index1d = xt::zeros<int>({Ny});
     get_map1d(Ny, index1d, coord);
@@ -75,7 +80,7 @@ void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord)
   // calculate ID to coordiante map
   for (int iy = 0; iy < Ny; iy++) {
     for (int ix = 0; ix < Nx; ix++) {
-      int id = index(iy, ix);
+      int id          = index(iy, ix);
       coord.at(id, 0) = ix;
       coord.at(id, 1) = iy;
     }
@@ -85,16 +90,16 @@ void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord)
 void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d &index, array2d &coord)
 {
   // calculate coordiante to ID map
-  if( Nz != 1 && Ny != 1 && Nx != 1 ) {
+  if (Nz != 1 && Ny != 1 && Nx != 1) {
     // 3D mapping
     assert(Nx % 2 == 0);
     assert(Ny % 2 == 0);
     assert(Nz % 2 == 0);
 
     int id = -1;
-    int x = 0;
-    int y = 0;
-    int z = 0;
+    int x  = 0;
+    int y  = 0;
+    int z  = 0;
     push3d(index, id, x, y, z, 0, 0, 0);
 
     if (Nx >= Ny && Nx >= Nz) {
@@ -104,32 +109,32 @@ void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d &index, array2d &coord)
     } else if (Nz >= Nx && Nz >= Ny) {
       gilbert3d(index, id, x, y, z, 0, 0, Nz, Nx, 0, 0, 0, Ny, 0);
     }
-  } else if ( Nz == 1 && Ny == 1 && Nx != 1 ) {
+  } else if (Nz == 1 && Ny == 1 && Nx != 1) {
     // 1D mapping along x
     array1d index1d = xt::zeros<int>({Nx});
     get_map1d(Nx, index1d, coord);
     xt::view(index, 1, 1, xt::all()) = index1d;
-  } else if ( Nz == 1 && Ny != 1 && Nx == 1 ) {
+  } else if (Nz == 1 && Ny != 1 && Nx == 1) {
     // 1D mapping along y
     array1d index1d = xt::zeros<int>({Ny});
     get_map1d(Ny, index1d, coord);
     xt::view(index, 1, xt::all(), 1) = index1d;
-  } else if ( Nz != 1 && Ny == 1 && Nx == 1 ) {
+  } else if (Nz != 1 && Ny == 1 && Nx == 1) {
     // 1D mapping along z
     array1d index1d = xt::zeros<int>({Nz});
     get_map1d(Nz, index1d, coord);
     xt::view(index, xt::all(), 1, 1) = index1d;
-  } else if ( Nz == 1 && Ny != 1 && Nx != 1 ) {
+  } else if (Nz == 1 && Ny != 1 && Nx != 1) {
     // 2D mapping along x, y
     array2d index2d = xt::zeros<int>({Ny, Nx});
     get_map2d(Ny, Nx, index2d, coord);
     xt::view(index, 1, xt::all(), xt::all()) = index2d;
-  } else if ( Nz != 1 && Ny == 1 && Nx != 1 ) {
+  } else if (Nz != 1 && Ny == 1 && Nx != 1) {
     // 2D mapping along x, z
     array2d index2d = xt::zeros<int>({Nz, Nx});
     get_map2d(Nz, Nx, index2d, coord);
     xt::view(index, xt::all(), 1, xt::all()) = index2d;
-  } else if ( Nz != 1 && Ny != 1 && Nx == 1 ) {
+  } else if (Nz != 1 && Ny != 1 && Nx == 1) {
     // 2D mapping along y, z
     array2d index2d = xt::zeros<int>({Nz, Ny});
     get_map2d(Nz, Ny, index2d, coord);
@@ -143,7 +148,7 @@ void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d &index, array2d &coord)
   for (int iz = 0; iz < Nz; iz++) {
     for (int iy = 0; iy < Ny; iy++) {
       for (int ix = 0; ix < Nx; ix++) {
-        int id = index.at(iz, iy, ix);
+        int id          = index.at(iz, iy, ix);
         coord.at(id, 0) = ix;
         coord.at(id, 1) = iy;
         coord.at(id, 2) = iz;
@@ -165,7 +170,7 @@ bool check_index(T &index)
   return status;
 }
 
-bool check_locality2d(array2d &coord, const int distmin)
+bool check_locality2d(array2d &coord, const int distmax)
 {
   bool status = true;
 
@@ -175,17 +180,17 @@ bool check_locality2d(array2d &coord, const int distmin)
   for (int id = 1; id < coord.shape(0); id++) {
     int ix = coord(id, 0);
     int iy = coord(id, 1);
-    dx = dx - ix;
-    dy = dy - iy;
-    status = status & (dx * dx + dy * dy <= distmin * distmin);
-    dx = ix;
-    dy = iy;
+    dx     = dx - ix;
+    dy     = dy - iy;
+    status = status & (dx * dx + dy * dy <= distmax * distmax);
+    dx     = ix;
+    dy     = iy;
   }
 
   return status;
 }
 
-bool check_locality3d(array2d &coord, const int distmin)
+bool check_locality3d(array2d &coord, const int distmax)
 {
   bool status = true;
 
@@ -197,13 +202,13 @@ bool check_locality3d(array2d &coord, const int distmin)
     int ix = coord(id, 0);
     int iy = coord(id, 1);
     int iz = coord(id, 2);
-    dx = dx - ix;
-    dy = dy - iy;
-    dz = dz - iz;
-    status = status & (dx * dx + dy * dy + dz * dz <= distmin * distmin);
-    dx = ix;
-    dy = iy;
-    dz = iz;
+    dx     = dx - ix;
+    dy     = dy - iy;
+    dz     = dz - iz;
+    status = status & (dx * dx + dy * dy + dz * dz <= distmax * distmax);
+    dx     = ix;
+    dy     = iy;
+    dz     = iz;
   }
 
   return status;
@@ -211,8 +216,8 @@ bool check_locality3d(array2d &coord, const int distmin)
 
 void gilbert2d(array2d &index, int &id, int &x, int &y, int ax, int ay, int bx, int by)
 {
-  int ww = abs(ax + ay);
-  int hh = abs(bx + by);
+  int ww  = abs(ax + ay);
+  int hh  = abs(bx + by);
   int dax = sign(ax);
   int day = sign(ay);
   int dbx = sign(bx);
@@ -294,9 +299,9 @@ void gilbert2d(array2d &index, int &id, int &x, int &y, int ax, int ay, int bx, 
 void gilbert3d(array3d &index, int &id, int &x, int &y, int &z, int ax, int ay, int az, int bx,
                int by, int bz, int cx, int cy, int cz)
 {
-  int ww = abs(ax + ay + az);
-  int hh = abs(bx + by + bz);
-  int dd = abs(cx + cy + cz);
+  int ww  = abs(ax + ay + az);
+  int hh  = abs(bx + by + bz);
+  int dd  = abs(cx + cy + cz);
   int dax = sign(ax);
   int day = sign(ay);
   int daz = sign(az);

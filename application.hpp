@@ -239,8 +239,8 @@ public:
 
 DEFINE_MEMBER(void, setup_cmd)()
 {
-  const float64     etmax = 60 * 60;         // elapsed time limit (1 hour by default)
-  const float64     ptmax = common::HUGEVAL; // unlimited physical time
+  const float64     etmax = 60 * 60;
+  const float64     ptmax = std::numeric_limits<float64>::max();
   const std::string fn    = "default.json";
 
   parser.add<std::string>("config", 'c', "configuration file", false, fn);
@@ -383,7 +383,7 @@ DEFINE_MEMBER(void, initialize)(int argc, char **argv)
   initialize_chunkmap();
 
   // load balancer
-  balancer.reset(new Balancer());
+  balancer = std::make_unique<Balancer>();
 
   // buffer; 16 kB by default
   bufsize = 1024 * 16;
@@ -482,7 +482,7 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
   // initialize global chunkmap
   // (chunkes are equally distributed over all processes)
   //
-  chunkmap.reset(new ChunkMap(cdims));
+  chunkmap = std::make_unique<ChunkMap>(cdims);
 
   for (int id = 0; id < nc; id++) {
     chunkmap->set_rank(id, id / mc);
@@ -497,7 +497,7 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
 
     chunkvec.resize(mc);
     for (int i = 0; i < mc; i++, id++) {
-      chunkvec[i].reset(new Chunk(dims, id));
+      chunkvec[i] = std::make_unique<Chunk>(dims, id);
     }
     numchunk = mc;
   }

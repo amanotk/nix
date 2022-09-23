@@ -2,17 +2,17 @@
 #ifndef _MPISTREAM_HPP_
 #define _MPISTREAM_HPP_
 
-///
-/// MPI stream
-///
 #define MPICH_IGNORE_CXX_SEEK
-#include "cmdline.hpp"
-#include "common.hpp"
 #include <mpi.h>
 
-using namespace common;
+// macros for consitent notations
+#define MPI_FLOAT32_T MPI_FLOAT
+#define MPI_FLOAT64_T MPI_DOUBLE
 
-/// template for Singleton class
+///
+/// @brief singleton class
+/// @tparam T typename
+///
 template <class T>
 class Singleton
 {
@@ -32,7 +32,9 @@ public:
   }
 };
 
-/// stream buffer mimicking "tee" command
+///
+/// @brief stream buffer mimicking "tee" command
+///
 class teebuf : public std::streambuf
 {
 private:
@@ -64,7 +66,7 @@ public:
 };
 
 ///
-/// MPI stream class
+/// @brief MPI stream class
 ///
 class mpistream : public Singleton<mpistream>
 {

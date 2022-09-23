@@ -20,12 +20,8 @@ using ParticleVec = std::vector<PtrParticle>;
 ///
 class Particle
 {
-private:
-  // these constructors are disabled for safety
-  Particle(const Particle &particle);
-
 public:
-  static constexpr int simd_width = config_simd_width;
+  static constexpr int simd_width = nix_simd_width;
 
   static constexpr int Nc = 7; ///< # component for each particle (including ID)
 

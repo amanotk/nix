@@ -2,8 +2,8 @@
 #include "chunkmap.hpp"
 
 #define DEFINE_MEMBER(type, name)                                                                  \
-  template <int N>                                                                                 \
-  type ChunkMap<N>::name
+  template <int Ndim>                                                                              \
+  type ChunkMap<Ndim>::name
 #define DEFINE_MEMBER1(type, name)                                                                 \
   template <>                                                                                      \
   type ChunkMap<1>::name
