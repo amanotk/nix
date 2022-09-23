@@ -2,42 +2,45 @@
 #ifndef _BUFFER_HPP_
 #define _BUFFER_HPP_
 
-///
-/// Buffer
-///
-/// $Id$
-///
 #include "common.hpp"
 
 ///
-/// Buffer for MPI
+/// @brief Buffer for MPI
 ///
-struct Buffer
-{
-  typedef std::unique_ptr<char[]> Pointer;
+struct Buffer {
+  using Pointer = std::unique_ptr<uint8_t[]>;
 
-  int     size;
-  Pointer data = nullptr;
+  int     size; ///< size of buffer in byte
+  Pointer data; ///< data pointer
 
-  /// constructor
-  Buffer(const int s=0)
-    : size(s)
+  ///
+  /// @brief Constructor
+  /// @param s size of buffer
+  ///
+  Buffer(const int s = 0) : size(s)
   {
-    data.reset(new char[size]);
+    data = std::make_unique<uint8_t[]>(size);
   }
 
-  /// get raw pointer
-  char* get(const int pos=0)
+  ///
+  /// @brief get raw pointer
+  /// @param pos position in byte from the beginning of pointer
+  /// @return return pointer
+  ///
+  uint8_t *get(const int pos = 0)
   {
     return data.get() + pos;
   }
 
-  /// resize
+  ///
+  /// @brief resize the buffer if 's' is larger than the current (otherwise do nothing)
+  /// @param s new size for resize
+  ///
   void resize(const int s)
   {
-    if( s > size ) {
+    if (s > size) {
       // allocate new memory and copy contents
-      Pointer p(new char[s]);
+      Pointer p = std::make_unique<uint8_t[]>(s);
       std::memcpy(data.get(), p.get(), size);
 
       // move

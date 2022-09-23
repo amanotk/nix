@@ -260,7 +260,7 @@ DEFINE_MEMBER(int, pack_diagnostic_load)(void *buffer, const int address)
   }
 
   std::copy(load.begin(), load.end(),
-            reinterpret_cast<float64 *>(static_cast<char *>(buffer) + address));
+            reinterpret_cast<float64 *>(static_cast<uint8_t *>(buffer) + address));
 
   return count;
 }
@@ -274,7 +274,7 @@ DEFINE_MEMBER(int, pack_diagnostic_coord)(void *buffer, const int address, const
     return count;
   }
 
-  float64 *ptr = reinterpret_cast<float64 *>(static_cast<char *>(buffer) + address);
+  float64 *ptr = reinterpret_cast<float64 *>(static_cast<uint8_t *>(buffer) + address);
 
   switch (dir) {
   case 0: {
@@ -312,7 +312,7 @@ DEFINE_MEMBER(int, pack_diagnostic_field)
   auto vv = xt::view(u, Iz, Iy, Ix, xt::all());
 
   // packing
-  char *ptr = &static_cast<char *>(buffer)[address];
+  uint8_t *ptr = &static_cast<uint8_t *>(buffer)[address];
   std::copy(vv.begin(), vv.end(), reinterpret_cast<float64 *>(ptr));
 
   return count;
@@ -449,7 +449,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
         }
 
         // copy to the end of particle array
-        char *recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        uint8_t *recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
         for (int is = 0; is < Ns; is++) {
           // header
           int cnt;

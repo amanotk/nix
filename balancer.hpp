@@ -2,11 +2,6 @@
 #ifndef _BALANCER_HPP_
 #define _BALANCER_HPP_
 
-///
-/// Balancer
-///
-/// $Id$
-///
 #include "common.hpp"
 
 ///

@@ -66,8 +66,8 @@ enum SendRecvMode {
 inline size_t memcpy_count(void *dst, void *src, size_t count, size_t dstaddr, size_t srcaddr)
 {
   if (dst != nullptr && src != nullptr) {
-    char *dstptr = &static_cast<char *>(dst)[dstaddr];
-    char *srcptr = &static_cast<char *>(src)[srcaddr];
+    uint8_t *dstptr = &static_cast<uint8_t *>(dst)[dstaddr];
+    uint8_t *srcptr = &static_cast<uint8_t *>(src)[srcaddr];
     std::memcpy(dstptr, srcptr, count);
   }
   return count;
@@ -77,8 +77,8 @@ inline size_t memcpy_count(void *dst, void *src, size_t count, size_t dstaddr, s
 inline int32_t get_endian_flag()
 {
   union {
-    int  flag;
-    char byte[4] = {1, 0, 0, 0};
+    int32_t  flag;
+    uint8_t byte[4] = {1, 0, 0, 0};
   } endian_flag;
 
   return endian_flag.flag;

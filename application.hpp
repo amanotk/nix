@@ -612,10 +612,10 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int> &newrank)
   const int rpos_l = 0;
   const int rpos_r = recvbuf.size / 2;
 
-  char *sbuf_l = sendbuf.get(spos_l);
-  char *sbuf_r = sendbuf.get(spos_r);
-  char *rbuf_l = nullptr;
-  char *rbuf_r = nullptr;
+  uint8_t *sbuf_l = sendbuf.get(spos_l);
+  uint8_t *sbuf_r = sendbuf.get(spos_r);
+  uint8_t *rbuf_l = nullptr;
+  uint8_t *rbuf_r = nullptr;
 
   //
   // pack and calculate message size to be sent
@@ -680,8 +680,8 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int> &newrank)
 
     // unpack buffer from left
     {
-      int   size    = 0;
-      char *rbuf_l0 = rbuf_l;
+      int      size    = 0;
+      uint8_t *rbuf_l0 = rbuf_l;
 
       while ((rbuf_l - rbuf_l0) < rbufcnt_l) {
         PtrChunk p = std::make_unique<Chunk>(dims, 0);
@@ -693,8 +693,8 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int> &newrank)
 
     // unpack buffer from right
     {
-      int   size    = 0;
-      char *rbuf_r0 = rbuf_r;
+      int      size    = 0;
+      uint8_t *rbuf_r0 = rbuf_r;
 
       while ((rbuf_r - rbuf_r0) < rbufcnt_r) {
         PtrChunk p = std::make_unique<Chunk>(dims, 0);
@@ -780,7 +780,7 @@ DEFINE_MEMBER(void, write_chunk_all)(MPI_File &fh, size_t &disp, const int mode)
   {
     MPI_Request req;
     size_t      chunkdisp = disp + bufaddr;
-    char *      sendptr   = sendbuf.get();
+    uint8_t *   sendptr   = sendbuf.get();
 
     for (int i = 0; i < numchunk; i++) {
       // pack
