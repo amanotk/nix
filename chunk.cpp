@@ -2,10 +2,10 @@
 #include "chunk.hpp"
 
 #define DEFINE_MEMBER(type, name)                                                                  \
-  template <int N>                                                                                 \
-  type Chunk<N>::name
+  template <int Ndim>                                                                              \
+  type Chunk<Ndim>::name
 
-DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
+DEFINE_MEMBER(void, initialize)(const int dims[Ndim], const int id)
 {
   int shift;
 
@@ -26,7 +26,7 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
   set_id(id);
 
   // set dimensions
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < Ndim; i++) {
     this->dims[i] = dims[i];
   }
 
@@ -36,11 +36,11 @@ DEFINE_MEMBER(void, initialize)(const int dims[N], const int id)
 
 DEFINE_MEMBER(, Chunk)()
 {
-  const int dims[N] = {};
+  const int dims[Ndim] = {};
   initialize(dims, 0);
 }
 
-DEFINE_MEMBER(, Chunk)(const int dims[N], const int id)
+DEFINE_MEMBER(, Chunk)(const int dims[Ndim], const int id)
 {
   initialize(dims, id);
 }

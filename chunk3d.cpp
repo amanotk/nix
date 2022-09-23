@@ -738,6 +738,48 @@ DEFINE_MEMBER(void, set_boundary_particle)(PtrParticle particle, int Lbp, int Ub
   }
 }
 
+DEFINE_MEMBER(, MpiBuffer::MpiBuffer)() : comm(MPI_COMM_WORLD)
+{
+}
+
+DEFINE_MEMBER(int, MpiBuffer::pack)(void *buffer, const int address)
+{
+  using common::memcpy_count;
+
+  int count = address;
+  int ssize = sendbuf.size;
+  int rsize = recvbuf.size;
+  int asize = bufsize.size() * sizeof(int);
+
+  count += memcpy_count(buffer, &ssize, sizeof(int), count, 0);
+  count += memcpy_count(buffer, &rsize, sizeof(int), count, 0);
+  count += memcpy_count(buffer, bufsize.data(), asize, count, 0);
+  count += memcpy_count(buffer, bufaddr.data(), asize, count, 0);
+
+  return count;
+}
+
+DEFINE_MEMBER(int, MpiBuffer::unpack)(void *buffer, const int address)
+{
+  using common::memcpy_count;
+
+  int count = address;
+  int ssize = 0;
+  int rsize = 0;
+  int asize = bufsize.size() * sizeof(int);
+
+  count += memcpy_count(&ssize, buffer, sizeof(int), 0, count);
+  count += memcpy_count(&rsize, buffer, sizeof(int), 0, count);
+  count += memcpy_count(bufsize.data(), buffer, asize, 0, count);
+  count += memcpy_count(bufaddr.data(), buffer, asize, 0, count);
+
+  // memory allocation
+  sendbuf.resize(ssize);
+  recvbuf.resize(rsize);
+
+  return count;
+}
+
 // explicit instantiation for boundary margin of 1
 template class Chunk3D<1>;
 template void Chunk3D<1>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
