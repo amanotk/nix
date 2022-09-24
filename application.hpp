@@ -61,7 +61,6 @@ protected:
   int    periodic[3];           ///< flag for periodic boundary
   int    nprocess;              ///< number of mpi processes
   int    thisrank;              ///< my rank
-  int    bufsize;               ///< size of buffer
   Buffer sendbuf;               ///< send buffer
   Buffer recvbuf;               ///< recv buffer
   bool   mpi_init_with_nullptr; ///< for testing purpose
@@ -386,7 +385,7 @@ DEFINE_MEMBER(void, initialize)(int argc, char **argv)
   balancer = std::make_unique<Balancer>();
 
   // buffer; 16 kB by default
-  bufsize = 1024 * 16;
+  int bufsize = 1024 * 16;
   sendbuf.resize(bufsize);
   recvbuf.resize(bufsize);
 }
@@ -600,7 +599,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int> &newrank)
     }
 
     // make buffer size the same for all processes
-    bufsize = std::max(bufsize, 2 * std::max(sendsize_l, sendsize_r));
+    int bufsize = std::max(sendbuf.size, 2 * std::max(sendsize_l, sendsize_r));
     MPI_Allreduce(MPI_IN_PLACE, &bufsize, 1, MPI_INT32_T, MPI_MAX, MPI_COMM_WORLD);
 
     sendbuf.resize(bufsize);
