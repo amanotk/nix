@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <bitset>
 #include <cassert>
+#include <chrono>
 #include <cinttypes>
 #include <cmath>
 #include <cstdarg>
@@ -50,7 +51,6 @@ using real    = float64;
 
 constexpr int nix_simd_width = NIX_SIMD_WIDTH;
 
-
 namespace common
 {
 using json = nlohmann::ordered_json;
@@ -77,14 +77,14 @@ enum SendRecvMode {
 };
 
 ///
-/// @brief return elapsed time
-/// @return elapsed time in second
+/// @brief return time since epoch
+/// @return time in second
 ///
 inline double etime()
 {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return tv.tv_sec + (double)tv.tv_usec * 1.0e-6;
+  auto t = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::high_resolution_clock::now().time_since_epoch());
+  return static_cast<double>(t.count()) * 1.0e-3;
 }
 
 ///
