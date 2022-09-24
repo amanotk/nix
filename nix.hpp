@@ -1,10 +1,7 @@
 // -*- C++ -*-
-#ifndef _COMMON_H_
-#define _COMMON_H_
+#ifndef _NIX_HPP_
+#define _NIX_HPP_
 
-///
-/// common includes and definitions
-///
 #include "debug.hpp"
 
 #include <algorithm>
@@ -51,7 +48,7 @@ using real    = float64;
 
 constexpr int nix_simd_width = NIX_SIMD_WIDTH;
 
-namespace common
+namespace nix
 {
 using json = nlohmann::ordered_json;
 
@@ -126,7 +123,7 @@ inline size_t memcpy_count(void *dst, void *src, size_t count, size_t dstaddr, s
   return count;
 }
 
-} // namespace common
+} // namespace nix
 
 // Local Variables:
 // c-file-style   : "gnu"

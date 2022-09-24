@@ -2,7 +2,7 @@
 #ifndef _BALANCER_HPP_
 #define _BALANCER_HPP_
 
-#include "common.hpp"
+#include "nix.hpp"
 
 ///
 /// @brief Load Balancer

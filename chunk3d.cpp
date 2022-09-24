@@ -86,7 +86,7 @@ DEFINE_MEMBER(, ~Chunk3D)()
 
 DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 {
-  using common::memcpy_count;
+  using nix::memcpy_count;
 
   int count = address;
 
@@ -113,7 +113,7 @@ DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 
 DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
 {
-  using common::memcpy_count;
+  using nix::memcpy_count;
 
   int count = address;
 
@@ -321,7 +321,7 @@ DEFINE_MEMBER(int, pack_diagnostic_field)
 DEFINE_MEMBER(int, pack_diagnostic_particle)
 (void *buffer, const int address, PtrParticle p)
 {
-  using common::memcpy_count;
+  using nix::memcpy_count;
 
   int count = address;
 
@@ -663,12 +663,12 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
 {
   int  flag   = 0;
   int  bcmode = mode;
-  bool send   = (mode & common::SendMode) == common::SendMode; // send flag
-  bool recv   = (mode & common::RecvMode) == common::RecvMode; // recv flag
+  bool send   = (mode & nix::SendMode) == nix::SendMode; // send flag
+  bool recv   = (mode & nix::RecvMode) == nix::RecvMode; // recv flag
 
   // remove send/recv bits
-  bcmode &= ~common::SendMode;
-  bcmode &= ~common::RecvMode;
+  bcmode &= ~nix::SendMode;
+  bcmode &= ~nix::RecvMode;
 
   // MPI buffer
   PtrMpiBuffer mpibuf = mpibufvec[bcmode];
@@ -744,7 +744,7 @@ DEFINE_MEMBER(, MpiBuffer::MpiBuffer)() : comm(MPI_COMM_WORLD)
 
 DEFINE_MEMBER(int, MpiBuffer::pack)(void *buffer, const int address)
 {
-  using common::memcpy_count;
+  using nix::memcpy_count;
 
   int count = address;
   int ssize = sendbuf.size;
@@ -761,7 +761,7 @@ DEFINE_MEMBER(int, MpiBuffer::pack)(void *buffer, const int address)
 
 DEFINE_MEMBER(int, MpiBuffer::unpack)(void *buffer, const int address)
 {
-  using common::memcpy_count;
+  using nix::memcpy_count;
 
   int count = address;
   int ssize = 0;

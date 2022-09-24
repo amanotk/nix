@@ -5,9 +5,9 @@
 #include "balancer.hpp"
 #include "buffer.hpp"
 #include "cmdline.hpp"
-#include "common.hpp"
 #include "jsonio.hpp"
 #include "mpistream.hpp"
+#include "nix.hpp"
 #include "tinyformat.hpp"
 #include <nlohmann/json.hpp>
 
@@ -21,7 +21,7 @@ class Application
 {
 private:
   using cmdparser = cmdline::parser;
-  using json      = common::json;
+  using json      = nix::json;
 
 protected:
   using PtrBalancer = std::unique_ptr<Balancer>;
@@ -803,7 +803,7 @@ DEFINE_MEMBER(void, write_chunk_all)(MPI_File &fh, size_t &disp, const int mode)
 
 DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int> &queue, const int mode)
 {
-  int recvmode = common::RecvMode | mode;
+  int recvmode = nix::RecvMode | mode;
 
   while (queue.empty() == false) {
     // find chunk for unpacking

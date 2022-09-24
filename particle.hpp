@@ -2,7 +2,7 @@
 #ifndef _PARTICLE_HPP_
 #define _PARTICLE_HPP_
 
-#include "common.hpp"
+#include "nix.hpp"
 #include "xtensorall.hpp"
 
 class Particle;
@@ -148,7 +148,7 @@ public:
   ///
   int pack(void *buffer, const int address)
   {
-    using common::memcpy_count;
+    using nix::memcpy_count;
 
     int count = address;
 
@@ -171,7 +171,7 @@ public:
   ///
   int unpack(void *buffer, const int address)
   {
-    using common::memcpy_count;
+    using nix::memcpy_count;
 
     int count = address;
 

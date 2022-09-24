@@ -2,7 +2,7 @@
 #ifndef _SFC_HPP_
 #define _SFC_HPP_
 
-#include "common.hpp"
+#include "nix.hpp"
 #include "tinyformat.hpp"
 #include "xtensorall.hpp"
 

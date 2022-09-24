@@ -23,7 +23,7 @@ DEFINE_MEMBER(, ~FDTD)()
 
 DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 {
-  using common::memcpy_count;
+  using nix::memcpy_count;
 
   int count = address;
 
@@ -36,7 +36,7 @@ DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 
 DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
 {
-  using common::memcpy_count;
+  using nix::memcpy_count;
 
   int count = address;
 
@@ -62,7 +62,7 @@ DEFINE_MEMBER(void, setup)(json &config)
     // propagation in z dir
     kvec[0] = 0;
     kvec[1] = 0;
-    kvec[2] = common::pi2 / zlim[2];
+    kvec[2] = nix::pi2 / zlim[2];
     efd[0]  = 0;
     efd[1]  = 1;
     efd[2]  = 2;
@@ -73,7 +73,7 @@ DEFINE_MEMBER(void, setup)(json &config)
   case 1: {
     // propagation in y dir
     kvec[0] = 0;
-    kvec[1] = common::pi2 / ylim[2];
+    kvec[1] = nix::pi2 / ylim[2];
     kvec[2] = 0;
     efd[0]  = 2;
     efd[1]  = 0;
@@ -84,7 +84,7 @@ DEFINE_MEMBER(void, setup)(json &config)
   } break;
   case 2: {
     // propagation in x dir
-    kvec[0] = common::pi2 / xlim[2];
+    kvec[0] = nix::pi2 / xlim[2];
     kvec[1] = 0;
     kvec[2] = 0;
     efd[0]  = 1;
@@ -125,7 +125,7 @@ DEFINE_MEMBER(void, push)(const float64 delt)
 {
   const float64 cfl = cc * delt / delh;
 
-  float64 etime = common::etime();
+  float64 etime = nix::etime();
 
   // advance E-field
   for (int iz = Lbz - 1; iz <= Ubz; iz++) {
@@ -156,7 +156,7 @@ DEFINE_MEMBER(void, push)(const float64 delt)
   }
 
   // store computation time
-  load[0] += common::etime() - etime;
+  load[0] += nix::etime() - etime;
 }
 
 DEFINE_MEMBER(int, pack_diagnostic)(int mode, void *buffer, const int address)

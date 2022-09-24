@@ -2,7 +2,7 @@
 #ifndef _BUFFER_HPP_
 #define _BUFFER_HPP_
 
-#include "common.hpp"
+#include "nix.hpp"
 
 ///
 /// @brief Buffer for MPI

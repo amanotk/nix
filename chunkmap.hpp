@@ -2,8 +2,8 @@
 #ifndef _CHUNKMAP_HPP_
 #define _CHUNKMAP_HPP_
 
-#include "common.hpp"
 #include "jsonio.hpp"
+#include "nix.hpp"
 #include "sfc.hpp"
 #include "xtensorall.hpp"
 
@@ -19,7 +19,7 @@ template <int Ndim>
 class ChunkMap
 {
 protected:
-  using json       = common::json;
+  using json       = nix::json;
   using IntArray1D = xt::xtensor<int, 1>;
   using IntArray2D = xt::xtensor<int, 2>;
   using IntArrayND = xt::xtensor<int, Ndim>;

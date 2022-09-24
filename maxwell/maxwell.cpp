@@ -42,7 +42,7 @@ DEFINE_MEMBER(void, setup)()
 
 DEFINE_MEMBER(void, push)()
 {
-  int recvmode = common::RecvMode;
+  int recvmode = nix::RecvMode;
 
   std::set<int> queue;
 
@@ -106,7 +106,7 @@ DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
     chunkmap->save_json(cmap);
 
     // meta data
-    root["meta"] = {{"endian", common::get_endian_flag()},
+    root["meta"] = {{"endian", nix::get_endian_flag()},
                     {"rawfile", fn_data},
                     {"order", 1},
                     {"time", curtime},

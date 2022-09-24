@@ -2,7 +2,7 @@
 #ifndef _CHUNK_HPP_
 #define _CHUNK_HPP_
 
-#include "common.hpp"
+#include "nix.hpp"
 
 static constexpr int DIRTAG_BIT  = 5;
 static constexpr int DIRTAG_SIZE = 1 << DIRTAG_BIT;

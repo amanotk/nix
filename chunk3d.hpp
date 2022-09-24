@@ -4,9 +4,9 @@
 
 #include "buffer.hpp"
 #include "chunk.hpp"
-#include "common.hpp"
 #include "debug.hpp"
 #include "jsonio.hpp"
+#include "nix.hpp"
 #include "particle.hpp"
 #include "xtensorall.hpp"
 
@@ -18,7 +18,7 @@ template <int Nb>
 class Chunk3D : public Chunk<3>
 {
 public:
-  using json      = common::json;
+  using json      = nix::json;
   using T_array3d = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
   using T_request = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
 

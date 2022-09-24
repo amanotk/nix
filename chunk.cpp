@@ -10,7 +10,7 @@ DEFINE_MEMBER(void, initialize)(const int dims[Ndim], const int id)
   int shift;
 
   // endian flag
-  if (common::get_endian_flag() == 1) {
+  if (nix::get_endian_flag() == 1) {
     shift = 31 - DIRTAG_BIT;
   } else {
     shift = 0;
@@ -66,7 +66,7 @@ DEFINE_MEMBER(float64, get_total_load)()
 
 DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 {
-  using common::memcpy_count;
+  using nix::memcpy_count;
 
   int count = address;
 
@@ -86,7 +86,7 @@ DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 
 DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
 {
-  using common::memcpy_count;
+  using nix::memcpy_count;
 
   int count = address;
 
