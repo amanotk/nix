@@ -8,6 +8,7 @@
 
 class TestChunk;
 
+using namespace nix;
 using BaseApp = Application<TestChunk, ChunkMap<3>>;
 
 class TestChunk : public Chunk<3>

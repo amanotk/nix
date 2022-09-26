@@ -4,6 +4,8 @@
 
 #include "nix.hpp"
 
+NIX_NAMESPACE_BEGIN
+
 ///
 /// @brief Buffer for MPI
 ///
@@ -27,7 +29,7 @@ struct Buffer {
   /// @param pos position in byte from the beginning of pointer
   /// @return return pointer
   ///
-  uint8_t *get(const int pos = 0)
+  uint8_t* get(const int pos = 0)
   {
     return data.get() + pos;
   }
@@ -49,6 +51,8 @@ struct Buffer {
     }
   }
 };
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

@@ -6,6 +6,8 @@
 
 #include "../thirdparty/catch.hpp"
 
+using namespace nix;
+
 //
 // Chunk<1>
 //

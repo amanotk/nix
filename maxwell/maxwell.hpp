@@ -7,6 +7,7 @@
 #include "../jsonio.hpp"
 #include "fdtd.hpp"
 
+using namespace nix;
 using BaseApp = Application<FDTD, ChunkMap<3>>;
 
 //

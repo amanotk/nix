@@ -10,6 +10,8 @@
 #include "particle.hpp"
 #include "xtensorall.hpp"
 
+NIX_NAMESPACE_BEGIN
+
 ///
 /// @brief Base class for 3D Chunk
 /// @tparam Nb number of boundary margins
@@ -18,7 +20,6 @@ template <int Nb>
 class Chunk3D : public Chunk<3>
 {
 public:
-  using json      = nix::json;
   using T_array3d = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
   using T_request = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
 
@@ -45,7 +46,7 @@ public:
     /// @param address first address of buffer to which the data will be packed
     /// @return `address` + (number of bytes packed as a result)
     ///
-    int pack(void *buffer, const int address);
+    int pack(void* buffer, const int address);
 
     ///
     /// @brief unpack the content from given `buffer`
@@ -53,7 +54,7 @@ public:
     /// @param address first address of buffer to which the data will be packed
     /// @return `address` + (number of bytes packed as a result)
     ///
-    int unpack(void *buffer, const int address);
+    int unpack(void* buffer, const int address);
   };
   using PtrMpiBuffer = std::shared_ptr<MpiBuffer>;
   using MpiBufferVec = std::vector<PtrMpiBuffer>;
@@ -91,7 +92,7 @@ protected:
   /// @param address first address of buffer to which the data will be packed
   /// @return `address` + (number of bytes packed as a result)
   ///
-  int pack_diagnostic_load(void *buffer, const int address);
+  int pack_diagnostic_load(void* buffer, const int address);
 
   ///
   /// @brief pack diagnostic for coordinate array
@@ -100,7 +101,7 @@ protected:
   /// @param dir direction of coordinate
   /// @return `address` + (number of bytes packed as a result)
   ///
-  int pack_diagnostic_coord(void *buffer, const int address, const int dir);
+  int pack_diagnostic_coord(void* buffer, const int address, const int dir);
 
   ///
   /// @brief pack diagnostic for field quantity
@@ -109,7 +110,7 @@ protected:
   /// @param u field quantity to be packed
   /// @return `address` + (number of bytes packed as a result)
   ///
-  int pack_diagnostic_field(void *buffer, const int address, xt::xtensor<float64, 4> &u);
+  int pack_diagnostic_field(void* buffer, const int address, xt::xtensor<float64, 4>& u);
 
   ///
   /// @brief pack diagnostic for particle (single species)
@@ -118,21 +119,21 @@ protected:
   /// @param p particle species
   /// @return `address` + (number of bytes packed as a result)
   ///
-  int pack_diagnostic_particle(void *buffer, const int address, PtrParticle p);
+  int pack_diagnostic_particle(void* buffer, const int address, PtrParticle p);
 
   ///
   /// @brief pack and start particle boundary exchange
   /// @param mpibuf MPI buffer to be used
   /// @param particle list of particle species
   ///
-  void begin_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec &particle);
+  void begin_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec& particle);
 
   ///
   /// @brief wait particle boundary exchange and unpack
   /// @param mpibuf MPI buffer to be used
   /// @param particle list of particle species
   ///
-  void end_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec &particle);
+  void end_bc_exchange(PtrMpiBuffer mpibuf, ParticleVec& particle);
 
   ///
   /// @brief pack and start field quantity boundary exchange
@@ -142,7 +143,7 @@ protected:
   /// @param moment flag if it is for a moment quantity
   ///
   template <typename T>
-  void begin_bc_exchange(PtrMpiBuffer mpibuf, T &array, bool moment = false);
+  void begin_bc_exchange(PtrMpiBuffer mpibuf, T& array, bool moment = false);
 
   ///
   /// @brief wait field boundary exchange and unpack
@@ -152,7 +153,7 @@ protected:
   /// @param moment flag if it is for a moment quantity
   ///
   template <typename T>
-  void end_bc_exchange(PtrMpiBuffer mpibuf, T &array, bool moment = false);
+  void end_bc_exchange(PtrMpiBuffer mpibuf, T& array, bool moment = false);
 
   ///
   /// @brief setup MPI Buffer
@@ -162,7 +163,7 @@ protected:
   /// @param elembyte number of bytes for each element
   ///
   template <typename T>
-  void set_mpi_buffer(PtrMpiBuffer mpibuf, const int headbyte, const T &elembyte);
+  void set_mpi_buffer(PtrMpiBuffer mpibuf, const int headbyte, const T& elembyte);
 
 public:
   ///
@@ -183,7 +184,7 @@ public:
   /// @param address first address of buffer to which the data will be packed
   /// @return `address` + (number of bytes packed as a result)
   ///
-  virtual int pack(void *buffer, const int address) override;
+  virtual int pack(void* buffer, const int address) override;
 
   ///
   /// @brief unpack the content of Chunk from given `buffer`
@@ -191,21 +192,21 @@ public:
   /// @param address first address of buffer from which the data will be unpacked
   /// @return `address` + (number of bytes unpacked as a result)
   ///
-  virtual int unpack(void *buffer, const int address) override;
+  virtual int unpack(void* buffer, const int address) override;
 
   ///
   /// @brief set the global context of Chunk
   /// @param offset offset for each direction in global dimensions
   /// @param ndims local number of grids for each direction
   ///
-  virtual void set_global_context(const int *offset, const int *ndims);
+  virtual void set_global_context(const int* offset, const int* ndims);
 
   ///
   /// @brief set MPI communicator to MpiBuffer of given `mode`
   /// @param mode mode to specify MpiBuffer
   /// @param comm MPI communicator to be set to MpiBuffer
   ///
-  virtual void set_mpi_communicator(const int mode, MPI_Comm &comm);
+  virtual void set_mpi_communicator(const int mode, MPI_Comm& comm);
 
   ///
   /// @brief count particles in cells to prepare for sorting
@@ -221,7 +222,7 @@ public:
   /// @brief peform particle sorting
   /// @param particle list of particle to be sorted
   ///
-  virtual void sort_particle(ParticleVec &particle);
+  virtual void sort_particle(ParticleVec& particle);
 
   ///
   /// @brief query status of boundary exchange
@@ -248,7 +249,7 @@ public:
   /// @brief setup initial condition
   /// @param config configuration
   ///
-  virtual void setup(json &config) = 0;
+  virtual void setup(json& config) = 0;
 
   ///
   /// @brief begin boundary exchange
@@ -262,6 +263,8 @@ public:
   ///
   virtual void set_boundary_end(const int mode) = 0;
 };
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

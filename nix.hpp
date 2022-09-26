@@ -28,6 +28,19 @@
 
 #include <nlohmann/json.hpp>
 
+#define NIX_NAMESPACE_BEGIN                                                                        \
+  namespace nix                                                                                    \
+  {
+#define NIX_NAMESPACE_END }
+
+//
+// nix namespace
+//
+NIX_NAMESPACE_BEGIN
+
+// json
+using json = nlohmann::ordered_json;
+
 // integer types
 using int32  = int32_t;
 using int64  = int64_t;
@@ -45,17 +58,15 @@ using real    = float64;
 #ifndef NIX_SIMD_WIDTH
 #define NIX_SIMD_WIDTH 8
 #endif
-
 constexpr int nix_simd_width = NIX_SIMD_WIDTH;
 
-namespace nix
-{
-using json = nlohmann::ordered_json;
-
 // mathematical constants
-const float64 pi  = M_PI;     ///< pi
-const float64 pi2 = 2 * M_PI; ///< 2 pi
-const float64 pi4 = 4 * M_PI; ///< 4 pi
+namespace math
+{
+constexpr float64 pi  = M_PI;     ///< pi
+constexpr float64 pi2 = 2 * M_PI; ///< 2 pi
+constexpr float64 pi4 = 4 * M_PI; ///< 4 pi
+} // namespace math
 
 // binary mode
 const std::ios::openmode binary_write  = std::ios::binary | std::ios::out | std::ios::trunc;
@@ -74,10 +85,10 @@ enum SendRecvMode {
 };
 
 ///
-/// @brief return time since epoch
+/// @brief return wall clock time since epoch
 /// @return time in second
 ///
-inline double etime()
+inline double wall_clock()
 {
   auto t = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::high_resolution_clock::now().time_since_epoch());
@@ -99,7 +110,7 @@ inline int32_t get_endian_flag()
 }
 
 ///
-/// @brief convinient wrapper for std::memcpy
+/// @brief convenient wrapper for std::memcpy
 /// @param dst destination buffer pointer
 /// @param src source buffer pointer
 /// @param count number of bytes to be copied
@@ -113,17 +124,17 @@ inline int32_t get_endian_flag()
 /// returned.
 /// For coninience, `dstaddr` and `srcaddr` can be specified as offsets to the buffer pointers.
 ///
-inline size_t memcpy_count(void *dst, void *src, size_t count, size_t dstaddr, size_t srcaddr)
+inline size_t memcpy_count(void* dst, void* src, size_t count, size_t dstaddr, size_t srcaddr)
 {
   if (dst != nullptr && src != nullptr) {
-    uint8_t *dstptr = &static_cast<uint8_t *>(dst)[dstaddr];
-    uint8_t *srcptr = &static_cast<uint8_t *>(src)[srcaddr];
+    uint8_t* dstptr = &static_cast<uint8_t*>(dst)[dstaddr];
+    uint8_t* srcptr = &static_cast<uint8_t*>(src)[srcaddr];
     std::memcpy(dstptr, srcptr, count);
   }
   return count;
 }
 
-} // namespace nix
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

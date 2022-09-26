@@ -9,6 +9,7 @@ constexpr int Nb = 1;
 
 class TestChunk;
 
+using namespace nix;
 using BaseApp   = Application<TestChunk, ChunkMap<3>>;
 using rand_type = std::uniform_real_distribution<float64>;
 

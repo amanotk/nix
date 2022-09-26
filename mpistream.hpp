@@ -17,15 +17,15 @@ template <class T>
 class Singleton
 {
 private:
-  Singleton(const Singleton &);
-  Singleton &operator=(const Singleton &);
+  Singleton(const Singleton&);
+  Singleton& operator=(const Singleton&);
 
 protected:
   Singleton(){};
   virtual ~Singleton(){};
 
 public:
-  static T *getInstance()
+  static T* getInstance()
   {
     static T instance;
     return &instance;
@@ -38,8 +38,8 @@ public:
 class teebuf : public std::streambuf
 {
 private:
-  std::streambuf *m_sb1;
-  std::streambuf *m_sb2;
+  std::streambuf* m_sb1;
+  std::streambuf* m_sb2;
 
   virtual int overflow(int c)
   {
@@ -60,7 +60,7 @@ private:
   }
 
 public:
-  teebuf(std::streambuf *sb1, std::streambuf *sb2) : m_sb1(sb1), m_sb2(sb2)
+  teebuf(std::streambuf* sb1, std::streambuf* sb2) : m_sb1(sb1), m_sb2(sb2)
   {
   }
 };
@@ -76,25 +76,25 @@ private:
   // for stdout/stderr
   std::string     m_outf;   ///< dummy standard output file
   std::string     m_errf;   ///< dummy standard error file
-  std::ofstream * m_out;    ///< dummy standard output
-  std::ofstream * m_err;    ///< dummy standard error
-  std::streambuf *m_errbuf; ///< buffer of original cerr
-  std::streambuf *m_outbuf; ///< buffer of original cout
-  teebuf *        m_outtee; ///< buffer for replicating cout and file
-  teebuf *        m_errtee; ///< buffer for replicating cerr and file
+  std::ofstream*  m_out;    ///< dummy standard output
+  std::ofstream*  m_err;    ///< dummy standard error
+  std::streambuf* m_errbuf; ///< buffer of original cerr
+  std::streambuf* m_outbuf; ///< buffer of original cout
+  teebuf*         m_outtee; ///< buffer for replicating cout and file
+  teebuf*         m_errtee; ///< buffer for replicating cerr and file
 
   mpistream(){};
   ~mpistream(){};
 
   // remain undefined
-  mpistream(const mpistream &);
-  mpistream &operator=(const mpistream &);
+  mpistream(const mpistream&);
+  mpistream& operator=(const mpistream&);
 
 public:
   /// initialize MPI call
-  static void initialize(const char *header)
+  static void initialize(const char* header)
   {
-    mpistream *instance = getInstance();
+    mpistream* instance = getInstance();
     int        thisrank;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
@@ -122,7 +122,7 @@ public:
   /// finalize MPI call
   static void finalize(int cleanup = 0)
   {
-    mpistream *instance = getInstance();
+    mpistream* instance = getInstance();
 
     // close dummy standard output
     instance->m_out->flush();
@@ -151,7 +151,7 @@ public:
   /// flush
   static void flush()
   {
-    mpistream *instance = getInstance();
+    mpistream* instance = getInstance();
 
     instance->m_out->flush();
     instance->m_err->flush();

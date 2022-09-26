@@ -16,7 +16,7 @@ T_int get_size(const int32_t ndim, const T_int shape[])
 }
 
 // calculate offset
-void calculate_global_offset(size_t lsize, size_t *offset, size_t *gsize)
+void calculate_global_offset(size_t lsize, size_t* offset, size_t* gsize)
 {
   int nprocess;
   int thisrank;
@@ -39,7 +39,7 @@ void calculate_global_offset(size_t lsize, size_t *offset, size_t *gsize)
 }
 
 // collective raed/write with hindexed type
-void readwrite_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t offset,
+void readwrite_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t offset,
                           const size_t size, const int32_t elembyte, const int32_t packbyte,
                           const int mode)
 {
@@ -77,8 +77,8 @@ void readwrite_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t o
 }
 
 // non-collective read/write
-void readwrite_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_t size,
-                             const int32_t elembyte, const int32_t packbyte, MPI_Request *req,
+void readwrite_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
+                             const int32_t elembyte, const int32_t packbyte, MPI_Request* req,
                              const int mode)
 {
   MPI_Offset   pos;
@@ -110,7 +110,7 @@ void readwrite_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_
 }
 
 // collective raed/write with subarray type
-void readwrite_subarray(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+void readwrite_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
                         const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
                         const int32_t elembyte, const int mode, const int order)
 {
@@ -143,7 +143,7 @@ void readwrite_subarray(MPI_File *fh, size_t *disp, void *data, const int32_t nd
   MPI_Type_free(&ftype);
 }
 
-void open_file(const char *filename, MPI_File *fh, size_t *disp, const char *mode)
+void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mode)
 {
   int status;
 
@@ -195,12 +195,12 @@ void open_file(const char *filename, MPI_File *fh, size_t *disp, const char *mod
   }
 }
 
-void close_file(MPI_File *fh)
+void close_file(MPI_File* fh)
 {
   MPI_File_close(fh);
 }
 
-void read_single(MPI_File *fh, size_t *disp, void *data, const size_t size)
+void read_single(MPI_File* fh, size_t* disp, void* data, const size_t size)
 {
   MPI_Status status;
   MPI_File_read_at(*fh, *disp, data, size, MPI_BYTE, &status);
@@ -208,7 +208,7 @@ void read_single(MPI_File *fh, size_t *disp, void *data, const size_t size)
   *disp += size;
 }
 
-void write_single(MPI_File *fh, size_t *disp, void *data, const size_t size)
+void write_single(MPI_File* fh, size_t* disp, void* data, const size_t size)
 {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -221,7 +221,7 @@ void write_single(MPI_File *fh, size_t *disp, void *data, const size_t size)
   *disp += size;
 }
 
-void read_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
+void read_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
                      const int32_t elembyte, const int32_t packbyte)
 {
   size_t  gsize, offset;
@@ -242,7 +242,7 @@ void read_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
   *disp += gsize * elembyte;
 }
 
-void write_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
+void write_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
                       const int32_t elembyte, const int32_t packbyte)
 {
   size_t  gsize, offset;
@@ -263,20 +263,20 @@ void write_contiguous(MPI_File *fh, size_t *disp, void *data, const size_t size,
   *disp += gsize * elembyte;
 }
 
-void read_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_t size,
-                        const int32_t elembyte, MPI_Request *req)
+void read_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
+                        const int32_t elembyte, MPI_Request* req)
 {
   readwrite_contiguous_at(fh, disp, data, size, elembyte, elembyte, req, +1);
 }
 
-void write_contiguous_at(MPI_File *fh, size_t *disp, void *data, const size_t size,
-                         const int32_t elembyte, MPI_Request *req)
+void write_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
+                         const int32_t elembyte, MPI_Request* req)
 {
   readwrite_contiguous_at(fh, disp, data, size, elembyte, elembyte, req, -1);
 }
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
-void read_subarray(MPI_File *fh, size_t *disp, void *data, const T1 ndim, const T2 gshape[],
+void read_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
                    const T3 lshape[], const T4 offset[], const T5 elembyte, const int order)
 {
   if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
@@ -301,7 +301,7 @@ void read_subarray(MPI_File *fh, size_t *disp, void *data, const T1 ndim, const 
 }
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
-void write_subarray(MPI_File *fh, size_t *disp, void *data, const T1 ndim, const T2 gshape[],
+void write_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
                     const T3 lshape[], const T4 offset[], const T5 elembyte, const int order)
 {
   if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
@@ -325,7 +325,7 @@ void write_subarray(MPI_File *fh, size_t *disp, void *data, const T1 ndim, const
   *disp += size * elembyte;
 }
 
-void put_metadata(json &obj, string name, string dtype, string desc, const size_t disp,
+void put_metadata(json& obj, string name, string dtype, string desc, const size_t disp,
                   const size_t size, const int32_t ndim, const int32_t dims[])
 {
   obj[name]["datatype"]    = dtype;
@@ -340,7 +340,7 @@ void put_metadata(json &obj, string name, string dtype, string desc, const size_
   }
 }
 
-void put_metadata(json &obj, string name, string dtype, string desc, const size_t disp,
+void put_metadata(json& obj, string name, string dtype, string desc, const size_t disp,
                   const size_t size)
 {
   const int ndim    = 1;
@@ -348,8 +348,8 @@ void put_metadata(json &obj, string name, string dtype, string desc, const size_
   put_metadata(obj, name, dtype, desc, disp, size, ndim, dims);
 }
 
-void get_metadata(json &obj, string name, string &dtype, string &desc, size_t &disp, size_t &size,
-                  int32_t &ndim, int32_t dims[])
+void get_metadata(json& obj, string name, string& dtype, string& desc, size_t& disp, size_t& size,
+                  int32_t& ndim, int32_t dims[])
 {
   dtype = obj[name]["datatype"].get<string>();
   desc  = obj[name]["description"].get<string>();
@@ -363,7 +363,7 @@ void get_metadata(json &obj, string name, string &dtype, string &desc, size_t &d
   }
 }
 
-void get_metadata(json &obj, string name, string &dtype, string &desc, size_t &disp, size_t &size)
+void get_metadata(json& obj, string name, string& dtype, string& desc, size_t& disp, size_t& size)
 {
   int32_t ndim;
   int32_t dims[1];
@@ -371,7 +371,7 @@ void get_metadata(json &obj, string name, string &dtype, string &desc, size_t &d
 }
 
 template <typename T>
-void get_attribute(json &obj, string name, size_t &disp, T &data)
+void get_attribute(json& obj, string name, size_t& disp, T& data)
 {
   string dtype;
   string desc;
@@ -381,7 +381,7 @@ void get_attribute(json &obj, string name, size_t &disp, T &data)
 }
 
 template <typename T>
-void get_attribute(json &obj, string name, size_t &disp, int32_t length, T *data)
+void get_attribute(json& obj, string name, size_t& disp, int32_t length, T* data)
 {
   string dtype;
   string desc;
@@ -394,82 +394,82 @@ void get_attribute(json &obj, string name, size_t &disp, int32_t length, T *data
   }
 }
 
-void put_attribute(json &obj, string name, const size_t disp, const int32_t data)
+void put_attribute(json& obj, string name, const size_t disp, const int32_t data)
 {
   put_metadata(obj, name, "i4", "", disp, sizeof(int32_t));
   obj[name]["data"] = data;
 }
 
-void put_attribute(json &obj, string name, const size_t disp, const int64_t data)
+void put_attribute(json& obj, string name, const size_t disp, const int64_t data)
 {
   put_metadata(obj, name, "i8", "", disp, sizeof(size_t));
   obj[name]["data"] = data;
 }
 
-void put_attribute(json &obj, string name, const size_t disp, const float32 data)
+void put_attribute(json& obj, string name, const size_t disp, const float32 data)
 {
   put_metadata(obj, name, "f4", "", disp, sizeof(float32));
   obj[name]["data"] = data;
 }
 
-void put_attribute(json &obj, string name, const size_t disp, const float64 data)
+void put_attribute(json& obj, string name, const size_t disp, const float64 data)
 {
   put_metadata(obj, name, "f8", "", disp, sizeof(float64));
   obj[name]["data"] = data;
 }
 
-void put_attribute(json &obj, string name, const size_t disp, const int32_t length,
-                   const int32_t *data)
+void put_attribute(json& obj, string name, const size_t disp, const int32_t length,
+                   const int32_t* data)
 {
   int32_t dims[1] = {length};
   put_metadata(obj, name, "i4", "", disp, sizeof(int32_t) * length, 1, dims);
   obj[name]["data"] = std::vector<int32_t>(&data[0], &data[length]);
 }
 
-void put_attribute(json &obj, string name, const size_t disp, const int32_t length,
-                   const int64_t *data)
+void put_attribute(json& obj, string name, const size_t disp, const int32_t length,
+                   const int64_t* data)
 {
   int32_t dims[1] = {length};
   put_metadata(obj, name, "i8", "", disp, sizeof(size_t) * length, 1, dims);
   obj[name]["data"] = std::vector<size_t>(&data[0], &data[length]);
 }
 
-void put_attribute(json &obj, string name, const size_t disp, const int32_t length,
-                   const float32 *data)
+void put_attribute(json& obj, string name, const size_t disp, const int32_t length,
+                   const float32* data)
 {
   int32_t dims[1] = {length};
   put_metadata(obj, name, "f4", "", disp, sizeof(float32) * length, 1, dims);
   obj[name]["data"] = std::vector<float32>(&data[0], &data[length]);
 }
 
-void put_attribute(json &obj, string name, const size_t disp, const int32_t length,
-                   const float64 *data)
+void put_attribute(json& obj, string name, const size_t disp, const int32_t length,
+                   const float64* data)
 {
   int32_t dims[1] = {length};
   put_metadata(obj, name, "f8", "", disp, sizeof(float64) * length, 1, dims);
   obj[name]["data"] = std::vector<float64>(&data[0], &data[length]);
 }
 
-template void read_subarray(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+template void read_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
                             const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
                             const int32_t elembyte, const int order);
-template void read_subarray(MPI_File *fh, size_t *disp, void *data, const size_t ndim,
+template void read_subarray(MPI_File* fh, size_t* disp, void* data, const size_t ndim,
                             const size_t gshape[], const size_t lshape[], const size_t offset[],
                             const size_t elembyte, const int order);
-template void write_subarray(MPI_File *fh, size_t *disp, void *data, const int32_t ndim,
+template void write_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
                              const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
                              const int32_t elembyte, const int order);
-template void write_subarray(MPI_File *fh, size_t *disp, void *data, const size_t ndim,
+template void write_subarray(MPI_File* fh, size_t* disp, void* data, const size_t ndim,
                              const size_t gshape[], const size_t lshape[], const size_t offset[],
                              const size_t elembyte, const int order);
-template void get_attribute(json &obj, string name, size_t &disp, int32_t &data);
-template void get_attribute(json &obj, string name, size_t &disp, int64_t &data);
-template void get_attribute(json &obj, string name, size_t &disp, float32 &data);
-template void get_attribute(json &obj, string name, size_t &disp, float64 &data);
-template void get_attribute(json &obj, string name, size_t &disp, int32_t length, int32_t *data);
-template void get_attribute(json &obj, string name, size_t &disp, int32_t length, int64_t *data);
-template void get_attribute(json &obj, string name, size_t &disp, int32_t length, float32 *data);
-template void get_attribute(json &obj, string name, size_t &disp, int32_t length, float64 *data);
+template void get_attribute(json& obj, string name, size_t& disp, int32_t& data);
+template void get_attribute(json& obj, string name, size_t& disp, int64_t& data);
+template void get_attribute(json& obj, string name, size_t& disp, float32& data);
+template void get_attribute(json& obj, string name, size_t& disp, float64& data);
+template void get_attribute(json& obj, string name, size_t& disp, int32_t length, int32_t* data);
+template void get_attribute(json& obj, string name, size_t& disp, int32_t length, int64_t* data);
+template void get_attribute(json& obj, string name, size_t& disp, int32_t length, float32* data);
+template void get_attribute(json& obj, string name, size_t& disp, int32_t length, float64* data);
 
 } // namespace jsonio
 

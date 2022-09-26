@@ -8,7 +8,7 @@
 
 #include "catch.hpp"
 
-using json = nlohmann::ordered_json;
+using namespace nix;
 
 //
 // ChunkMap in 1D

@@ -6,6 +6,7 @@
 
 #include "../thirdparty/catch.hpp"
 
+using namespace nix;
 using uniform_rand = std::uniform_real_distribution<float64>;
 
 // set random particle position

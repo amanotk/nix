@@ -7,9 +7,9 @@
 
 namespace sfc
 {
-void gilbert2d(array2d &index, int &id, int &x, int &y, int ax, int ay, int bx, int by);
+void gilbert2d(array2d& index, int& id, int& x, int& y, int ax, int ay, int bx, int by);
 
-void gilbert3d(array3d &index, int &id, int &x, int &y, int &z, int ax, int ay, int az, int bx,
+void gilbert3d(array3d& index, int& id, int& x, int& y, int& z, int ax, int ay, int az, int bx,
                int by, int bz, int cx, int cy, int cz);
 
 inline int sign(const int x)
@@ -17,7 +17,7 @@ inline int sign(const int x)
   return x == 0 ? 0 : (x > 0 ? +1 : -1);
 }
 
-inline void push2d(array2d &index, int &id, int &x, int &y, int dx, int dy)
+inline void push2d(array2d& index, int& id, int& x, int& y, int dx, int dy)
 {
   id++;
   x += dx;
@@ -26,7 +26,7 @@ inline void push2d(array2d &index, int &id, int &x, int &y, int dx, int dy)
   index.at(y, x) = id;
 }
 
-inline void push3d(array3d &index, int &id, int &x, int &y, int &z, int dx, int dy, int dz)
+inline void push3d(array3d& index, int& id, int& x, int& y, int& z, int dx, int dy, int dz)
 {
   id++;
   x += dx;
@@ -36,7 +36,7 @@ inline void push3d(array3d &index, int &id, int &x, int &y, int &z, int dx, int 
   index.at(z, y, x) = id;
 }
 
-void get_map1d(size_t Nx, array1d &index, array2d &coord)
+void get_map1d(size_t Nx, array1d& index, array2d& coord)
 {
   for (int ix = 0; ix < Nx; ix++) {
     index(ix)    = ix;
@@ -44,7 +44,7 @@ void get_map1d(size_t Nx, array1d &index, array2d &coord)
   }
 }
 
-void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord)
+void get_map2d(size_t Ny, size_t Nx, array2d& index, array2d& coord)
 {
   // calculate coordiante to ID map
   if (Ny != 1 && Nx != 1) {
@@ -87,7 +87,7 @@ void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord)
   }
 }
 
-void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d &index, array2d &coord)
+void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d& index, array2d& coord)
 {
   // calculate coordiante to ID map
   if (Nz != 1 && Ny != 1 && Nx != 1) {
@@ -158,7 +158,7 @@ void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d &index, array2d &coord)
 }
 
 template <class T>
-bool check_index(T &index)
+bool check_index(T& index)
 {
   bool status = true;
 
@@ -170,7 +170,7 @@ bool check_index(T &index)
   return status;
 }
 
-bool check_locality2d(array2d &coord, const int distmax)
+bool check_locality2d(array2d& coord, const int distmax)
 {
   bool status = true;
 
@@ -190,7 +190,7 @@ bool check_locality2d(array2d &coord, const int distmax)
   return status;
 }
 
-bool check_locality3d(array2d &coord, const int distmax)
+bool check_locality3d(array2d& coord, const int distmax)
 {
   bool status = true;
 
@@ -214,7 +214,7 @@ bool check_locality3d(array2d &coord, const int distmax)
   return status;
 }
 
-void gilbert2d(array2d &index, int &id, int &x, int &y, int ax, int ay, int bx, int by)
+void gilbert2d(array2d& index, int& id, int& x, int& y, int ax, int ay, int bx, int by)
 {
   int ww  = abs(ax + ay);
   int hh  = abs(bx + by);
@@ -296,7 +296,7 @@ void gilbert2d(array2d &index, int &id, int &x, int &y, int ax, int ay, int bx, 
   }
 }
 
-void gilbert3d(array3d &index, int &id, int &x, int &y, int &z, int ax, int ay, int az, int bx,
+void gilbert3d(array3d& index, int& id, int& x, int& y, int& z, int ax, int ay, int az, int bx,
                int by, int bz, int cx, int cy, int cz)
 {
   int ww  = abs(ax + ay + az);
@@ -440,9 +440,9 @@ void gilbert3d(array3d &index, int &id, int &x, int &y, int &z, int ax, int ay, 
   }
 }
 
-template bool check_index(array1d &index);
-template bool check_index(array2d &index);
-template bool check_index(array3d &index);
+template bool check_index(array1d& index);
+template bool check_index(array2d& index);
+template bool check_index(array3d& index);
 
 } // namespace sfc
 

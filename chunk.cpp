@@ -5,12 +5,14 @@
   template <int Ndim>                                                                              \
   type Chunk<Ndim>::name
 
+NIX_NAMESPACE_BEGIN
+
 DEFINE_MEMBER(void, initialize)(const int dims[Ndim], const int id)
 {
   int shift;
 
   // endian flag
-  if (nix::get_endian_flag() == 1) {
+  if (get_endian_flag() == 1) {
     shift = 31 - DIRTAG_BIT;
   } else {
     shift = 0;
@@ -64,10 +66,8 @@ DEFINE_MEMBER(float64, get_total_load)()
   return std::accumulate(load.begin(), load.end(), 0.0);
 }
 
-DEFINE_MEMBER(int, pack)(void *buffer, const int address)
+DEFINE_MEMBER(int, pack)(void* buffer, const int address)
 {
-  using nix::memcpy_count;
-
   int count = address;
 
   count += memcpy_count(buffer, &myid, sizeof(int), count, 0);
@@ -84,10 +84,8 @@ DEFINE_MEMBER(int, pack)(void *buffer, const int address)
   return count;
 }
 
-DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
+DEFINE_MEMBER(int, unpack)(void* buffer, const int address)
 {
-  using nix::memcpy_count;
-
   int count = address;
 
   count += memcpy_count(&myid, buffer, sizeof(int), 0, count);
@@ -105,7 +103,7 @@ DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
   return count;
 }
 
-DEFINE_MEMBER(int, pack_diagnostic)(const int mode, void *buffer, const int address)
+DEFINE_MEMBER(int, pack_diagnostic)(const int mode, void* buffer, const int address)
 {
   return 0;
 }
@@ -131,6 +129,8 @@ DEFINE_MEMBER(void, set_boundary_end)(const int mode)
 template class Chunk<1>;
 template class Chunk<2>;
 template class Chunk<3>;
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

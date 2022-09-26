@@ -14,6 +14,8 @@
   template <>                                                                                      \
   type ChunkMap<3>::name
 
+NIX_NAMESPACE_BEGIN
+
 DEFINE_MEMBER1(, ChunkMap)(const int Cx)
 {
   size    = Cx;
@@ -120,7 +122,7 @@ DEFINE_MEMBER3(bool, validate)()
   return sfc::check_index(chunkid) & sfc::check_locality3d(coord);
 }
 
-DEFINE_MEMBER1(void, save_json)(json &obj)
+DEFINE_MEMBER1(void, save_json)(json& obj)
 {
   // meta data
   obj["size"]  = size;
@@ -133,7 +135,7 @@ DEFINE_MEMBER1(void, save_json)(json &obj)
   obj["rank"]    = rank;
 }
 
-DEFINE_MEMBER2(void, save_json)(json &obj)
+DEFINE_MEMBER2(void, save_json)(json& obj)
 {
   // meta data
   obj["size"]  = size;
@@ -146,7 +148,7 @@ DEFINE_MEMBER2(void, save_json)(json &obj)
   obj["rank"]    = rank;
 }
 
-DEFINE_MEMBER3(void, save_json)(json &obj)
+DEFINE_MEMBER3(void, save_json)(json& obj)
 {
   // meta data
   obj["size"]  = size;
@@ -159,7 +161,7 @@ DEFINE_MEMBER3(void, save_json)(json &obj)
   obj["rank"]    = rank;
 }
 
-DEFINE_MEMBER1(void, load_json)(json &obj)
+DEFINE_MEMBER1(void, load_json)(json& obj)
 {
   if (obj["ndim"].get<int>() != 1) {
     ERRORPRINT("Invalid input to ChunkMap<1>::load_json\n");
@@ -175,7 +177,7 @@ DEFINE_MEMBER1(void, load_json)(json &obj)
   rank    = obj["rank"];
 }
 
-DEFINE_MEMBER2(void, load_json)(json &obj)
+DEFINE_MEMBER2(void, load_json)(json& obj)
 {
   if (obj["ndim"].get<int>() != 2) {
     ERRORPRINT("Invalid input to ChunkMap<2>::load_json\n");
@@ -192,7 +194,7 @@ DEFINE_MEMBER2(void, load_json)(json &obj)
   rank    = obj["rank"];
 }
 
-DEFINE_MEMBER3(void, load_json)(json &obj)
+DEFINE_MEMBER3(void, load_json)(json& obj)
 {
   if (obj["ndim"].get<int>() != 3) {
     ERRORPRINT("Invalid input to ChunkMap<3>::load_json\n");
@@ -214,6 +216,8 @@ DEFINE_MEMBER3(void, load_json)(json &obj)
 template class ChunkMap<1>;
 template class ChunkMap<2>;
 template class ChunkMap<3>;
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

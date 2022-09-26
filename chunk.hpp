@@ -4,6 +4,8 @@
 
 #include "nix.hpp"
 
+NIX_NAMESPACE_BEGIN
+
 static constexpr int DIRTAG_BIT  = 5;
 static constexpr int DIRTAG_SIZE = 1 << DIRTAG_BIT;
 
@@ -76,7 +78,7 @@ public:
   /// @param address first address of buffer to which the data will be packed
   /// @return `address` + (number of bytes packed as a result)
   ///
-  virtual int pack(void *buffer, const int address);
+  virtual int pack(void* buffer, const int address);
 
   ///
   /// @brief unpack the content of Chunk from given `buffer`
@@ -84,7 +86,7 @@ public:
   /// @param address first address of buffer from which the data will be unpacked
   /// @return `address` + (number of bytes unpacked as a result)
   ///
-  virtual int unpack(void *buffer, const int address);
+  virtual int unpack(void* buffer, const int address);
 
   ///
   /// @brief pack diagnostic information
@@ -93,7 +95,7 @@ public:
   /// @param address  first address of buffer to which the data will be packed
   /// @return `address` + (number of bytes packed as a result)
   ///
-  virtual int pack_diagnostic(const int mode, void *buffer, const int address);
+  virtual int pack_diagnostic(const int mode, void* buffer, const int address);
 
   ///
   /// @brief query status of boundary exchange
@@ -447,6 +449,8 @@ inline int Chunk<3>::get_rcvtag(const int dirz, const int diry, const int dirx)
   int dir = 9 * (-dirz + 1) + 3 * (-diry + 1) + (-dirx + 1);
   return dirtag[dir] | myid;
 }
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

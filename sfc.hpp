@@ -2,7 +2,6 @@
 #ifndef _SFC_HPP_
 #define _SFC_HPP_
 
-#include "nix.hpp"
 #include "tinyformat.hpp"
 #include "xtensorall.hpp"
 
@@ -29,7 +28,7 @@ using array3d = xt::xtensor<int, 3>;
 /// @param index indices or IDs of cells (1D array)
 /// @param coord x coordiante of cells (1D array)
 ///
-void get_map1d(size_t Nx, array1d &index, array2d &coord);
+void get_map1d(size_t Nx, array1d& index, array2d& coord);
 
 ///
 /// @brief construct 2D SFC map
@@ -38,7 +37,7 @@ void get_map1d(size_t Nx, array1d &index, array2d &coord);
 /// @param index indices or IDs of cells (1D array)
 /// @param coord x and y coordinates of cells (2D array)
 ///
-void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord);
+void get_map2d(size_t Ny, size_t Nx, array2d& index, array2d& coord);
 
 ///
 /// @brief construct 3D SFC map
@@ -48,7 +47,7 @@ void get_map2d(size_t Ny, size_t Nx, array2d &index, array2d &coord);
 /// @param index indices or IDs of cells (1D array)
 /// @param coord x, y, and z coordinates of cells (2D array)
 ///
-void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d &index, array2d &coord);
+void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d& index, array2d& coord);
 
 ///
 /// @brief check index array
@@ -57,7 +56,7 @@ void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d &index, array2d &coord);
 /// @return true if it is valid and false otherwise
 ///
 template <class T>
-bool check_index(T &index);
+bool check_index(T& index);
 
 ///
 /// @brief check locality of 2D map
@@ -65,7 +64,7 @@ bool check_index(T &index);
 /// @param distmax maximum allowable distance between neighboring cells
 /// @return true if it is local and false otherwise
 ///
-bool check_locality2d(array2d &coord, const int distmax = 1);
+bool check_locality2d(array2d& coord, const int distmax = 1);
 
 ///
 /// @brief check locality of 3D map
@@ -73,7 +72,7 @@ bool check_locality2d(array2d &coord, const int distmax = 1);
 /// @param distmax maximum allowable distance between neighboring cells
 /// @return true if it is local and false otherwise
 ///
-bool check_locality3d(array2d &coord, const int distmax = 1);
+bool check_locality3d(array2d& coord, const int distmax = 1);
 
 } // namespace sfc
 

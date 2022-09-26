@@ -4,6 +4,8 @@
 
 #include "nix.hpp"
 
+NIX_NAMESPACE_BEGIN
+
 ///
 /// @brief Load Balancer
 ///
@@ -16,7 +18,7 @@ protected:
   /// @param[in] boundary boundary array
   /// @param[out]  rank array of ranks for each chunk
   ///
-  void assign_rank(std::vector<int> &boundary, std::vector<int> &rank);
+  void assign_rank(std::vector<int>& boundary, std::vector<int>& rank);
 
   ///
   /// @brief return array of load for each rank
@@ -25,7 +27,7 @@ protected:
   /// @param[in] load load array for each chunk
   /// @return array of load for each rank
   ///
-  std::vector<float64> get_rankload(std::vector<int> &boundary, std::vector<float64> &load);
+  std::vector<float64> get_rankload(std::vector<int>& boundary, std::vector<float64>& load);
 
   ///
   /// @brief move boundary specified by index forward or backward by one
@@ -39,8 +41,8 @@ protected:
   /// @param[in,out] rankload load for each rank
   /// @param[in] chunkload load for each chunk
   ///
-  void move_boundary(const int index, std::vector<int> &boundary, const float64 meanload,
-                     std::vector<float64> &rankload, std::vector<float64> &chunkload);
+  void move_boundary(const int index, std::vector<int>& boundary, const float64 meanload,
+                     std::vector<float64>& rankload, std::vector<float64>& chunkload);
 
   ///
   /// @brief apply "smoothing" to assignment specified by boundary
@@ -53,7 +55,7 @@ protected:
   /// @param[in] load load for each chunk
   /// @param[in] count number of smoothing iteration
   ///
-  void smooth_load(std::vector<int> &boundary, std::vector<float64> &load, const int count);
+  void smooth_load(std::vector<int>& boundary, std::vector<float64>& load, const int count);
 
   ///
   /// @brief perform naive sequential assignment of chunks
@@ -62,7 +64,7 @@ protected:
   /// @param[in] load load for each chunk
   /// @param[in] dir direction of sequential assignment; +1 for forward, -1 for backward.
   ///
-  void doit_sequential(std::vector<int> &boundary, std::vector<float64> &load, const int dir);
+  void doit_sequential(std::vector<int>& boundary, std::vector<float64>& load, const int dir);
 
   ///
   /// @brief print summary of load as a result of assignment
@@ -71,8 +73,8 @@ protected:
   /// @param[in] boundary boundary array
   /// @param[in] load load for each chunk
   ///
-  void print_load_summary(std::ostream &out, std::vector<int> &boundary,
-                          std::vector<float64> &load);
+  void print_load_summary(std::ostream& out, std::vector<int>& boundary,
+                          std::vector<float64>& load);
 
   ///
   /// @brief return if the boundary array gives appropriate assignment of chunks
@@ -81,7 +83,7 @@ protected:
   /// @param[in] boundary boundary arrays
   /// @return true if the assignment is appropriate and false otherwise
   ///
-  bool validate_boundary(const int Nc, const std::vector<int> &boundary);
+  bool validate_boundary(const int Nc, const std::vector<int>& boundary);
 
 public:
   ///
@@ -91,8 +93,10 @@ public:
   /// @param[in] load load for each chunk
   /// @param[out] rank rank for each chunk (as a result of assignment)
   ///
-  virtual void partition(const int Nr, std::vector<float64> &load, std::vector<int> &rank);
+  virtual void partition(const int Nr, std::vector<float64>& load, std::vector<int>& rank);
 };
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

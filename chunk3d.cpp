@@ -5,6 +5,8 @@
   template <int Nb>                                                                                \
   type Chunk3D<Nb>::name
 
+NIX_NAMESPACE_BEGIN
+
 DEFINE_MEMBER(, Chunk3D)
 (const int dims[3], const int id) : Chunk<3>(dims, id), delh(1.0), require_sort(true)
 {
@@ -84,10 +86,8 @@ DEFINE_MEMBER(, ~Chunk3D)()
   xc.resize({0});
 }
 
-DEFINE_MEMBER(int, pack)(void *buffer, const int address)
+DEFINE_MEMBER(int, pack)(void* buffer, const int address)
 {
-  using nix::memcpy_count;
-
   int count = address;
 
   count += Chunk<3>::pack(buffer, count);
@@ -111,10 +111,8 @@ DEFINE_MEMBER(int, pack)(void *buffer, const int address)
   return count;
 }
 
-DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
+DEFINE_MEMBER(int, unpack)(void* buffer, const int address)
 {
-  using nix::memcpy_count;
-
   int count = address;
 
   count += Chunk<3>::unpack(buffer, count);
@@ -140,7 +138,7 @@ DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
   return count;
 }
 
-DEFINE_MEMBER(void, set_global_context)(const int *offset, const int *ndims)
+DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* ndims)
 {
   this->ndims[0]  = ndims[0];
   this->ndims[1]  = ndims[1];
@@ -165,7 +163,7 @@ DEFINE_MEMBER(void, set_global_context)(const int *offset, const int *ndims)
   xc = xlim[0] + delh * (xt::arange<float64>(Lbx - Nb, Ubx + Nb + 1) - Lbx + 0.5);
 }
 
-DEFINE_MEMBER(void, sort_particle)(ParticleVec &particle)
+DEFINE_MEMBER(void, sort_particle)(ParticleVec& particle)
 {
   for (int is = 0; is < particle.size(); is++) {
     count_particle(particle[is], 0, particle[is]->Np - 1, true);
@@ -173,7 +171,7 @@ DEFINE_MEMBER(void, sort_particle)(ParticleVec &particle)
   }
 }
 
-DEFINE_MEMBER(void, set_mpi_communicator)(const int mode, MPI_Comm &comm)
+DEFINE_MEMBER(void, set_mpi_communicator)(const int mode, MPI_Comm& comm)
 {
   if (mode >= 0 && mode < mpibufvec.size()) {
     mpibufvec[mode]->comm = comm;
@@ -233,7 +231,7 @@ DEFINE_MEMBER(void, count_particle)(PtrParticle particle, const int Lbp, const i
   // count particles
   //
   const int out_of_bounds = particle->Ng;
-  float64 * xu            = particle->xu.data();
+  float64*  xu            = particle->xu.data();
 
   // loop over particles
   for (int ip = Lbp; ip <= Ubp; ip++) {
@@ -251,7 +249,7 @@ DEFINE_MEMBER(void, count_particle)(PtrParticle particle, const int Lbp, const i
   }
 }
 
-DEFINE_MEMBER(int, pack_diagnostic_load)(void *buffer, const int address)
+DEFINE_MEMBER(int, pack_diagnostic_load)(void* buffer, const int address)
 {
   int count = sizeof(float64) * load.size() + address;
 
@@ -260,12 +258,12 @@ DEFINE_MEMBER(int, pack_diagnostic_load)(void *buffer, const int address)
   }
 
   std::copy(load.begin(), load.end(),
-            reinterpret_cast<float64 *>(static_cast<uint8_t *>(buffer) + address));
+            reinterpret_cast<float64*>(static_cast<uint8_t*>(buffer) + address));
 
   return count;
 }
 
-DEFINE_MEMBER(int, pack_diagnostic_coord)(void *buffer, const int address, const int dir)
+DEFINE_MEMBER(int, pack_diagnostic_coord)(void* buffer, const int address, const int dir)
 {
   size_t size  = dims[dir];
   int    count = sizeof(float64) * size + address;
@@ -274,7 +272,7 @@ DEFINE_MEMBER(int, pack_diagnostic_coord)(void *buffer, const int address, const
     return count;
   }
 
-  float64 *ptr = reinterpret_cast<float64 *>(static_cast<uint8_t *>(buffer) + address);
+  float64* ptr = reinterpret_cast<float64*>(static_cast<uint8_t*>(buffer) + address);
 
   switch (dir) {
   case 0: {
@@ -297,7 +295,7 @@ DEFINE_MEMBER(int, pack_diagnostic_coord)(void *buffer, const int address, const
 }
 
 DEFINE_MEMBER(int, pack_diagnostic_field)
-(void *buffer, const int address, xt::xtensor<float64, 4> &u)
+(void* buffer, const int address, xt::xtensor<float64, 4>& u)
 {
   size_t size  = dims[2] * dims[1] * dims[0] * u.shape(3);
   int    count = sizeof(float64) * size + address;
@@ -312,17 +310,15 @@ DEFINE_MEMBER(int, pack_diagnostic_field)
   auto vv = xt::view(u, Iz, Iy, Ix, xt::all());
 
   // packing
-  uint8_t *ptr = &static_cast<uint8_t *>(buffer)[address];
-  std::copy(vv.begin(), vv.end(), reinterpret_cast<float64 *>(ptr));
+  uint8_t* ptr = &static_cast<uint8_t*>(buffer)[address];
+  std::copy(vv.begin(), vv.end(), reinterpret_cast<float64*>(ptr));
 
   return count;
 }
 
 DEFINE_MEMBER(int, pack_diagnostic_particle)
-(void *buffer, const int address, PtrParticle p)
+(void* buffer, const int address, PtrParticle p)
 {
-  using nix::memcpy_count;
-
   int count = address;
 
   count += memcpy_count(buffer, p->xu.data(), p->Np * Particle::Nc * sizeof(float64), count, 0);
@@ -330,7 +326,7 @@ DEFINE_MEMBER(int, pack_diagnostic_particle)
   return count;
 }
 
-DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
+DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
 {
   const size_t header_size = sizeof(int);
   const size_t data_size   = sizeof(float64) * Particle::Nc;
@@ -342,11 +338,11 @@ DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particl
   // pack out-of-bounds particles
   //
   for (int is = 0; is < Ns; is++) {
-    float64 *xu = particle[is]->xu.data();
+    float64* xu = particle[is]->xu.data();
 
     // loop over particles
     for (int ip = 0; ip < particle[is]->Np; ip++) {
-      float64 *ptcl = &xu[Particle::Nc * ip];
+      float64* ptcl = &xu[Particle::Nc * ip];
       int      dirz = (ptcl[2] > zlim[1]) - (ptcl[2] < zlim[0]);
       int      diry = (ptcl[1] > ylim[1]) - (ptcl[1] < ylim[0]);
       int      dirx = (ptcl[0] > xlim[1]) - (ptcl[0] < xlim[0]);
@@ -404,8 +400,8 @@ DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particl
         int   nbrank = get_nb_rank(dirz, diry, dirx);
         int   sndtag = get_sndtag(dirz, diry, dirx);
         int   rcvtag = get_rcvtag(dirz, diry, dirx);
-        void *sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
-        void *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        void* sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        void* rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
 
         // send/recv calls
         MPI_Isend(sndptr, snd_byte, MPI_BYTE, nbrank, sndtag, mpibuf->comm,
@@ -417,7 +413,7 @@ DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particl
   }
 }
 
-DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
+DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
 {
   const size_t header_size = sizeof(int);
   const size_t data_size   = sizeof(float64) * Particle::Nc;
@@ -449,7 +445,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
         }
 
         // copy to the end of particle array
-        uint8_t *recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        uint8_t* recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
         for (int is = 0; is < Ns; is++) {
           // header
           int cnt;
@@ -462,7 +458,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
           }
 
           // particles
-          float64 *ptcl = &particle[is]->xu(num_particle[is], 0);
+          float64* ptcl = &particle[is]->xu(num_particle[is], 0);
           std::memcpy(ptcl, recvptr, data_size * cnt);
           recvptr += data_size * cnt;
 
@@ -518,7 +514,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec &particle)
 }
 
 DEFINE_MEMBER(template <typename T> void, begin_bc_exchange)
-(PtrMpiBuffer mpibuf, T &array, bool moment)
+(PtrMpiBuffer mpibuf, T& array, bool moment)
 {
   for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
     for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
@@ -534,8 +530,8 @@ DEFINE_MEMBER(template <typename T> void, begin_bc_exchange)
         int   nbrank = get_nb_rank(dirz, diry, dirx);
         int   sndtag = get_sndtag(dirz, diry, dirx);
         int   rcvtag = get_rcvtag(dirz, diry, dirx);
-        void *sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
-        void *rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        void* sndptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
+        void* rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
 
         if (moment == true) {
           // index range
@@ -546,7 +542,7 @@ DEFINE_MEMBER(template <typename T> void, begin_bc_exchange)
 
           // pack
           byte = view.size() * sizeof(float64);
-          std::copy(view.begin(), view.end(), static_cast<float64 *>(sndptr));
+          std::copy(view.begin(), view.end(), static_cast<float64*>(sndptr));
         } else {
           // index range
           auto Iz   = xt::range(sendlb[0][iz], sendub[0][iz] + 1);
@@ -556,7 +552,7 @@ DEFINE_MEMBER(template <typename T> void, begin_bc_exchange)
 
           // pack
           byte = view.size() * sizeof(float64);
-          std::copy(view.begin(), view.end(), static_cast<float64 *>(sndptr));
+          std::copy(view.begin(), view.end(), static_cast<float64*>(sndptr));
         }
 
         // send/recv calls
@@ -570,7 +566,7 @@ DEFINE_MEMBER(template <typename T> void, begin_bc_exchange)
 }
 
 DEFINE_MEMBER(template <typename T> void, end_bc_exchange)
-(PtrMpiBuffer mpibuf, T &array, bool moment)
+(PtrMpiBuffer mpibuf, T& array, bool moment)
 {
   // wait for MPI recv calls to complete
   MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
@@ -599,8 +595,8 @@ DEFINE_MEMBER(template <typename T> void, end_bc_exchange)
           auto view = xt::strided_view(array, {Iz, Iy, Ix, xt::ellipsis()});
 
           // unpack
-          void *   rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
-          float64 *ptr    = static_cast<float64 *>(rcvptr);
+          void*    rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+          float64* ptr    = static_cast<float64*>(rcvptr);
 
           // accumulate
           std::transform(ptr, ptr + view.size(), view.begin(), view.begin(), std::plus<float64>());
@@ -612,8 +608,8 @@ DEFINE_MEMBER(template <typename T> void, end_bc_exchange)
           auto view = xt::strided_view(array, {Iz, Iy, Ix, xt::ellipsis()});
 
           // unpack
-          void *   rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
-          float64 *ptr    = static_cast<float64 *>(rcvptr);
+          void*    rcvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+          float64* ptr    = static_cast<float64*>(rcvptr);
 
           std::copy(ptr, ptr + view.size(), view.begin());
         }
@@ -626,7 +622,7 @@ DEFINE_MEMBER(template <typename T> void, end_bc_exchange)
 }
 
 DEFINE_MEMBER(template <typename T> void, set_mpi_buffer)
-(PtrMpiBuffer mpibuf, const int headbyte, const T &elembyte)
+(PtrMpiBuffer mpibuf, const int headbyte, const T& elembyte)
 {
   const std::vector<size_t> shape = {3, 3};
 
@@ -663,12 +659,12 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
 {
   int  flag   = 0;
   int  bcmode = mode;
-  bool send   = (mode & nix::SendMode) == nix::SendMode; // send flag
-  bool recv   = (mode & nix::RecvMode) == nix::RecvMode; // recv flag
+  bool send   = (mode & SendMode) == SendMode; // send flag
+  bool recv   = (mode & RecvMode) == RecvMode; // recv flag
 
   // remove send/recv bits
-  bcmode &= ~nix::SendMode;
-  bcmode &= ~nix::RecvMode;
+  bcmode &= ~SendMode;
+  bcmode &= ~RecvMode;
 
   // MPI buffer
   PtrMpiBuffer mpibuf = mpibufvec[bcmode];
@@ -729,7 +725,7 @@ DEFINE_MEMBER(void, set_boundary_particle)(PtrParticle particle, int Lbp, int Ub
 
   // push particle position
   for (int ip = Lbp; ip <= Ubp; ip++) {
-    float64 *xu = &particle->xu(ip, 0);
+    float64* xu = &particle->xu(ip, 0);
 
     // apply periodic boundary condition
     xu[0] += (xu[0] < xyzmin[0]) * xyzlen[0] - (xu[0] >= xyzmax[0]) * xyzlen[0];
@@ -742,10 +738,8 @@ DEFINE_MEMBER(, MpiBuffer::MpiBuffer)() : comm(MPI_COMM_WORLD)
 {
 }
 
-DEFINE_MEMBER(int, MpiBuffer::pack)(void *buffer, const int address)
+DEFINE_MEMBER(int, MpiBuffer::pack)(void* buffer, const int address)
 {
-  using nix::memcpy_count;
-
   int count = address;
   int ssize = sendbuf.size;
   int rsize = recvbuf.size;
@@ -759,10 +753,8 @@ DEFINE_MEMBER(int, MpiBuffer::pack)(void *buffer, const int address)
   return count;
 }
 
-DEFINE_MEMBER(int, MpiBuffer::unpack)(void *buffer, const int address)
+DEFINE_MEMBER(int, MpiBuffer::unpack)(void* buffer, const int address)
 {
-  using nix::memcpy_count;
-
   int count = address;
   int ssize = 0;
   int rsize = 0;
@@ -782,59 +774,61 @@ DEFINE_MEMBER(int, MpiBuffer::unpack)(void *buffer, const int address)
 
 // explicit instantiation for boundary margin of 1
 template class Chunk3D<1>;
-template void Chunk3D<1>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+template void Chunk3D<1>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
                                             bool moment);
-template void Chunk3D<1>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+template void Chunk3D<1>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
                                             bool moment);
-template void Chunk3D<1>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+template void Chunk3D<1>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
                                           bool moment);
-template void Chunk3D<1>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+template void Chunk3D<1>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
                                           bool moment);
-template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t &);
-template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t &);
-template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t &);
+template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);
+template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);
+template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
 
 // explicit instantiation for boundary margin of 2
 template class Chunk3D<2>;
-template void Chunk3D<2>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+template void Chunk3D<2>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
                                             bool moment);
-template void Chunk3D<2>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+template void Chunk3D<2>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
                                             bool moment);
-template void Chunk3D<2>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+template void Chunk3D<2>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
                                           bool moment);
-template void Chunk3D<2>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+template void Chunk3D<2>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
                                           bool moment);
-template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t &);
-template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t &);
-template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t &);
+template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);
+template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);
+template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
 
 // explicit instantiation for boundary margin of 3
 template class Chunk3D<3>;
-template void Chunk3D<3>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+template void Chunk3D<3>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
                                             bool moment);
-template void Chunk3D<3>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+template void Chunk3D<3>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
                                             bool moment);
-template void Chunk3D<3>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+template void Chunk3D<3>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
                                           bool moment);
-template void Chunk3D<3>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+template void Chunk3D<3>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
                                           bool moment);
-template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t &);
-template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t &);
-template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t &);
+template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);
+template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);
+template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
 
 // explicit instantiation for boundary margin of 4
 template class Chunk3D<4>;
-template void Chunk3D<4>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+template void Chunk3D<4>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
                                             bool moment);
-template void Chunk3D<4>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+template void Chunk3D<4>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
                                             bool moment);
-template void Chunk3D<4>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4> &array,
+template void Chunk3D<4>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
                                           bool moment);
-template void Chunk3D<4>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5> &array,
+template void Chunk3D<4>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
                                           bool moment);
-template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t &);
-template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t &);
-template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t &);
+template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);
+template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);
+template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

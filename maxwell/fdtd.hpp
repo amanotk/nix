@@ -8,6 +8,8 @@
 #include "../jsonio.hpp"
 #include "../xtensorall.hpp"
 
+using namespace nix;
+
 class FDTD : public Chunk3D<1>
 {
 public:

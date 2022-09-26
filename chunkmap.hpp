@@ -7,6 +7,8 @@
 #include "sfc.hpp"
 #include "xtensorall.hpp"
 
+NIX_NAMESPACE_BEGIN
+
 ///
 /// @brief ChunkMap class
 /// @tparam Ndim number of dimensions
@@ -19,7 +21,6 @@ template <int Ndim>
 class ChunkMap
 {
 protected:
-  using json       = nix::json;
   using IntArray1D = xt::xtensor<int, 1>;
   using IntArray2D = xt::xtensor<int, 2>;
   using IntArrayND = xt::xtensor<int, Ndim>;
@@ -68,13 +69,13 @@ public:
   /// @brief save map information as json object
   /// @param obj json object to which map information will be stored
   ///
-  virtual void save_json(json &obj);
+  virtual void save_json(json& obj);
 
   ///
   /// @brief load map information from json object
   /// @param obj json object from which map information will be loaded
   ///
-  virtual void load_json(json &obj);
+  virtual void load_json(json& obj);
 
   ///
   /// @brief set process rank for given chunk ID
@@ -95,7 +96,7 @@ public:
   /// @param id chunk ID
   /// @param cx x coordinate of chunk will be stored
   ///
-  void get_coordinate(const int id, int &cx);
+  void get_coordinate(const int id, int& cx);
 
   ///
   /// @brief get coordinate of chunk for 2D map
@@ -103,7 +104,7 @@ public:
   /// @param cy y coordinate of chunk will be stored
   /// @param cx x coordinate of chunk will be stored
   ///
-  void get_coordinate(const int id, int &cy, int &cx);
+  void get_coordinate(const int id, int& cy, int& cx);
 
   ///
   /// @brief get coordinate of chunk for 3D map
@@ -112,7 +113,7 @@ public:
   /// @param cy y coordinate of chunk will be stored
   /// @param cx x coordinate of chunk will be stored
   ///
-  void get_coordinate(const int id, int &cz, int &cy, int &cx);
+  void get_coordinate(const int id, int& cz, int& cy, int& cx);
 
   ///
   /// @brief get chunk ID for 1D map
@@ -156,7 +157,7 @@ inline int ChunkMap<Ndim>::get_rank(const int id)
 }
 
 template <>
-inline void ChunkMap<1>::get_coordinate(const int id, int &cx)
+inline void ChunkMap<1>::get_coordinate(const int id, int& cx)
 {
   if (id >= 0 && id < size) {
     cx = coord(id, 0);
@@ -176,7 +177,7 @@ inline int ChunkMap<1>::get_chunkid(int cx)
 }
 
 template <>
-inline void ChunkMap<2>::get_coordinate(const int id, int &cy, int &cx)
+inline void ChunkMap<2>::get_coordinate(const int id, int& cy, int& cx)
 {
   if (id >= 0 && id < size) {
     cx = coord(id, 0);
@@ -208,7 +209,7 @@ inline int ChunkMap<3>::get_chunkid(int cz, int cy, int cx)
 }
 
 template <>
-inline void ChunkMap<3>::get_coordinate(const int id, int &cz, int &cy, int &cx)
+inline void ChunkMap<3>::get_coordinate(const int id, int& cz, int& cy, int& cx)
 {
   if (id >= 0 && id < size) {
     cx = coord(id, 0);
@@ -220,6 +221,8 @@ inline void ChunkMap<3>::get_coordinate(const int id, int &cz, int &cy, int &cx)
     cx = -1;
   }
 }
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

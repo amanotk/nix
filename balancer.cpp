@@ -3,7 +3,9 @@
 
 #define DEFINE_MEMBER(type, name) type Balancer::name
 
-DEFINE_MEMBER(void, assign_rank)(std::vector<int> &boundary, std::vector<int> &rank)
+NIX_NAMESPACE_BEGIN
+
+DEFINE_MEMBER(void, assign_rank)(std::vector<int>& boundary, std::vector<int>& rank)
 {
   for (int r = 0; r < boundary.size() - 1; r++) {
     for (int i = boundary[r]; i < boundary[r + 1]; i++) {
@@ -13,7 +15,7 @@ DEFINE_MEMBER(void, assign_rank)(std::vector<int> &boundary, std::vector<int> &r
 }
 
 DEFINE_MEMBER(std::vector<float64>, get_rankload)
-(std::vector<int> &boundary, std::vector<float64> &load)
+(std::vector<int>& boundary, std::vector<float64>& load)
 {
   const int Nr = boundary.size() - 1;
 
@@ -29,8 +31,8 @@ DEFINE_MEMBER(std::vector<float64>, get_rankload)
 }
 
 DEFINE_MEMBER(void, move_boundary)
-(const int index, std::vector<int> &boundary, const float64 meanload,
- std::vector<float64> &rankload, std::vector<float64> &chunkload)
+(const int index, std::vector<int>& boundary, const float64 meanload,
+ std::vector<float64>& rankload, std::vector<float64>& chunkload)
 {
   if (boundary[index] <= 0 || boundary[index] >= chunkload.size())
     return;
@@ -75,7 +77,7 @@ DEFINE_MEMBER(void, move_boundary)
 }
 
 DEFINE_MEMBER(void, smooth_load)
-(std::vector<int> &boundary, std::vector<float64> &load, const int count)
+(std::vector<int>& boundary, std::vector<float64>& load, const int count)
 {
   const int Nr = boundary.size() - 1;
 
@@ -96,7 +98,7 @@ DEFINE_MEMBER(void, smooth_load)
 }
 
 DEFINE_MEMBER(void, doit_sequential)
-(std::vector<int> &boundary, std::vector<float64> &load, const int dir)
+(std::vector<int>& boundary, std::vector<float64>& load, const int dir)
 {
   const int Nc = load.size();
   const int Nr = boundary.size() - 1; // boundary size is larger than rank by 1
@@ -165,7 +167,7 @@ DEFINE_MEMBER(void, doit_sequential)
 }
 
 DEFINE_MEMBER(void, print_load_summary)
-(std::ostream &out, std::vector<int> &boundary, std::vector<float64> &load)
+(std::ostream& out, std::vector<int>& boundary, std::vector<float64>& load)
 {
   const int Nr = boundary.size() - 1;
 
@@ -184,7 +186,7 @@ DEFINE_MEMBER(void, print_load_summary)
   }
 }
 
-DEFINE_MEMBER(bool, validate_boundary)(const int Nc, const std::vector<int> &boundary)
+DEFINE_MEMBER(bool, validate_boundary)(const int Nc, const std::vector<int>& boundary)
 {
   const int Nr = boundary.size() - 1;
 
@@ -202,7 +204,7 @@ DEFINE_MEMBER(bool, validate_boundary)(const int Nc, const std::vector<int> &bou
 }
 
 DEFINE_MEMBER(void, partition)
-(const int Nr, std::vector<float64> &load, std::vector<int> &rank)
+(const int Nr, std::vector<float64>& load, std::vector<int>& rank)
 {
   //
   // The sizes of `load` and `rank` should be the same and correspond to the number of chunks. The
@@ -244,6 +246,8 @@ DEFINE_MEMBER(void, partition)
     assign_rank(boundary2, rank);
   }
 }
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

@@ -5,6 +5,8 @@
 #include "nix.hpp"
 #include "xtensorall.hpp"
 
+NIX_NAMESPACE_BEGIN
+
 class Particle;
 using PtrParticle = std::shared_ptr<Particle>;
 using ParticleVec = std::vector<PtrParticle>;
@@ -146,10 +148,8 @@ public:
   ///
   /// @brief pack data into buffer
   ///
-  int pack(void *buffer, const int address)
+  int pack(void* buffer, const int address)
   {
-    using nix::memcpy_count;
-
     int count = address;
 
     count += memcpy_count(buffer, &Np_total, sizeof(int), count, 0);
@@ -169,10 +169,8 @@ public:
   ///
   /// @brief unpack data from buffer
   ///
-  int unpack(void *buffer, const int address)
+  int unpack(void* buffer, const int address)
   {
-    using nix::memcpy_count;
-
     int count = address;
 
     count += memcpy_count(&Np_total, buffer, sizeof(int), 0, count);
@@ -299,8 +297,8 @@ public:
     // rearrange particles
     //
     {
-      float64 *v = xv.data();
-      float64 *u = xu.data();
+      float64* v = xv.data();
+      float64* u = xu.data();
 
       for (int ip = 0; ip < Np; ip++) {
         int ii = gindex(ip);
@@ -399,7 +397,7 @@ public:
   /// @param[in] dt time step (multiplied to the returned electromagnetic field)
   ///
   template <typename T>
-  static float64 interp3d1(const T &eb, const int iz, const int iy, const int ix, const int ik,
+  static float64 interp3d1(const T& eb, const int iz, const int iy, const int ix, const int ik,
                            const float64 wz[2], const float64 wy[2], const float64 wx[2],
                            const float64 dt = 1)
   {
@@ -513,6 +511,8 @@ public:
     }
   }
 };
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"

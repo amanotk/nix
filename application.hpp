@@ -11,6 +11,8 @@
 #include "tinyformat.hpp"
 #include <nlohmann/json.hpp>
 
+NIX_NAMESPACE_BEGIN
+
 ///
 /// @brief Base Application class
 /// @tparam Chunk Chunk type
@@ -19,11 +21,8 @@
 template <class Chunk, class ChunkMap>
 class Application
 {
-private:
-  using cmdparser = cmdline::parser;
-  using json      = nix::json;
-
 protected:
+  using cmdparser   = cmdline::parser;
   using PtrBalancer = std::unique_ptr<Balancer>;
   using PtrChunk    = std::unique_ptr<Chunk>;
   using PtrChunkMap = std::unique_ptr<ChunkMap>;
@@ -32,7 +31,7 @@ protected:
 
   int         retcode;  ///< default return code
   int         cl_argc;  ///< command-line argc
-  char **     cl_argv;  ///< command-line argv
+  char**      cl_argv;  ///< command-line argv
   std::string cfg_file; ///< configuration file name
   json        cfg_json; ///< configuration json object
   cmdparser   parser;   ///< command line parser
@@ -75,7 +74,7 @@ protected:
   /// @param argc number of arguments
   /// @param argv array of arguments
   ///
-  virtual void parse_cmd(int argc, char **argv);
+  virtual void parse_cmd(int argc, char** argv);
 
   ///
   /// @brief parse configuration file
@@ -87,7 +86,7 @@ protected:
   /// @param argc number of arguments
   /// @param argv array of arguments
   ///
-  void initialize_mpi(int *argc, char ***argv);
+  void initialize_mpi(int* argc, char*** argv);
 
   ///
   /// @brief finalize MPI
@@ -109,7 +108,7 @@ protected:
   /// @param argc number of arguments
   /// @param argv array of arguments
   ///
-  virtual void initialize(int argc, char **argv);
+  virtual void initialize(int argc, char** argv);
 
   ///
   /// @brief load a snapshot file for restart
@@ -130,7 +129,7 @@ protected:
   /// @brief perform various diagnostics output
   /// @param out output stream to which console message will be printed (if any)
   ///
-  virtual void diagnostic(std::ostream &out);
+  virtual void diagnostic(std::ostream& out);
 
   ///
   /// @brief advance physical quantities by one step
@@ -174,7 +173,7 @@ protected:
   /// @brief perform MPI send/recv of chunks for load balancing
   /// @param newrank array of ranks to which chunks are assigned
   ///
-  virtual void sendrecv_chunk(std::vector<int> &newrank);
+  virtual void sendrecv_chunk(std::vector<int>& newrank);
 
   ///
   /// @brief set neighbors of chunks
@@ -187,21 +186,21 @@ protected:
   /// @param disp displacement of the file from its beginning
   /// @param mode mode of data to be retrieved from chunks
   ///
-  virtual void write_chunk_all(MPI_File &fh, size_t &disp, const int mode);
+  virtual void write_chunk_all(MPI_File& fh, size_t& disp, const int mode);
 
   ///
   /// @brief wait boundary exchange operation in `queue` and perform unpacking
   /// @param queue list of chunk IDs performing boundary exchange
   /// @param mode mode of boundary exchange
   ///
-  virtual void wait_bc_exchange(std::set<int> &queue, const int mode);
+  virtual void wait_bc_exchange(std::set<int>& queue, const int mode);
 
   ///
   /// @brief print debugging information
   /// @param out output stream
   /// @param verbose level of verbosity
   ///
-  virtual void print_info(std::ostream &out, int verbose = 0);
+  virtual void print_info(std::ostream& out, int verbose = 0);
 
   ///
   /// @brief finalize application
@@ -218,14 +217,14 @@ public:
   /// @param argc number of arguments
   /// @param argv array of arguments
   ///
-  Application(int argc, char **argv);
+  Application(int argc, char** argv);
 
   ///
   /// @brief main loop of simulation
   /// @param out output stream
   /// @return return code of application
   ///
-  virtual int main(std::ostream &out);
+  virtual int main(std::ostream& out);
 };
 
 //
@@ -249,7 +248,7 @@ DEFINE_MEMBER(void, setup_cmd)()
   parser.add<float64>("emax", 'e', "maximum elased time [sec]", false, etmax);
 }
 
-DEFINE_MEMBER(void, parse_cmd)(int argc, char **argv)
+DEFINE_MEMBER(void, parse_cmd)(int argc, char** argv)
 {
   // setup command-line parser
   setup_cmd();
@@ -315,7 +314,7 @@ DEFINE_MEMBER(void, parse_cfg)()
   zlim[2] = zlim[1] - zlim[0];
 }
 
-DEFINE_MEMBER(void, initialize_mpi)(int *argc, char ***argv)
+DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
 {
   // initialize MPI
   if (mpi_init_with_nullptr == true) {
@@ -328,7 +327,7 @@ DEFINE_MEMBER(void, initialize_mpi)(int *argc, char ***argv)
 
   // store initial clock
   if (thisrank == 0) {
-    wclock = MPI_Wtime();
+    wclock = wall_clock();
   }
   MPI_Bcast(&wclock, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -358,7 +357,7 @@ DEFINE_MEMBER(int, get_nb_coord)(const int coord, const int delta, const int dir
   return cdir;
 }
 
-DEFINE_MEMBER(void, initialize)(int argc, char **argv)
+DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 {
   // parse command line arguments
   parse_cmd(argc, argv);
@@ -412,7 +411,7 @@ DEFINE_MEMBER(void, setup)()
   this->load();
 }
 
-DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
+DEFINE_MEMBER(void, diagnostic)(std::ostream& out)
 {
   out << tfm::format("*** step = %8d (time = %10.5f)\n", curstep, curtime);
   print_info(out, 1);
@@ -437,7 +436,7 @@ DEFINE_MEMBER(float64, get_available_etime)()
   float64 etime;
 
   if (thisrank == 0) {
-    etime = MPI_Wtime() - wclock;
+    etime = wall_clock() - wclock;
   }
   MPI_Bcast(&etime, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -569,7 +568,7 @@ DEFINE_MEMBER(bool, validate_chunkmap)()
   return status;
 }
 
-DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int> &newrank)
+DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
 {
   const int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
   const int ncmax   = Chunk::get_max_id();
@@ -611,10 +610,10 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int> &newrank)
   const int rpos_l = 0;
   const int rpos_r = recvbuf.size / 2;
 
-  uint8_t *sbuf_l = sendbuf.get(spos_l);
-  uint8_t *sbuf_r = sendbuf.get(spos_r);
-  uint8_t *rbuf_l = nullptr;
-  uint8_t *rbuf_r = nullptr;
+  uint8_t* sbuf_l = sendbuf.get(spos_l);
+  uint8_t* sbuf_r = sendbuf.get(spos_r);
+  uint8_t* rbuf_l = nullptr;
+  uint8_t* rbuf_r = nullptr;
 
   //
   // pack and calculate message size to be sent
@@ -680,7 +679,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int> &newrank)
     // unpack buffer from left
     {
       int      size    = 0;
-      uint8_t *rbuf_l0 = rbuf_l;
+      uint8_t* rbuf_l0 = rbuf_l;
 
       while ((rbuf_l - rbuf_l0) < rbufcnt_l) {
         PtrChunk p = std::make_unique<Chunk>(dims, 0);
@@ -693,7 +692,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int> &newrank)
     // unpack buffer from right
     {
       int      size    = 0;
-      uint8_t *rbuf_r0 = rbuf_r;
+      uint8_t* rbuf_r0 = rbuf_r;
 
       while ((rbuf_r - rbuf_r0) < rbufcnt_r) {
         PtrChunk p = std::make_unique<Chunk>(dims, 0);
@@ -709,7 +708,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int> &newrank)
   //
   {
     std::sort(chunkvec.begin(), chunkvec.end(),
-              [](const PtrChunk &x, const PtrChunk &y) { return x->get_id() < y->get_id(); });
+              [](const PtrChunk& x, const PtrChunk& y) { return x->get_id() < y->get_id(); });
 
     // reset numchunk
     numchunk = 0;
@@ -754,7 +753,7 @@ DEFINE_MEMBER(void, set_chunk_neighbors)()
   }
 }
 
-DEFINE_MEMBER(void, write_chunk_all)(MPI_File &fh, size_t &disp, const int mode)
+DEFINE_MEMBER(void, write_chunk_all)(MPI_File& fh, size_t& disp, const int mode)
 {
   int allsize = 0;
   int maxsize = 0;
@@ -779,7 +778,7 @@ DEFINE_MEMBER(void, write_chunk_all)(MPI_File &fh, size_t &disp, const int mode)
   {
     MPI_Request req;
     size_t      chunkdisp = disp + bufaddr;
-    uint8_t *   sendptr   = sendbuf.get();
+    uint8_t*    sendptr   = sendbuf.get();
 
     for (int i = 0; i < numchunk; i++) {
       // pack
@@ -800,9 +799,9 @@ DEFINE_MEMBER(void, write_chunk_all)(MPI_File &fh, size_t &disp, const int mode)
   disp += allsize;
 }
 
-DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int> &queue, const int mode)
+DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, const int mode)
 {
-  int recvmode = nix::RecvMode | mode;
+  int recvmode = RecvMode | mode;
 
   while (queue.empty() == false) {
     // find chunk for unpacking
@@ -819,7 +818,7 @@ DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int> &queue, const int mode)
   }
 }
 
-DEFINE_MEMBER(void, print_info)(std::ostream &out, int verbose)
+DEFINE_MEMBER(void, print_info)(std::ostream& out, int verbose)
 {
   LOGPRINT0(out, "\n");
   LOGPRINT0(out, "----- <<< BEGIN INFORMATION >>> -----");
@@ -875,13 +874,13 @@ DEFINE_MEMBER(, Application)() : mpi_init_with_nullptr(false), retcode(0)
 {
 }
 
-DEFINE_MEMBER(, Application)(int argc, char **argv) : mpi_init_with_nullptr(false)
+DEFINE_MEMBER(, Application)(int argc, char** argv) : mpi_init_with_nullptr(false)
 {
   cl_argc = argc;
   cl_argv = argv;
 }
 
-DEFINE_MEMBER(int, main)(std::ostream &out)
+DEFINE_MEMBER(int, main)(std::ostream& out)
 {
   //
   // initialize the application
@@ -927,6 +926,8 @@ DEFINE_MEMBER(int, main)(std::ostream &out)
 }
 
 #undef DEFINE_MEMBER
+
+NIX_NAMESPACE_END
 
 // Local Variables:
 // c-file-style   : "gnu"
