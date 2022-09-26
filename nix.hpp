@@ -41,6 +41,11 @@ NIX_NAMESPACE_BEGIN
 // json
 using json = nlohmann::ordered_json;
 
+//
+// typedefs namespace
+//
+namespace typedefs
+{
 // integer types
 using int32  = int32_t;
 using int64  = int64_t;
@@ -51,6 +56,9 @@ using uint64 = uint64_t;
 using float32 = float;
 using float64 = double;
 using real    = float64;
+} // namespace typedefs
+
+using namespace typedefs;
 
 //
 // SIMD width (512 bit for 64bit float by default)
