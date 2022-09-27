@@ -5,7 +5,7 @@
 #define MPICH_IGNORE_CXX_SEEK
 #include <mpi.h>
 
-// macros for consitent notations
+// macros for consistent notations
 #define MPI_FLOAT32_T MPI_FLOAT
 #define MPI_FLOAT64_T MPI_DOUBLE
 
@@ -74,14 +74,14 @@ class mpistream : public Singleton<mpistream>
 
 private:
   // for stdout/stderr
-  std::string     m_outf;   ///< dummy standard output file
-  std::string     m_errf;   ///< dummy standard error file
-  std::ofstream*  m_out;    ///< dummy standard output
-  std::ofstream*  m_err;    ///< dummy standard error
-  std::streambuf* m_errbuf; ///< buffer of original cerr
-  std::streambuf* m_outbuf; ///< buffer of original cout
-  teebuf*         m_outtee; ///< buffer for replicating cout and file
-  teebuf*         m_errtee; ///< buffer for replicating cerr and file
+  std::string                    m_outf;   ///< dummy standard output file
+  std::string                    m_errf;   ///< dummy standard error file
+  std::unique_ptr<std::ofstream> m_out;    ///< dummy standard output
+  std::unique_ptr<std::ofstream> m_err;    ///< dummy standard error
+  std::unique_ptr<teebuf>        m_outtee; ///< buffer for replicating cout and file
+  std::unique_ptr<teebuf>        m_errtee; ///< buffer for replicating cerr and file
+  std::streambuf*                m_errbuf; ///< buffer of original cerr
+  std::streambuf*                m_outbuf; ///< buffer of original cout
 
   mpistream(){};
   ~mpistream(){};
@@ -101,18 +101,18 @@ public:
 
     // open dummy standard output stream
     instance->m_outf   = tfm::format("%s_PE%04d.stdout", header, thisrank);
-    instance->m_out    = new std::ofstream(instance->m_outf.c_str());
-    instance->m_outtee = new teebuf(std::cout.rdbuf(), instance->m_out->rdbuf());
+    instance->m_out    = std::make_unique<std::ofstream>(instance->m_outf.c_str());
+    instance->m_outtee = std::make_unique<teebuf>(std::cout.rdbuf(), instance->m_out->rdbuf());
 
     // open dummy standard error stream
     instance->m_errf   = tfm::format("%s_PE%04d.stderr", header, thisrank);
-    instance->m_err    = new std::ofstream(instance->m_errf.c_str());
-    instance->m_errtee = new teebuf(std::cerr.rdbuf(), instance->m_err->rdbuf());
+    instance->m_err    = std::make_unique<std::ofstream>(instance->m_errf.c_str());
+    instance->m_errtee = std::make_unique<teebuf>(std::cerr.rdbuf(), instance->m_err->rdbuf());
 
     if (thisrank == 0) {
       // stdout/stderr are replicated for rank==0
-      instance->m_outbuf = std::cout.rdbuf(instance->m_outtee);
-      instance->m_errbuf = std::cerr.rdbuf(instance->m_errtee);
+      instance->m_outbuf = std::cout.rdbuf(instance->m_outtee.get());
+      instance->m_errbuf = std::cerr.rdbuf(instance->m_errtee.get());
     } else {
       instance->m_outbuf = std::cout.rdbuf(instance->m_out->rdbuf());
       instance->m_errbuf = std::cerr.rdbuf(instance->m_err->rdbuf());
@@ -128,23 +128,16 @@ public:
     instance->m_out->flush();
     instance->m_out->close();
     std::cout.rdbuf(instance->m_outbuf);
-    delete instance->m_outtee;
-    delete instance->m_out;
 
     // close dummy standard error
     instance->m_err->flush();
     instance->m_err->close();
     std::cerr.rdbuf(instance->m_errbuf);
-    delete instance->m_errtee;
-    delete instance->m_err;
 
-    switch (cleanup) {
-    case 0: // remove file
+    if (cleanup == 0) {
+      // remove file
       std::remove(instance->m_outf.c_str());
       std::remove(instance->m_errf.c_str());
-      break;
-    default:
-      break;
     }
   }
 

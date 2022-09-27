@@ -174,11 +174,6 @@ public:
   Chunk3D(const int dims[3], const int id = 0);
 
   ///
-  /// @brief destructor (unnecessary?)
-  ///
-  virtual ~Chunk3D() override;
-
-  ///
   /// @brief pack the content of Chunk into given `buffer`
   /// @param buffer pointer to buffer to pack
   /// @param address first address of buffer to which the data will be packed

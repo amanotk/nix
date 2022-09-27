@@ -26,8 +26,6 @@ protected:
 public:
   FDTD(const int dims[3], const int id = 0);
 
-  virtual ~FDTD() override;
-
   virtual int pack(void *buffer, const int address) override;
 
   virtual int unpack(void *buffer, const int address) override;

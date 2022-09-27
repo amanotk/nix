@@ -16,11 +16,6 @@ DEFINE_MEMBER(, FDTD)(const int dims[3], const int id) : Chunk(dims, id)
   uf.fill(0);
 }
 
-DEFINE_MEMBER(, ~FDTD)()
-{
-  uf.resize({0});
-}
-
 DEFINE_MEMBER(int, pack)(void *buffer, const int address)
 {
   int count = address;

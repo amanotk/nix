@@ -40,7 +40,7 @@ public:
   ///
   static int get_max_id();
 
-  /// @brief default constructor (unnecessary?)
+  /// @brief default constructor
   Chunk();
 
   ///
@@ -49,11 +49,6 @@ public:
   /// @param id Chunk ID
   ///
   Chunk(const int dims[Ndim], const int id = 0);
-
-  ///
-  /// @brief destructor (unnecessary?)
-  ///
-  virtual ~Chunk();
 
   ///
   /// @brief reset load of chunk

@@ -79,13 +79,6 @@ DEFINE_MEMBER(, Chunk3D)
   reset_load();
 }
 
-DEFINE_MEMBER(, ~Chunk3D)()
-{
-  zc.resize({0});
-  yc.resize({0});
-  xc.resize({0});
-}
-
 DEFINE_MEMBER(int, pack)(void* buffer, const int address)
 {
   int count = address;

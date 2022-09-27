@@ -47,10 +47,6 @@ DEFINE_MEMBER(, Chunk)(const int dims[Ndim], const int id)
   initialize(dims, id);
 }
 
-DEFINE_MEMBER(, ~Chunk)()
-{
-}
-
 DEFINE_MEMBER(void, reset_load)()
 {
   load.assign(load.size(), 0.0);

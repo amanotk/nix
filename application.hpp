@@ -29,7 +29,7 @@ protected:
   using FloatVec    = std::vector<float64>;
   using ChunkVec    = std::vector<PtrChunk>;
 
-  int         retcode;  ///< default return code
+  int         cleanup;  ///< cleanup flag
   int         cl_argc;  ///< command-line argc
   char**      cl_argv;  ///< command-line argv
   std::string cfg_file; ///< configuration file name
@@ -209,7 +209,7 @@ protected:
   virtual void finalize(int cleanup = 0);
 
 public:
-  /// @brief default construct (unnecessary?)
+  /// @brief default constructor
   Application();
 
   ///
@@ -871,17 +871,14 @@ DEFINE_MEMBER(void, finalize)(int cleanup)
   this->save();
 
   // MPI
-  if (cleanup == 0) {
-    cleanup = retcode;
-  }
   finalize_mpi(cleanup);
 }
 
-DEFINE_MEMBER(, Application)() : mpi_init_with_nullptr(false), retcode(0)
+DEFINE_MEMBER(, Application)() : mpi_init_with_nullptr(false), cleanup(0)
 {
 }
 
-DEFINE_MEMBER(, Application)(int argc, char** argv) : mpi_init_with_nullptr(false)
+DEFINE_MEMBER(, Application)(int argc, char** argv) : mpi_init_with_nullptr(false), cleanup(0)
 {
   cl_argc = argc;
   cl_argv = argv;
@@ -927,7 +924,7 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
   //
   // finalize the application
   //
-  finalize();
+  finalize(cleanup);
 
   return 0;
 }
