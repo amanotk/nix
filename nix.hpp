@@ -98,9 +98,9 @@ enum SendRecvMode {
 ///
 inline double wall_clock()
 {
-  auto t = std::chrono::duration_cast<std::chrono::milliseconds>(
+  auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(
       std::chrono::high_resolution_clock::now().time_since_epoch());
-  return static_cast<double>(t.count()) * 1.0e-3;
+  return static_cast<double>(t.count()) * 1.0e-9;
 }
 
 ///
