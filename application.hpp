@@ -445,10 +445,10 @@ DEFINE_MEMBER(float64, get_available_etime)()
 
 DEFINE_MEMBER(void, calc_workload)()
 {
-  const int nc = cdims[3];
+  const int Nc = cdims[3];
 
   // calculate global workload per chunk
-  for (int i = 0; i < nc; i++) {
+  for (int i = 0; i < Nc; i++) {
     workload[i] = 0.0;
   }
 
@@ -459,62 +459,69 @@ DEFINE_MEMBER(void, calc_workload)()
   }
 
   // global workload
-  MPI_Allreduce(MPI_IN_PLACE, workload.data(), nc, MPI_REAL8, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, workload.data(), Nc, MPI_REAL8, MPI_SUM, MPI_COMM_WORLD);
 }
 
 DEFINE_MEMBER(void, initialize_chunkmap)()
 {
-  const int nc = cdims[3];
-  const int mc = nc / nprocess;
+  const int Nc = cdims[3];
 
   // error check
-  if (nc % nprocess != 0) {
-    ERRORPRINT("number of chunk   = %8d\n"
-               "number of process = %8d\n",
-               nc, nprocess);
+  if (Nc < nprocess) {
+    ERRORPRINT("Number of processes exceeds number of chunks\n"
+               "* number of processes = %8d\n"
+               "* number of chunks    = %8d\n",
+               nprocess, Nc);
     finalize(-1);
     exit(-1);
   }
 
   //
-  // initialize global chunkmap
-  // (chunkes are equally distributed over all processes)
-  //
-  chunkmap = std::make_unique<ChunkMap>(cdims);
-
-  for (int id = 0; id < nc; id++) {
-    chunkmap->set_rank(id, id / mc);
-  }
-
-  //
-  // initialize local chunkvec
+  // initialize chunkmap and chunkvec
   //
   {
     int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
-    int id      = thisrank * mc;
+    int idzero  = 0;
 
-    chunkvec.resize(mc);
-    for (int i = 0; i < mc; i++, id++) {
-      chunkvec[i] = std::make_unique<Chunk>(dims, id);
+    chunkmap = std::make_unique<ChunkMap>(cdims);
+
+    for (int rank = 0; rank < nprocess; rank++) {
+      int mc = (Nc + rank) / nprocess;
+
+      // initialize global chunkmap
+      for (int id = idzero; id < idzero + mc; id++) {
+        chunkmap->set_rank(id, rank);
+      }
+
+      if (rank == thisrank) {
+        // initialize local chunkvec
+        numchunk = mc;
+        chunkvec.resize(numchunk);
+        for (int i = 0; i < numchunk; i++) {
+          chunkvec[i] = std::make_unique<Chunk>(dims, idzero + i);
+        }
+      }
+
+      idzero += mc;
     }
-    numchunk = mc;
+
+    set_chunk_neighbors();
   }
-  set_chunk_neighbors();
 
   //
   // allocate workload and initialize
   //
-  workload.resize(nc);
+  workload.resize(Nc);
 
-  for (int i = 0; i < nc; i++) {
+  for (int i = 0; i < Nc; i++) {
     workload[i] = 0.0;
   }
 }
 
 DEFINE_MEMBER(void, rebuild_chunkmap)()
 {
-  const int        nc = cdims[3];
-  std::vector<int> rank(nc);
+  const int        Nc = cdims[3];
+  std::vector<int> rank(Nc);
 
   // calculate global workload
   calc_workload();
@@ -530,7 +537,7 @@ DEFINE_MEMBER(void, rebuild_chunkmap)()
   //
   // reset rank
   //
-  for (int id = 0; id < nc; id++) {
+  for (int id = 0; id < Nc; id++) {
     chunkmap->set_rank(id, rank[id]);
   }
   set_chunk_neighbors();
@@ -571,8 +578,8 @@ DEFINE_MEMBER(bool, validate_chunkmap)()
 DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
 {
   const int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
-  const int ncmax   = Chunk::get_max_id();
-  const int nc      = cdims[0] * cdims[1] * cdims[2];
+  const int Ncmax   = Chunk::get_max_id();
+  const int Nc      = cdims[0] * cdims[1] * cdims[2];
 
   //
   // check buffer size and reallocate if necessary
@@ -625,12 +632,12 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
       // send to left
       int size = chunkvec[i]->pack(sbuf_l, 0);
       sbuf_l += size;
-      chunkvec[i]->set_id(ncmax); // to be removed
+      chunkvec[i]->set_id(Ncmax); // to be removed
     } else if (newrank[id] == thisrank + 1) {
       // send to right
       int size = chunkvec[i]->pack(sbuf_r, 0);
       sbuf_r += size;
-      chunkvec[i]->set_id(ncmax); // to be removed
+      chunkvec[i]->set_id(Ncmax); // to be removed
     } else if (newrank[id] == thisrank) {
       // no need to seed
       continue;
@@ -713,7 +720,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
     // reset numchunk
     numchunk = 0;
     for (int i = 0; i < chunkvec.size(); i++) {
-      if (chunkvec[i]->get_id() == ncmax)
+      if (chunkvec[i]->get_id() == Ncmax)
         break;
       numchunk++;
     }
@@ -828,13 +835,13 @@ DEFINE_MEMBER(void, print_info)(std::ostream& out, int verbose)
 
   // local chunk
   if (verbose >= 1) {
-    const int nc   = cdims[3];
+    const int Nc   = cdims[3];
     float64   gsum = 0.0;
     float64   lsum = 0.0;
 
     // global workload
     calc_workload();
-    for (int i = 0; i < nc; i++) {
+    for (int i = 0; i < Nc; i++) {
       gsum += workload[i];
     }
 
