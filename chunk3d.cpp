@@ -8,7 +8,8 @@
 NIX_NAMESPACE_BEGIN
 
 DEFINE_MEMBER(, Chunk3D)
-(const int dims[3], const int id) : Chunk<3>(dims, id), delh(1.0), require_sort(true)
+(const int dims[3], const int id)
+    : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0), require_sort(true)
 {
   size_t Nz = this->dims[0] + 2 * Nb;
   size_t Ny = this->dims[1] + 2 * Nb;
@@ -87,7 +88,9 @@ DEFINE_MEMBER(int, pack)(void* buffer, const int address)
   count += memcpy_count(buffer, xc.data(), xc.size() * sizeof(float64), count, 0);
   count += memcpy_count(buffer, yc.data(), yc.size() * sizeof(float64), count, 0);
   count += memcpy_count(buffer, zc.data(), zc.size() * sizeof(float64), count, 0);
-  count += memcpy_count(buffer, &delh, sizeof(float64), count, 0);
+  count += memcpy_count(buffer, &delx, sizeof(float64), count, 0);
+  count += memcpy_count(buffer, &dely, sizeof(float64), count, 0);
+  count += memcpy_count(buffer, &delz, sizeof(float64), count, 0);
   count += memcpy_count(buffer, xlim, 3 * sizeof(float64), count, 0);
   count += memcpy_count(buffer, ylim, 3 * sizeof(float64), count, 0);
   count += memcpy_count(buffer, zlim, 3 * sizeof(float64), count, 0);
@@ -112,7 +115,9 @@ DEFINE_MEMBER(int, unpack)(void* buffer, const int address)
   count += memcpy_count(xc.data(), buffer, xc.size() * sizeof(float64), 0, count);
   count += memcpy_count(yc.data(), buffer, yc.size() * sizeof(float64), 0, count);
   count += memcpy_count(zc.data(), buffer, zc.size() * sizeof(float64), 0, count);
-  count += memcpy_count(&delh, buffer, sizeof(float64), 0, count);
+  count += memcpy_count(&delx, buffer, sizeof(float64), 0, count);
+  count += memcpy_count(&dely, buffer, sizeof(float64), 0, count);
+  count += memcpy_count(&delz, buffer, sizeof(float64), 0, count);
   count += memcpy_count(xlim, buffer, 3 * sizeof(float64), 0, count);
   count += memcpy_count(ylim, buffer, 3 * sizeof(float64), 0, count);
   count += memcpy_count(zlim, buffer, 3 * sizeof(float64), 0, count);
@@ -131,29 +136,41 @@ DEFINE_MEMBER(int, unpack)(void* buffer, const int address)
   return count;
 }
 
-DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* ndims)
+DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* gdims)
 {
-  this->ndims[0]  = ndims[0];
-  this->ndims[1]  = ndims[1];
-  this->ndims[2]  = ndims[2];
+  this->gdims[0]  = gdims[0];
+  this->gdims[1]  = gdims[1];
+  this->gdims[2]  = gdims[2];
   this->offset[0] = offset[0];
   this->offset[1] = offset[1];
   this->offset[2] = offset[2];
 
-  zlim[0] = offset[0] * delh;
-  zlim[1] = offset[0] * delh + dims[0] * delh;
+  // local domain
+  zlim[0] = offset[0] * delz;
+  zlim[1] = offset[0] * delz + dims[0] * delz;
   zlim[2] = zlim[1] - zlim[0];
-  ylim[0] = offset[1] * delh;
-  ylim[1] = offset[1] * delh + dims[1] * delh;
+  ylim[0] = offset[1] * dely;
+  ylim[1] = offset[1] * dely + dims[1] * dely;
   ylim[2] = ylim[1] - ylim[0];
-  xlim[0] = offset[2] * delh;
-  xlim[1] = offset[2] * delh + dims[2] * delh;
+  xlim[0] = offset[2] * delx;
+  xlim[1] = offset[2] * delx + dims[2] * delx;
   xlim[2] = xlim[1] - xlim[0];
 
-  // set coordinate
-  zc = zlim[0] + delh * (xt::arange<float64>(Lbz - Nb, Ubz + Nb + 1) - Lbz + 0.5);
-  yc = ylim[0] + delh * (xt::arange<float64>(Lby - Nb, Uby + Nb + 1) - Lby + 0.5);
-  xc = xlim[0] + delh * (xt::arange<float64>(Lbx - Nb, Ubx + Nb + 1) - Lbx + 0.5);
+  // local coordinate
+  zc = zlim[0] + delz * (xt::arange<float64>(Lbz - Nb, Ubz + Nb + 1) - Lbz + 0.5);
+  yc = ylim[0] + dely * (xt::arange<float64>(Lby - Nb, Uby + Nb + 1) - Lby + 0.5);
+  xc = xlim[0] + delx * (xt::arange<float64>(Lbx - Nb, Ubx + Nb + 1) - Lbx + 0.5);
+
+  // global domain
+  gzlim[0] = 0.0;
+  gzlim[1] = gdims[0] * delz;
+  gzlim[2] = gzlim[1] - gzlim[0];
+  gylim[0] = 0.0;
+  gylim[1] = gdims[1] * dely;
+  gylim[2] = gylim[1] - gylim[0];
+  gxlim[0] = 0.0;
+  gxlim[1] = gdims[2] * delx;
+  gxlim[2] = gxlim[1] - gxlim[0];
 }
 
 DEFINE_MEMBER(void, sort_particle)(ParticleVec& particle)
@@ -194,9 +211,9 @@ DEFINE_MEMBER(void, count_particle)(PtrParticle particle, const int Lbp, const i
     yrange[1] = dims[1] - 1;
     xrange[0] = 0;
     xrange[1] = dims[2] - 1;
-    rdh[0]    = 1 / delh;
-    rdh[1]    = 1 / delh;
-    rdh[2]    = 1 / delh;
+    rdh[0]    = 1 / delz;
+    rdh[1]    = 1 / dely;
+    rdh[2]    = 1 / delx;
   } else {
     //
     // no sorting (assume only a single cell in the chunk)
@@ -712,18 +729,19 @@ DEFINE_MEMBER(void, set_boundary_physical)(const int mode)
 
 DEFINE_MEMBER(void, set_boundary_particle)(PtrParticle particle, int Lbp, int Ubp)
 {
-  float64 xyzmin[3] = {0.0, 0.0, 0.0};
-  float64 xyzmax[3] = {ndims[2] * delh, ndims[1] * delh, ndims[0] * delh};
-  float64 xyzlen[3] = {ndims[2] * delh, ndims[1] * delh, ndims[0] * delh};
+  // NOTE: trick to take care of round-off error
+  float64 xlength = gxlim[2] - std::numeric_limits<float64>::epsilon();
+  float64 ylength = gylim[2] - std::numeric_limits<float64>::epsilon();
+  float64 zlength = gzlim[2] - std::numeric_limits<float64>::epsilon();
 
   // push particle position
   for (int ip = Lbp; ip <= Ubp; ip++) {
     float64* xu = &particle->xu(ip, 0);
 
     // apply periodic boundary condition
-    xu[0] += (xu[0] < xyzmin[0]) * xyzlen[0] - (xu[0] >= xyzmax[0]) * xyzlen[0];
-    xu[1] += (xu[1] < xyzmin[1]) * xyzlen[1] - (xu[1] >= xyzmax[1]) * xyzlen[1];
-    xu[2] += (xu[2] < xyzmin[2]) * xyzlen[2] - (xu[2] >= xyzmax[2]) * xyzlen[2];
+    xu[0] += (xu[0] < gxlim[0]) * xlength - (xu[0] >= gxlim[1]) * xlength;
+    xu[1] += (xu[1] < gylim[0]) * ylength - (xu[1] >= gylim[1]) * ylength;
+    xu[2] += (xu[2] < gzlim[0]) * zlength - (xu[2] >= gzlim[1]) * zlength;
   }
 }
 

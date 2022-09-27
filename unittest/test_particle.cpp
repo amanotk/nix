@@ -260,7 +260,7 @@ bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float
   Particle::S1(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0], q);
 
   // calculate charge and current density
-  Particle::esirkepov3d1(dhdt, ss, cur);
+  Particle::esirkepov3d1(dhdt, dhdt, dhdt, ss, cur);
 
   // check charge density
   for (int jz = 0; jz < 4; jz++) {

@@ -428,17 +428,17 @@ public:
   /// density is appended to the second argument "current", which is an array of local 4x4x4 mesh
   /// with 4 components including charge density.
   ///
-  /// @param[in]     dhdt    dx/dt = dy/dt = dz/dt
+  /// @param[in]     dxdt    dx/dt
+  /// @param[in]     dydt    dy/dt
+  /// @param[in]     dzdt    dz/dt
   /// @param[in]     ss      array of 1D weights
   /// @param[in,out] current array of local current
   ///
-  static void esirkepov3d1(const float64 dhdt, float64 ss[2][3][4], float64 current[4][4][4][4])
+  static void esirkepov3d1(const float64 dxdt, const float64 dydt, const float64 dzdt,
+                           float64 ss[2][3][4], float64 current[4][4][4][4])
   {
-    const float64 A    = 1.0 / 2;
-    const float64 B    = 1.0 / 3;
-    const float64 dxdt = dhdt;
-    const float64 dydt = dhdt;
-    const float64 dzdt = dhdt;
+    const float64 A = 1.0 / 2;
+    const float64 B = 1.0 / 3;
 
     // rho
     for (int jz = 0; jz < 4; jz++) {

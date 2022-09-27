@@ -40,8 +40,12 @@ DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
 
 DEFINE_MEMBER(void, setup)(json &config)
 {
+  float64 delh = config["delh"].get<float64>();
+
   cc   = config["cc"].get<float64>();
-  delh = config["delh"].get<float64>();
+  delx = delh;
+  dely = delh;
+  delz = delh;
 
   int     kdir    = config["kdir"].get<int>();
   int     efd[3]  = {0};
@@ -114,7 +118,9 @@ DEFINE_MEMBER(void, setup)(json &config)
 
 DEFINE_MEMBER(void, push)(const float64 delt)
 {
-  const float64 cfl = cc * delt / delh;
+  const float64 cflx = cc * delt / delx;
+  const float64 cfly = cc * delt / dely;
+  const float64 cflz = cc * delt / delz;
 
   float64 tzero = wall_clock();
 
@@ -122,12 +128,12 @@ DEFINE_MEMBER(void, push)(const float64 delt)
   for (int iz = Lbz - 1; iz <= Ubz; iz++) {
     for (int iy = Lby - 1; iy <= Uby; iy++) {
       for (int ix = Lbx - 1; ix <= Ubx; ix++) {
-        uf(iz, iy, ix, 0) += (+cfl) * (uf(iz, iy + 1, ix, 5) - uf(iz, iy, ix, 5)) +
-                             (-cfl) * (uf(iz + 1, iy, ix, 4) - uf(iz, iy, ix, 4));
-        uf(iz, iy, ix, 1) += (+cfl) * (uf(iz + 1, iy, ix, 3) - uf(iz, iy, ix, 3)) +
-                             (-cfl) * (uf(iz, iy, ix + 1, 5) - uf(iz, iy, ix, 5));
-        uf(iz, iy, ix, 2) += (+cfl) * (uf(iz, iy, ix + 1, 4) - uf(iz, iy, ix, 4)) +
-                             (-cfl) * (uf(iz, iy + 1, ix, 3) - uf(iz, iy, ix, 3));
+        uf(iz, iy, ix, 0) += (+cfly) * (uf(iz, iy + 1, ix, 5) - uf(iz, iy, ix, 5)) +
+                             (-cflz) * (uf(iz + 1, iy, ix, 4) - uf(iz, iy, ix, 4));
+        uf(iz, iy, ix, 1) += (+cflz) * (uf(iz + 1, iy, ix, 3) - uf(iz, iy, ix, 3)) +
+                             (-cflx) * (uf(iz, iy, ix + 1, 5) - uf(iz, iy, ix, 5));
+        uf(iz, iy, ix, 2) += (+cflx) * (uf(iz, iy, ix + 1, 4) - uf(iz, iy, ix, 4)) +
+                             (-cfly) * (uf(iz, iy + 1, ix, 3) - uf(iz, iy, ix, 3));
       }
     }
   }
@@ -136,12 +142,12 @@ DEFINE_MEMBER(void, push)(const float64 delt)
   for (int iz = Lbz; iz <= Ubz; iz++) {
     for (int iy = Lby; iy <= Uby; iy++) {
       for (int ix = Lbx; ix <= Ubx; ix++) {
-        uf(iz, iy, ix, 3) += (-cfl) * (uf(iz, iy, ix, 2) - uf(iz, iy - 1, ix, 2)) +
-                             (+cfl) * (uf(iz, iy, ix, 1) - uf(iz - 1, iy, ix, 1));
-        uf(iz, iy, ix, 4) += (-cfl) * (uf(iz, iy, ix, 0) - uf(iz - 1, iy, ix, 0)) +
-                             (+cfl) * (uf(iz, iy, ix, 2) - uf(iz, iy, ix - 1, 2));
-        uf(iz, iy, ix, 5) += (-cfl) * (uf(iz, iy, ix, 1) - uf(iz, iy, ix - 1, 1)) +
-                             (+cfl) * (uf(iz, iy, ix, 0) - uf(iz, iy - 1, ix, 0));
+        uf(iz, iy, ix, 3) += (-cfly) * (uf(iz, iy, ix, 2) - uf(iz, iy - 1, ix, 2)) +
+                             (+cflz) * (uf(iz, iy, ix, 1) - uf(iz - 1, iy, ix, 1));
+        uf(iz, iy, ix, 4) += (-cflz) * (uf(iz, iy, ix, 0) - uf(iz - 1, iy, ix, 0)) +
+                             (+cflx) * (uf(iz, iy, ix, 2) - uf(iz, iy, ix - 1, 2));
+        uf(iz, iy, ix, 5) += (-cflx) * (uf(iz, iy, ix, 1) - uf(iz, iy, ix - 1, 1)) +
+                             (+cfly) * (uf(iz, iy, ix, 0) - uf(iz, iy - 1, ix, 0));
       }
     }
   }

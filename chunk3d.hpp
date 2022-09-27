@@ -64,7 +64,7 @@ public:
 
 protected:
   bool require_sort; ///< sort flag
-  int  ndims[3];     ///< number of global grids
+  int  gdims[3];     ///< global number of grids
   int  offset[3];    ///< global index offset
   int  Lbx;          ///< lower bound in x
   int  Ubx;          ///< upper bound in x
@@ -80,10 +80,15 @@ protected:
   xt::xtensor<float64, 1> xc;        ///< x coordiante
   xt::xtensor<float64, 1> yc;        ///< y coordiante
   xt::xtensor<float64, 1> zc;        ///< z coordiante
-  float64                 delh;      ///< grid size
+  float64                 delx;      ///< grid size in x
+  float64                 dely;      ///< grid size in y
+  float64                 delz;      ///< grid size in z
   float64                 xlim[3];   ///< physical domain in x
   float64                 ylim[3];   ///< physical domain in y
   float64                 zlim[3];   ///< physical domain in z
+  float64                 gxlim[3];  ///< global physical domain in x
+  float64                 gylim[3];  ///< global physical domain in y
+  float64                 gzlim[3];  ///< global physical domain in z
   MpiBufferVec            mpibufvec; ///< MPI buffer vector
 
   ///
@@ -192,9 +197,9 @@ public:
   ///
   /// @brief set the global context of Chunk
   /// @param offset offset for each direction in global dimensions
-  /// @param ndims local number of grids for each direction
+  /// @param gdims global number of grids for each direction
   ///
-  virtual void set_global_context(const int* offset, const int* ndims);
+  virtual void set_global_context(const int* offset, const int* gdims);
 
   ///
   /// @brief set MPI communicator to MpiBuffer of given `mode`

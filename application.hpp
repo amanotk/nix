@@ -50,7 +50,9 @@ protected:
   int         curstep;  ///< current iteration step
   float64     curtime;  ///< current time
   float64     delt;     ///< time step
-  float64     delh;     ///< cell size
+  float64     delx;     ///< grid size in x
+  float64     dely;     ///< grid size in y
+  float64     delz;     ///< grid size in z
   float64     cc;       ///< speed of light
   float64     xlim[3];  ///< physical domain in x
   float64     ylim[3];  ///< physical domain in y
@@ -271,9 +273,15 @@ DEFINE_MEMBER(void, parse_cfg)()
     cfg_json = json::parse(f, nullptr, true, true);
   }
 
-  // delt and delh
-  delt = cfg_json["delt"].get<float64>();
-  delh = cfg_json["delt"].get<float64>();
+  // time step and grid size
+  {
+    float64 delh = cfg_json["delh"].get<float64>();
+
+    delt = cfg_json["delt"].get<float64>();
+    delx = delh;
+    dely = delh;
+    delz = delh;
+  }
 
   // get dimensions
   int nx = cfg_json["Nx"].get<int>();
@@ -304,13 +312,13 @@ DEFINE_MEMBER(void, parse_cfg)()
 
   // set global domain size
   xlim[0] = 0;
-  xlim[1] = delh * ndims[2];
+  xlim[1] = delx * ndims[2];
   xlim[2] = xlim[1] - xlim[0];
   ylim[0] = 0;
-  ylim[1] = delh * ndims[1];
+  ylim[1] = dely * ndims[1];
   ylim[2] = ylim[1] - ylim[0];
   zlim[0] = 0;
-  zlim[1] = delh * ndims[0];
+  zlim[1] = delz * ndims[0];
   zlim[2] = zlim[1] - zlim[0];
 }
 
