@@ -608,7 +608,7 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
     std::string filename = tfm::format("%s_%06d.json", path + prefix, curstep);
 
     std::ofstream ofs(filename);
-    ofs << std::setw(2) << log;
+    ofs << std::setw(2) << log << std::flush;
     ofs.close();
 
     if (loglevel >= 2) {

@@ -94,6 +94,9 @@ DEFINE_MEMBER(int, pack)(void* buffer, const int address)
   count += memcpy_count(buffer, xlim, 3 * sizeof(float64), count, 0);
   count += memcpy_count(buffer, ylim, 3 * sizeof(float64), count, 0);
   count += memcpy_count(buffer, zlim, 3 * sizeof(float64), count, 0);
+  count += memcpy_count(buffer, gxlim, 3 * sizeof(float64), count, 0);
+  count += memcpy_count(buffer, gylim, 3 * sizeof(float64), count, 0);
+  count += memcpy_count(buffer, gzlim, 3 * sizeof(float64), count, 0);
   // MPI buffer (NOTE: MPI communicator is NOT packed)
   {
     int nmode = mpibufvec.size();
@@ -121,6 +124,9 @@ DEFINE_MEMBER(int, unpack)(void* buffer, const int address)
   count += memcpy_count(xlim, buffer, 3 * sizeof(float64), 0, count);
   count += memcpy_count(ylim, buffer, 3 * sizeof(float64), 0, count);
   count += memcpy_count(zlim, buffer, 3 * sizeof(float64), 0, count);
+  count += memcpy_count(gxlim, buffer, 3 * sizeof(float64), 0, count);
+  count += memcpy_count(gylim, buffer, 3 * sizeof(float64), 0, count);
+  count += memcpy_count(gzlim, buffer, 3 * sizeof(float64), 0, count);
   // MPI buffer (NOTE: MPI communicator is NOT unpacked)
   {
     int nmode = 0;
