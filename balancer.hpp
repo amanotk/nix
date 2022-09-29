@@ -13,23 +13,6 @@ class Balancer
 {
 protected:
   ///
-  /// @brief assign rank from given boundary
-  ///
-  /// @param[in] boundary boundary array
-  /// @param[out]  rank array of ranks for each chunk
-  ///
-  void assign_rank(std::vector<int>& boundary, std::vector<int>& rank);
-
-  ///
-  /// @brief return array of load for each rank
-  ///
-  /// @param[in] boundary boundary array
-  /// @param[in] load load array for each chunk
-  /// @return array of load for each rank
-  ///
-  std::vector<float64> get_rankload(std::vector<int>& boundary, std::vector<float64>& load);
-
-  ///
   /// @brief move boundary specified by index forward or backward by one
   ///
   /// This tries to move the boundary specified by `index` either forward or backward. It does
@@ -60,21 +43,19 @@ protected:
   ///
   /// @brief perform naive sequential assignment of chunks
   ///
-  /// @param[out] boundary boundary array
-  /// @param[in] load load for each chunk
+  /// @param[in] load load of chunks
+  /// @param[out] boundary boundary between ranks
   /// @param[in] dir direction of sequential assignment; +1 for forward, -1 for backward.
   ///
-  void doit_sequential(std::vector<int>& boundary, std::vector<float64>& load, const int dir);
+  void doit_sequential(std::vector<float64>& load, std::vector<int>& boundary, const int dir);
 
   ///
-  /// @brief print summary of load as a result of assignment
+  /// @brief perform assignment of chunks according to SMILEI code (Derouillat et al. 2018)
   ///
-  /// @param[in] out output stream
-  /// @param[in] boundary boundary array
-  /// @param[in] load load for each chunk
+  /// @param[in] load load of chunks
+  /// @param[out] boundary boundary between ranks
   ///
-  void print_load_summary(std::ostream& out, std::vector<int>& boundary,
-                          std::vector<float64>& load);
+  void doit_smilei(std::vector<float64>& load, std::vector<int>& boundary);
 
   ///
   /// @brief return if the boundary array gives appropriate assignment of chunks
@@ -94,6 +75,40 @@ public:
   /// @param[out] rank rank for each chunk (as a result of assignment)
   ///
   virtual void partition(const int Nr, std::vector<float64>& load, std::vector<int>& rank);
+
+  ///
+  /// @brief calculate rank from boundary
+  ///
+  /// @param[in] boundary boundary between ranks
+  /// @param[out] rank rank of chunk
+  ///
+  void get_rank(std::vector<int>& boundary, std::vector<int>& rank);
+
+  ///
+  /// @brief calculate boundary from rank
+  ///
+  /// @param[in] rank rank of chunk
+  /// @param[out] boundary boundary between ranks
+  ///
+  void get_boundary(std::vector<int>& rank, std::vector<int>& boundary);
+
+  ///
+  /// @brief return array of load for each rank
+  ///
+  /// @param[in] boundary boundary array
+  /// @param[in] load load array for each chunk
+  /// @return array of load for each rank
+  ///
+  std::vector<float64> get_rankload(std::vector<int>& boundary, std::vector<float64>& load);
+
+  ///
+  /// @brief print summary of load as a result of assignment
+  ///
+  /// @param[in] out output stream
+  /// @param[in] boundary boundary array
+  /// @param[in] load load for each chunk
+  ///
+  void print_assignment(std::ostream& out, std::vector<int>& boundary, std::vector<float64>& load);
 };
 
 NIX_NAMESPACE_END

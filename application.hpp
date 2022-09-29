@@ -151,9 +151,14 @@ protected:
   virtual float64 get_available_etime();
 
   ///
-  /// @brief calculate work load of chunks
+  /// @brief accumulate work load of local chunks
   ///
-  virtual void calc_workload();
+  virtual void accumulate_workload();
+
+  ///
+  /// @brief get work load of all chunks
+  ///
+  virtual void get_global_workload();
 
   ///
   /// @brief initialize chunkmap object
@@ -162,8 +167,9 @@ protected:
 
   ///
   /// @brief rebuild chunkmap object by performing load balancing
+  /// @return return true if rebuild performed and false otherwise
   ///
-  virtual void rebuild_chunkmap();
+  virtual bool rebuild_chunkmap();
 
   ///
   /// @brief check the validity of chunkmap object
@@ -196,13 +202,6 @@ protected:
   /// @param mode mode of boundary exchange
   ///
   virtual void wait_bc_exchange(std::set<int>& queue, const int mode);
-
-  ///
-  /// @brief print debugging information
-  /// @param out output stream
-  /// @param verbose level of verbosity
-  ///
-  virtual void print_info(std::ostream& out, int verbose = 0);
 
   ///
   /// @brief finalize application
@@ -422,7 +421,6 @@ DEFINE_MEMBER(void, setup)()
 DEFINE_MEMBER(void, diagnostic)(std::ostream& out)
 {
   out << tfm::format("*** step = %8d (time = %10.5f)\n", curstep, curtime);
-  print_info(out, 1);
 }
 
 DEFINE_MEMBER(void, push)()
@@ -451,23 +449,39 @@ DEFINE_MEMBER(float64, get_available_etime)()
   return emax - etime;
 }
 
-DEFINE_MEMBER(void, calc_workload)()
+DEFINE_MEMBER(void, accumulate_workload)()
 {
   const int Nc = cdims[3];
 
-  // calculate global workload per chunk
-  for (int i = 0; i < Nc; i++) {
-    workload[i] = 0.0;
-  }
-
   // local workload
   for (int i = 0; i < numchunk; i++) {
-    int id       = chunkvec[i]->get_id();
-    workload[id] = chunkvec[i]->get_total_load();
+    int id = chunkvec[i]->get_id();
+
+    workload[id] += chunkvec[i]->get_total_load();
+    chunkvec[i]->reset_load();
+  }
+}
+
+DEFINE_MEMBER(void, get_global_workload)()
+{
+  std::vector<int> rcnt(nprocess);
+  std::vector<int> disp(nprocess);
+
+  // recv count
+  std::fill(rcnt.begin(), rcnt.end(), 0);
+  for (int i = 0; i < workload.size(); i++) {
+    int rank = chunkmap->get_rank(i);
+    rcnt[rank]++;
   }
 
-  // global workload
-  MPI_Allreduce(MPI_IN_PLACE, workload.data(), Nc, MPI_REAL8, MPI_SUM, MPI_COMM_WORLD);
+  // displacement
+  disp[0] = 0;
+  for (int r = 0; r < nprocess - 1; r++) {
+    disp[r + 1] = disp[r] + rcnt[r];
+  }
+
+  MPI_Allgatherv(MPI_IN_PLACE, rcnt[thisrank], MPI_FLOAT64_T, workload.data(), rcnt.data(),
+                 disp.data(), MPI_FLOAT64_T, MPI_COMM_WORLD);
 }
 
 DEFINE_MEMBER(void, initialize_chunkmap)()
@@ -520,35 +534,92 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
   // allocate workload and initialize
   //
   workload.resize(Nc);
-
-  for (int i = 0; i < Nc; i++) {
-    workload[i] = 0.0;
-  }
+  std::fill(workload.begin(), workload.end(), 0.0);
 }
 
-DEFINE_MEMBER(void, rebuild_chunkmap)()
+DEFINE_MEMBER(bool, rebuild_chunkmap)()
 {
   const int        Nc = cdims[3];
-  std::vector<int> rank(Nc);
+  std::vector<int> boundary(nprocess + 1);
+  std::vector<int> oldrank(Nc);
+  std::vector<int> newrank(Nc);
 
-  // calculate global workload
-  calc_workload();
+  json obj = cfg_json["application"]["rebuild"];
+  json log;
+  int  interval = obj.value("interval", 10);
+  int  loglevel = obj.value("loglevel", 0);
 
-  // calculate new decomposition
-  balancer->partition(nprocess, workload, rank);
+  // accumulate workload
+  accumulate_workload();
+
+  if (curstep != 0 && curstep % interval != 0)
+    return false;
 
   //
-  // chunk send/recv
+  // now rebuild chunkmap
   //
-  sendrecv_chunk(rank);
 
-  //
+  // *** rebuild start ***
+  float64 etime = wall_clock();
+
+  get_global_workload();
+
+  // calculate new chunk distribution
+  for (int i = 0; i < Nc; i++) {
+    oldrank[i] = chunkmap->get_rank(i);
+  }
+  balancer->get_boundary(oldrank, boundary);
+  balancer->partition(nprocess, workload, boundary);
+  balancer->get_rank(boundary, newrank);
+
+  if (loglevel >= 1) {
+    json chunkid;
+    json old_rank;
+    json new_rank;
+
+    for (int i = 0; i < Nc; i++) {
+      if (newrank[i] != oldrank[i]) {
+        chunkid.push_back(i);
+        old_rank.push_back(oldrank[i]);
+        new_rank.push_back(newrank[i]);
+      }
+    }
+
+    log["exchange"] = {{"chunkid", chunkid}, {"old_rank", old_rank}, {"new_rank", new_rank}};
+    log["rankload"] = balancer->get_rankload(boundary, workload);
+  }
+
+  // send/recv chunk
+  sendrecv_chunk(newrank);
+
   // reset rank
-  //
   for (int id = 0; id < Nc; id++) {
-    chunkmap->set_rank(id, rank[id]);
+    chunkmap->set_rank(id, newrank[id]);
   }
   set_chunk_neighbors();
+
+  // *** rebuild end ***
+  log["rebuild_time"] = wall_clock() - etime;
+
+  // output log
+  if (thisrank == 0 && loglevel >= 1) {
+    std::string prefix   = obj.value("prefix", "rebuild");
+    std::string path     = obj.value("path", ".") + "/";
+    std::string filename = tfm::format("%s_%06d.json", path + prefix, curstep);
+
+    std::ofstream ofs(filename);
+    ofs << std::setw(2) << log;
+    ofs.close();
+
+    if (loglevel >= 2) {
+      balancer->print_assignment(std::cerr, boundary, workload);
+    }
+  }
+
+  // reset
+  std::fill(workload.begin(), workload.end(), 0.0);
+
+  return true;
 }
 
 DEFINE_MEMBER(bool, validate_chunkmap)()
@@ -733,10 +804,8 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
       numchunk++;
     }
 
-    // better to resize if too much memory is used
-    if (chunkvec.size() > 2 * numchunk) {
-      chunkvec.resize(numchunk);
-    }
+    // resize and discard unused chunks
+    chunkvec.resize(numchunk);
   }
 }
 
@@ -831,46 +900,6 @@ DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, const int mode)
     chunkvec[*iter]->set_boundary_end(mode);
     queue.erase(*iter);
   }
-}
-
-DEFINE_MEMBER(void, print_info)(std::ostream& out, int verbose)
-{
-  LOGPRINT0(out, "\n");
-  LOGPRINT0(out, "----- <<< BEGIN INFORMATION >>> -----");
-  LOGPRINT0(out, "\n");
-  LOGPRINT0(out, "Number of processes : %4d\n", nprocess);
-  LOGPRINT0(out, "This rank           : %4d\n", thisrank);
-
-  // local chunk
-  if (verbose >= 1) {
-    const int Nc   = cdims[3];
-    float64   gsum = 0.0;
-    float64   lsum = 0.0;
-
-    // global workload
-    calc_workload();
-    for (int i = 0; i < Nc; i++) {
-      gsum += workload[i];
-    }
-
-    LOGPRINT0(out, "\n");
-    LOGPRINT0(out, "--- %-8d local chunkes ---\n", numchunk);
-
-    for (int i = 0; i < numchunk; i++) {
-      int id = chunkvec[i]->get_id();
-      lsum += workload[id];
-      LOGPRINT0(out, "   chunk[%.8d]:  workload = %10.4f\n", id, workload[id]);
-    }
-
-    LOGPRINT0(out, "\n");
-    LOGPRINT0(out, "*** load of %12.8f %% (ideally %12.8f %%)\n", lsum / gsum * 100,
-              1.0 / nprocess * 100);
-  }
-
-  LOGPRINT0(out, "\n");
-  LOGPRINT0(out, "----- <<< END INFORMATION >>> -----\n");
-  LOGPRINT0(out, "\n");
-  LOGPRINT0(out, "\n");
 }
 
 DEFINE_MEMBER(void, finalize)(int cleanup)
