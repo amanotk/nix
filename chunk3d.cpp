@@ -317,8 +317,13 @@ DEFINE_MEMBER(int, pack_diagnostic_coord)(void* buffer, const int address, const
 DEFINE_MEMBER(template <typename T> int, pack_diagnostic_field)
 (void* buffer, const int address, T& u)
 {
-  size_t size  = u.size();
-  int    count = sizeof(float64) * size + address;
+  // calculate number of elements
+  size_t size = dims[0] * dims[1] * dims[2];
+  for (int i = 3; i < u.dimension(); i++) {
+    size *= u.shape(i);
+  }
+
+  int count = sizeof(float64) * size + address;
 
   if (buffer == nullptr) {
     return count;
