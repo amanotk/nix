@@ -187,6 +187,10 @@ DEFINE_MEMBER(void, sort_particle)(ParticleVec& particle)
   }
 }
 
+DEFINE_MEMBER(void, inject_particle)(ParticleVec& particle)
+{
+}
+
 DEFINE_MEMBER(void, set_mpi_communicator)(const int mode, MPI_Comm& comm)
 {
   if (mode >= 0 && mode < mpibufvec.size()) {
@@ -310,10 +314,10 @@ DEFINE_MEMBER(int, pack_diagnostic_coord)(void* buffer, const int address, const
   return count;
 }
 
-DEFINE_MEMBER(int, pack_diagnostic_field)
-(void* buffer, const int address, xt::xtensor<float64, 4>& u)
+DEFINE_MEMBER(template <typename T> int, pack_diagnostic_field)
+(void* buffer, const int address, T& u)
 {
-  size_t size  = dims[2] * dims[1] * dims[0] * u.shape(3);
+  size_t size  = u.size();
   int    count = sizeof(float64) * size + address;
 
   if (buffer == nullptr) {
@@ -323,7 +327,7 @@ DEFINE_MEMBER(int, pack_diagnostic_field)
   auto Iz = xt::range(Lbz, Ubz + 1);
   auto Iy = xt::range(Lby, Uby + 1);
   auto Ix = xt::range(Lbx, Ubx + 1);
-  auto vv = xt::view(u, Iz, Iy, Ix, xt::all());
+  auto vv = xt::strided_view(u, {Iz, Iy, Ix, xt::ellipsis()});
 
   // packing
   uint8_t* ptr = &static_cast<uint8_t*>(buffer)[address];
@@ -789,61 +793,27 @@ DEFINE_MEMBER(int, MpiBuffer::unpack)(void* buffer, const int address)
   return count;
 }
 
-// explicit instantiation for boundary margin of 1
-template class Chunk3D<1>;
-template void Chunk3D<1>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
-                                            bool moment);
-template void Chunk3D<1>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
-                                            bool moment);
-template void Chunk3D<1>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
-                                          bool moment);
-template void Chunk3D<1>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
-                                          bool moment);
-template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);
-template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);
-template void Chunk3D<1>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
+//
+// explicit instantiations
+//
+#define INSTANTIATE_CHUNK3D(NB)                                                                    \
+  template class Chunk3D<NB>;                                                                      \
+  template int  Chunk3D<NB>::pack_diagnostic_field(void*, const int, xt::xtensor<float64, 4>&);    \
+  template int  Chunk3D<NB>::pack_diagnostic_field(void*, const int, xt::xtensor<float64, 5>&);    \
+  template void Chunk3D<NB>::begin_bc_exchange(PtrMpiBuffer, xt::xtensor<float64, 4>&, bool);      \
+  template void Chunk3D<NB>::begin_bc_exchange(PtrMpiBuffer, xt::xtensor<float64, 5>&, bool);      \
+  template void Chunk3D<NB>::end_bc_exchange(PtrMpiBuffer, xt::xtensor<float64, 4>&, bool);        \
+  template void Chunk3D<NB>::end_bc_exchange(PtrMpiBuffer, xt::xtensor<float64, 5>&, bool);        \
+  template void Chunk3D<NB>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);              \
+  template void Chunk3D<NB>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);              \
+  template void Chunk3D<NB>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
 
-// explicit instantiation for boundary margin of 2
-template class Chunk3D<2>;
-template void Chunk3D<2>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
-                                            bool moment);
-template void Chunk3D<2>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
-                                            bool moment);
-template void Chunk3D<2>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
-                                          bool moment);
-template void Chunk3D<2>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
-                                          bool moment);
-template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);
-template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);
-template void Chunk3D<2>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
+INSTANTIATE_CHUNK3D(1)
+INSTANTIATE_CHUNK3D(2)
+INSTANTIATE_CHUNK3D(3)
+INSTANTIATE_CHUNK3D(4)
 
-// explicit instantiation for boundary margin of 3
-template class Chunk3D<3>;
-template void Chunk3D<3>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
-                                            bool moment);
-template void Chunk3D<3>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
-                                            bool moment);
-template void Chunk3D<3>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
-                                          bool moment);
-template void Chunk3D<3>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
-                                          bool moment);
-template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);
-template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);
-template void Chunk3D<3>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
-
-// explicit instantiation for boundary margin of 4
-template class Chunk3D<4>;
-template void Chunk3D<4>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
-                                            bool moment);
-template void Chunk3D<4>::begin_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
-                                            bool moment);
-template void Chunk3D<4>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 4>& array,
-                                          bool moment);
-template void Chunk3D<4>::end_bc_exchange(PtrMpiBuffer mpibuf, xt::xtensor<float64, 5>& array,
-                                          bool moment);
-template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);
-template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);
-template void Chunk3D<4>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
+#undef INSTANTIATE_CHUNK3D
 
 NIX_NAMESPACE_END
 

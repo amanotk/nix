@@ -110,12 +110,14 @@ protected:
 
   ///
   /// @brief pack diagnostic for field quantity
+  /// @tparam T typename for field array
   /// @param buffer pointer to buffer to pack
   /// @param address first address of buffer to which the data will be packed
   /// @param u field quantity to be packed
   /// @return `address` + (number of bytes packed as a result)
   ///
-  int pack_diagnostic_field(void* buffer, const int address, xt::xtensor<float64, 4>& u);
+  template <typename T>
+  int pack_diagnostic_field(void* buffer, const int address, T& u);
 
   ///
   /// @brief pack diagnostic for particle (single species)
@@ -219,10 +221,16 @@ public:
                               bool reset = true);
 
   ///
-  /// @brief peform particle sorting
+  /// @brief perform particle sorting
   /// @param particle list of particle to be sorted
   ///
   virtual void sort_particle(ParticleVec& particle);
+
+  ///
+  /// @brief inject particle into the system
+  /// @param particle list of particle to which new particles will be injected
+  ///
+  virtual void inject_particle(ParticleVec& particle);
 
   ///
   /// @brief query status of boundary exchange

@@ -161,6 +161,14 @@ protected:
   virtual void get_global_workload();
 
   ///
+  /// @brief factory to create chunk object
+  /// @param dims local number of grids in each direction
+  /// @param id chunk ID
+  /// @return chunk object
+  ///
+  virtual std::unique_ptr<Chunk> create_chunk(const int dims[], const int id);
+
+  ///
   /// @brief initialize chunkmap object
   ///
   virtual void initialize_chunkmap();
@@ -376,11 +384,6 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   curstep = 0;
   curtime = 0.0;
 
-  // periodic boundary flag
-  periodic[0] = 1;
-  periodic[1] = 1;
-  periodic[2] = 1;
-
   // MPI
   initialize_mpi(&argc, &argv);
 
@@ -484,6 +487,11 @@ DEFINE_MEMBER(void, get_global_workload)()
                  disp.data(), MPI_FLOAT64_T, MPI_COMM_WORLD);
 }
 
+DEFINE_MEMBER(std::unique_ptr<Chunk>, create_chunk)(const int dims[], const int id)
+{
+  return std::make_unique<Chunk>(dims, id);
+}
+
 DEFINE_MEMBER(void, initialize_chunkmap)()
 {
   const int Nc = cdims[3];
@@ -520,7 +528,7 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
         numchunk = mc;
         chunkvec.resize(numchunk);
         for (int i = 0; i < numchunk; i++) {
-          chunkvec[i] = std::make_unique<Chunk>(dims, idzero + i);
+          chunkvec[i] = create_chunk(dims, idzero + i);
         }
       }
 
@@ -768,7 +776,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
       uint8_t* rbuf_l0 = rbuf_l;
 
       while ((rbuf_l - rbuf_l0) < rbufcnt_l) {
-        PtrChunk p = std::make_unique<Chunk>(dims, 0);
+        PtrChunk p = create_chunk(dims, 0);
         size       = p->unpack(rbuf_l, 0);
         chunkvec.push_back(std::move(p));
         rbuf_l += size;
@@ -781,7 +789,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
       uint8_t* rbuf_r0 = rbuf_r;
 
       while ((rbuf_r - rbuf_r0) < rbufcnt_r) {
-        PtrChunk p = std::make_unique<Chunk>(dims, 0);
+        PtrChunk p = create_chunk(dims, 0);
         size       = p->unpack(rbuf_r, 0);
         chunkvec.push_back(std::move(p));
         rbuf_r += size;
@@ -911,11 +919,12 @@ DEFINE_MEMBER(void, finalize)(int cleanup)
   finalize_mpi(cleanup);
 }
 
-DEFINE_MEMBER(, Application)() : mpi_init_with_nullptr(false), cleanup(0)
+DEFINE_MEMBER(, Application)() : mpi_init_with_nullptr(false), cleanup(0), periodic{1, 1, 1}
 {
 }
 
-DEFINE_MEMBER(, Application)(int argc, char** argv) : mpi_init_with_nullptr(false), cleanup(0)
+DEFINE_MEMBER(, Application)
+(int argc, char** argv) : mpi_init_with_nullptr(false), cleanup(0), periodic{1, 1, 1}
 {
   cl_argc = argc;
   cl_argv = argv;
