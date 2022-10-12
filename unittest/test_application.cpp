@@ -44,12 +44,14 @@ public:
     // do nothing
   }
 
-  virtual void rebuild_chunkmap() override
+  virtual bool rebuild_chunkmap() override
   {
-    BaseApp::rebuild_chunkmap();
+    bool status = BaseApp::rebuild_chunkmap();
 
     // check validity
     REQUIRE(validate_chunkmap() == true);
+
+    return status;
   }
 
   int run_main()

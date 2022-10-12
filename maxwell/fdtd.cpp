@@ -40,14 +40,14 @@ DEFINE_MEMBER(int, unpack)(void *buffer, const int address)
 
 DEFINE_MEMBER(void, setup)(json &config)
 {
-  float64 delh = config["delh"].get<float64>();
+  float64 delh = config.value("delh", 1.0);
 
-  cc   = config["cc"].get<float64>();
+  cc   = config.value("cc", 1.0);
   delx = delh;
   dely = delh;
   delz = delh;
 
-  int     kdir    = config["kdir"].get<int>();
+  int     kdir    = config.value("kdir", 0);
   int     efd[3]  = {0};
   int     bfd[3]  = {0};
   float64 kvec[3] = {0};

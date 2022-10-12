@@ -237,13 +237,13 @@ public:
   /// @param mode mode of boundary exchange
   /// @return true if boundary exchange is finished and false otherwise
   ///
-  virtual bool set_boundary_query(const int mode = 0);
+  virtual bool set_boundary_query(const int mode = 0) override;
 
   ///
   /// @brief set physical boundary condition
   /// @param mode mode of boundary exchange
   ///
-  virtual void set_boundary_physical(const int mode = 0);
+  virtual void set_boundary_physical(const int mode = 0) override;
 
   ///
   /// @brief set boundary condition to particle array
@@ -263,13 +263,13 @@ public:
   /// @brief begin boundary exchange
   /// @param mode mode of boundary exchange
   ///
-  virtual void set_boundary_begin(const int mode) = 0;
+  virtual void set_boundary_begin(const int mode) override = 0;
 
   ///
   /// @brief end boundary exchange
   /// @param mode mode of boundary exchange
   ///
-  virtual void set_boundary_end(const int mode) = 0;
+  virtual void set_boundary_end(const int mode) override = 0;
 };
 
 NIX_NAMESPACE_END

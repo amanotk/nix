@@ -18,21 +18,29 @@ import numpy as np
 JSONSTR_TEMPLATE = \
 """
 {{
-    "Nx" : {Nx},
-    "Ny" : {Ny},
-    "Nz" : {Nz},
-    "Cx" : {Cx},
-    "Cy" : {Cy},
-    "Cz" : {Cz},
-    "delt" : 0.5,
-    "delh" : 1.0,
-    "cc"   : 1.0,
-    "kdir" : {kdir},
-    "interval" : 10,
-    "prefix" : "{filename}_",
-    "__EOF__" : 0
+    "application": {{
+        "rebuild": {{
+            "interval": 1,
+            "loglevel": 0
+        }}
+    }},
+    "diagnostic": {{
+        "interval" : 10,
+        "prefix" : "{filename}_"
+    }},
+    "parameter": {{
+        "Nx" : {Nx},
+        "Ny" : {Ny},
+        "Nz" : {Nz},
+        "Cx" : {Cx},
+        "Cy" : {Cy},
+        "Cz" : {Cz},
+        "delt" : 0.5,
+        "delh" : 1.0,
+        "cc"   : 1.0,
+        "kdir" : {kdir}
+    }}
 }}
-
 """
 
 FILENAME_TEMPLATE = "{prefix}-{Cx:03d}-{Cy:03}-{Cz:03d}-kdir{kdir:01d}"

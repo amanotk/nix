@@ -3,16 +3,16 @@
 
 #define DEFINE_MEMBER(type, name) type Maxwell::name
 
-DEFINE_MEMBER(void, initialize)(int argc, char **argv)
+DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 {
   // default initialize()
   BaseApp::initialize(argc, argv);
 
   // additional parameters
-  interval = cfg_json["interval"].get<int>();
-  prefix   = cfg_json["prefix"].get<std::string>();
-  cc       = cfg_json["cc"].get<float64>();
-  kdir     = cfg_json["kdir"].get<int>();
+  json parameter = cfg_json["parameter"];
+
+  cc   = parameter.value("cc", 1.0);
+  kdir = parameter.value("kdir", 0);
 
   // set auxiliary information for chunk
   for (int i = 0; i < numchunk; i++) {
@@ -59,8 +59,13 @@ DEFINE_MEMBER(void, push)()
   curstep++;
 }
 
-DEFINE_MEMBER(void, diagnostic)(std::ostream &out)
+DEFINE_MEMBER(void, diagnostic)(std::ostream& out)
 {
+  json diagnostic = cfg_json["diagnostic"];
+
+  int         interval = diagnostic.value("interval", 1);
+  std::string prefix   = diagnostic.value("prefix", "maxwell_");
+
   if (curstep % interval != 0) {
     return;
   }

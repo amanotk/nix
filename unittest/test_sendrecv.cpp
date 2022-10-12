@@ -108,7 +108,7 @@ public:
 
   void initialize_field()
   {
-    int stride[3] = {ndims[1] * ndims[2], ndims[2], 1};
+    int stride[3] = {gdims[1] * gdims[2], gdims[2], 1};
 
     std::mt19937 mt;
 
@@ -131,7 +131,7 @@ public:
   bool check_field()
   {
     bool status    = true;
-    int  stride[3] = {ndims[1] * ndims[2], ndims[2], 1};
+    int  stride[3] = {gdims[1] * gdims[2], gdims[2], 1};
 
     std::mt19937 mt;
 
@@ -143,12 +143,12 @@ public:
           int jx = ix - Lbx + offset[2];
 
           // periodic boundary
-          jz = jz < 0 ? jz + ndims[0] : jz;
-          jy = jy < 0 ? jy + ndims[1] : jy;
-          jx = jx < 0 ? jx + ndims[2] : jx;
-          jz = jz >= ndims[0] ? jz - ndims[0] : jz;
-          jy = jy >= ndims[1] ? jy - ndims[0] : jy;
-          jx = jx >= ndims[2] ? jx - ndims[2] : jx;
+          jz = jz < 0 ? jz + gdims[0] : jz;
+          jy = jy < 0 ? jy + gdims[1] : jy;
+          jx = jx < 0 ? jx + gdims[2] : jx;
+          jz = jz >= gdims[0] ? jz - gdims[0] : jz;
+          jy = jy >= gdims[1] ? jy - gdims[0] : jy;
+          jx = jx >= gdims[2] ? jx - gdims[2] : jx;
 
           int ii = jz * stride[0] + jy * stride[1] + jx * stride[2];
           mt.seed(ii);
@@ -165,7 +165,7 @@ public:
 
   void initialize_particle(const int Nppc, const int Ns)
   {
-    int stride[3] = {ndims[1] * ndims[2], ndims[2], 1};
+    int stride[3] = {gdims[1] * gdims[2], gdims[2], 1};
     int nps[Ns]   = {0};
 
     std::mt19937 mt;
@@ -182,12 +182,12 @@ public:
               int64    id64 = Nppc * (jz * stride[0] + jy * stride[1] + jx * stride[2]) + jp;
               mt.seed(id64);
               // position and velocity
-              xu[0] = delh * uniform_rand(mt) * 0.5 + (jx + 0.5) * delh;
-              xu[1] = delh * uniform_rand(mt) * 0.5 + (jy + 0.5) * delh;
-              xu[2] = delh * uniform_rand(mt) * 0.5 + (jz + 0.5) * delh;
-              xu[3] = delh * uniform_rand(mt);
-              xu[4] = delh * uniform_rand(mt);
-              xu[5] = delh * uniform_rand(mt);
+              xu[0] = delx * uniform_rand(mt) * 0.5 + (jx + 0.5) * delx;
+              xu[1] = dely * uniform_rand(mt) * 0.5 + (jy + 0.5) * dely;
+              xu[2] = delz * uniform_rand(mt) * 0.5 + (jz + 0.5) * delz;
+              xu[3] = delx * uniform_rand(mt);
+              xu[4] = dely * uniform_rand(mt);
+              xu[5] = delz * uniform_rand(mt);
               // ID
               std::memcpy(&xu[6], &id64, sizeof(int64));
             }
@@ -206,10 +206,10 @@ public:
   {
     bool status = true;
 
-    int     stride[3] = {ndims[1] * ndims[2], ndims[2], 1};
+    int     stride[3] = {gdims[1] * gdims[2], gdims[2], 1};
     float64 xyzmin[3] = {0.0, 0.0, 0.0};
-    float64 xyzmax[3] = {ndims[2] * delh, ndims[1] * delh, ndims[0] * delh};
-    float64 xyzlen[3] = {ndims[2] * delh, ndims[1] * delh, ndims[0] * delh};
+    float64 xyzmax[3] = {gdims[2] * delx, gdims[1] * dely, gdims[0] * delz};
+    float64 xyzlen[3] = {gdims[2] * delx, gdims[1] * dely, gdims[0] * delz};
 
     std::mt19937 mt;
 
@@ -224,21 +224,21 @@ public:
         mt.seed(id64);
 
         int   jp = id64 % Nppc;
-        int   jx = (id64 % (Nppc * ndims[2])) / Nppc;
-        int   jy = (id64 % (Nppc * ndims[1] * ndims[2])) / (Nppc * ndims[2]);
-        int   jz = id64 / (Nppc * ndims[1] * ndims[2]);
+        int   jx = (id64 % (Nppc * gdims[2])) / Nppc;
+        int   jy = (id64 % (Nppc * gdims[1] * gdims[2])) / (Nppc * gdims[2]);
+        int   jz = id64 / (Nppc * gdims[1] * gdims[2]);
         int64 id = Nppc * (jz * stride[0] + jy * stride[1] + jx * stride[2]) + jp;
 
         // check ID
         status = status & (id64 == id);
 
         // set position and velocity
-        xv[0] = delh * uniform_rand(mt) * 0.5 + (jx + 0.5) * delh;
-        xv[1] = delh * uniform_rand(mt) * 0.5 + (jy + 0.5) * delh;
-        xv[2] = delh * uniform_rand(mt) * 0.5 + (jz + 0.5) * delh;
-        xv[3] = delh * uniform_rand(mt);
-        xv[4] = delh * uniform_rand(mt);
-        xv[5] = delh * uniform_rand(mt);
+        xv[0] = delx * uniform_rand(mt) * 0.5 + (jx + 0.5) * delx;
+        xv[1] = dely * uniform_rand(mt) * 0.5 + (jy + 0.5) * dely;
+        xv[2] = delz * uniform_rand(mt) * 0.5 + (jz + 0.5) * delz;
+        xv[3] = delx * uniform_rand(mt);
+        xv[4] = dely * uniform_rand(mt);
+        xv[5] = delz * uniform_rand(mt);
 
         // push position and apply boundary condition
         xv[0] += xv[3] * delt;
@@ -411,7 +411,7 @@ public:
     }
   }
 
-  void finalize(int cleanup = 0)
+  void finalize(int cleanup = 0) override
   {
     BaseApp::finalize(cleanup);
   }

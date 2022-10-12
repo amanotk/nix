@@ -280,23 +280,47 @@ DEFINE_MEMBER(void, parse_cfg)()
     cfg_json = json::parse(f, nullptr, true, true);
   }
 
-  // time step and grid size
+  // check sections: application, diagnostic, parameter
   {
-    float64 delh = cfg_json["delh"].get<float64>();
+    bool status = true;
 
-    delt = cfg_json["delt"].get<float64>();
-    delx = delh;
-    dely = delh;
-    delz = delh;
+    if (cfg_json["application"].is_null()) {
+      tfm::format(std::cerr, "Error: configuration file misses `application` section\n");
+      status = false;
+    }
+
+    if (cfg_json["diagnostic"].is_null()) {
+      tfm::format(std::cerr, "Error: configuration file misses `diagnostic` section\n");
+      status = false;
+    }
+
+    if (cfg_json["parameter"].is_null()) {
+      tfm::format(std::cerr, "Error: configuration file misses `parameter` section\n");
+      status = false;
+    }
+
+    if (status == false) {
+      finalize(-1);
+      exit(-1);
+    }
   }
 
+  // time step and grid size
+  json    parameter = cfg_json["parameter"];
+  float64 delh      = parameter.value("delh", 1.0);
+
+  delt = parameter.value("delt", 1.0);
+  delx = delh;
+  dely = delh;
+  delz = delh;
+
   // get dimensions
-  int nx = cfg_json["Nx"].get<int>();
-  int ny = cfg_json["Ny"].get<int>();
-  int nz = cfg_json["Nz"].get<int>();
-  int cx = cfg_json["Cx"].get<int>();
-  int cy = cfg_json["Cy"].get<int>();
-  int cz = cfg_json["Cz"].get<int>();
+  int nx = parameter.value("Nx", 1);
+  int ny = parameter.value("Ny", 1);
+  int nz = parameter.value("Nz", 1);
+  int cx = parameter.value("Cx", 1);
+  int cy = parameter.value("Cy", 1);
+  int cz = parameter.value("Cz", 1);
 
   // check dimensions
   if (!(nz % cz == 0 && ny % cy == 0 && nx % cx == 0)) {

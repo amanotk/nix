@@ -1,11 +1,19 @@
 {
-    "Nx" : 16,
-    "Ny" : 16,
-    "Nz" : 16,
-    "Cx" : 4,
-    "Cy" : 4,
-    "Cz" : 4,
-    "delt" : 1.0,
-    "delh" : 1.0,
-    "__EOF__" : 0
+    "application": {
+        "rebuild": {
+            "interval": 1,
+            "loglevel": 0
+        }
+    },
+    "diagnostic": {},
+    "parameter": {
+        "Nx": 16,
+        "Ny": 16,
+        "Nz": 16,
+        "Cx": 4,
+        "Cy": 4,
+        "Cz": 4,
+        "delt": 1.0,
+        "delh": 1.0
+    }
 }

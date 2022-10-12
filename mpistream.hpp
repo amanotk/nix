@@ -41,7 +41,7 @@ private:
   std::streambuf* m_sb1;
   std::streambuf* m_sb2;
 
-  virtual int overflow(int c)
+  virtual int overflow(int c) override
   {
     if (c == EOF) {
       return !EOF;
@@ -52,7 +52,7 @@ private:
     }
   }
 
-  virtual int sync()
+  virtual int sync() override
   {
     int const r1 = m_sb1->pubsync();
     int const r2 = m_sb2->pubsync();

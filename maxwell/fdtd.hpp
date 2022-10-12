@@ -34,7 +34,7 @@ public:
 
   virtual void push(const float64 delt);
 
-  virtual int pack_diagnostic(int mode, void *buffer, const int address);
+  virtual int pack_diagnostic(int mode, void *buffer, const int address) override;
 
   virtual void set_boundary_begin(const int mode = 0) override;
 
