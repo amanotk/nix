@@ -8,28 +8,28 @@ DEPS    = $(SRCS:%.cpp=%.d)
 
 default: libnix.a
 
-### test
-testall: libnix.a
-	make testall -C unittest
-	make testall -C maxwell
-
 ### library
 libnix.a: $(OBJS)
 	$(AR) r $@ $(OBJS)
+
+### test
+testall: libnix.a
+	$(MAKE) testall -C unittest
+	$(MAKE) testall -C maxwell
 
 ### clean
 clean:
 	rm -f $(OBJS) *.a *.d
 	# clean subdirectories
 	for dir in $(SUBDIRS); do \
-		make clean -C $$dir; \
+		$(MAKE) clean -C $$dir; \
 	done
 
 cleanall:
 	rm -f $(OBJS) *.a *.d
 	# clean subdirectories
 	for dir in $(SUBDIRS); do \
-		make cleanall -C $$dir; \
+		$(MAKE) cleanall -C $$dir; \
 	done
 
 ### dependency

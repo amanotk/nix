@@ -6,6 +6,9 @@ BASEDIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 # include compilers
 include $(BASEDIR)/compiler.mk
 
+# add options
+CXXFLAGS += -I$(BASEDIR) -I$(BASEDIR)/thirdparty
+
 # default
 .PHONY : all
 .PHONY : clean
@@ -14,4 +17,4 @@ include $(BASEDIR)/compiler.mk
 .SUFFIXES : .o .cpp
 
 %.o: %.cpp
-	$(CXX) -c $(CXXFLAGS) -I$(BASEDIR) $< -o $@
+	$(CXX) -c $(CXXFLAGS) $< -o $@

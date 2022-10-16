@@ -1,9 +1,10 @@
 # -*- Makefile -*-
 
-INCLUDE_FLAGS=$(shell pkg-config --cflags xtensor xtl xsimd)
+# include directories
+XTENSOR_FLAGS = $(shell pkg-config --cflags xtensor xtl xsimd)
 
 # compilers and arguments
 AR       = ar
 CXX      = mpicxx
-CXXFLAGS = -std=c++14 -MMD $(INCLUDE_FLAGS)
+CXXFLAGS = -std=c++14 -O2 -MMD $(XTENSOR_FLAGS)
 LDFLAGS  =
