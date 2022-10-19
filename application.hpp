@@ -485,7 +485,6 @@ DEFINE_MEMBER(void, accumulate_workload)()
     int id = chunkvec[i]->get_id();
 
     workload[id] += chunkvec[i]->get_total_load();
-    chunkvec[i]->reset_load();
   }
 }
 

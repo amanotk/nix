@@ -277,8 +277,8 @@ DEFINE_MEMBER(int, pack_diagnostic_load)(void* buffer, const int address)
     return count;
   }
 
-  std::copy(load.begin(), load.end(),
-            reinterpret_cast<float64*>(static_cast<uint8_t*>(buffer) + address));
+  float64* ptr = reinterpret_cast<float64*>(static_cast<uint8_t*>(buffer) + address);
+  std::copy(load.begin(), load.end(), ptr);
 
   return count;
 }
@@ -335,8 +335,8 @@ DEFINE_MEMBER(template <typename T> int, pack_diagnostic_field)
   auto vv = xt::strided_view(u, {Iz, Iy, Ix, xt::ellipsis()});
 
   // packing
-  uint8_t* ptr = &static_cast<uint8_t*>(buffer)[address];
-  std::copy(vv.begin(), vv.end(), reinterpret_cast<float64*>(ptr));
+  float64* ptr = reinterpret_cast<float64*>(static_cast<uint8_t*>(buffer) + address);
+  std::copy(vv.begin(), vv.end(), ptr);
 
   return count;
 }
