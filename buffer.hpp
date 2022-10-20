@@ -43,7 +43,7 @@ struct Buffer {
     if (s > size) {
       // allocate new memory and copy contents
       Pointer p = std::make_unique<uint8_t[]>(s);
-      std::memcpy(data.get(), p.get(), size);
+      std::memcpy(p.get(), data.get(), size);
 
       // move
       data = std::move(p);
