@@ -38,7 +38,7 @@ void calculate_global_offset(size_t lsize, size_t* offset, size_t* gsize)
   }
 }
 
-// collective raed/write with hindexed type
+// collective read/write with hindexed type
 void readwrite_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t offset,
                           const size_t size, const int32_t elembyte, const int32_t packbyte,
                           const int mode)
@@ -109,7 +109,7 @@ void readwrite_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_
   MPI_Type_free(&ptype);
 }
 
-// collective raed/write with subarray type
+// collective read/write with subarray type
 void readwrite_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
                         const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
                         const int32_t elembyte, const int mode, const int order)
@@ -155,7 +155,7 @@ void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mod
       ERRORPRINT("Failed to open file: %s\n", filename);
     }
 
-    // set pointer to the beggining
+    // set pointer to the beginning
     *disp = 0;
     MPI_File_seek(*fh, *disp, MPI_SEEK_SET);
 
@@ -169,7 +169,7 @@ void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mod
       ERRORPRINT("Failed to open file: %s\n", filename);
     }
 
-    // set pointer to the beggining
+    // set pointer to the beginning
     *disp = 0;
     MPI_File_seek(*fh, *disp, MPI_SEEK_SET);
 
@@ -182,11 +182,15 @@ void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mod
       ERRORPRINT("Failed to open file: %s\n", filename);
     }
 
-    // set pointer to the end
+    //
+    // <<< NOTE >>>
+    // This implementation for setting the file pointer to the end of the file avoids an erroneous
+    // behavior of MPI_File_seek() provided by OpenMPI.
+    // See: https://github.com/open-mpi/ompi/issues/8266
+    //
     MPI_Offset pos;
-    *disp = 0;
-    MPI_File_seek(*fh, *disp, MPI_SEEK_END);
-    MPI_File_get_position(*fh, &pos);
+    MPI_File_get_size(*fh, &pos);
+    MPI_File_seek(*fh, pos, MPI_SEEK_SET);
     *disp = static_cast<size_t>(pos);
 
     break;
