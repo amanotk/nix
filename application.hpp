@@ -916,12 +916,41 @@ DEFINE_MEMBER(void, write_chunk_all)(MPI_File& fh, size_t& disp, const int mode)
 
 DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, const int mode)
 {
-  int recvmode = RecvMode | mode;
+  const float64 deadlock_detection_limit = 60;
+
+  bool    status   = true;
+  int     recvmode = RecvMode | mode;
+  float64 wclock   = nix::wall_clock();
 
   while (queue.empty() == false) {
     // find chunk for unpacking
     auto iter = std::find_if(queue.begin(), queue.end(),
                              [&](int i) { return chunkvec[i]->set_boundary_query(recvmode); });
+
+    if (nix::wall_clock() - wclock > deadlock_detection_limit) {
+      status = false;
+      DEBUGPRINT(std::cerr, "Possible deadlock has been detected at rank = %04d!\n", thisrank);
+      DEBUGPRINT(std::cerr, "BoundaryMode = %04d\n", mode);
+      DEBUGPRINT(std::cerr, "Remaining chunks:\n");
+
+      for (auto it = queue.begin(); it != queue.end(); ++it) {
+        auto mpibuf = chunkvec[*it]->get_mpi_buffer(mode);
+
+        // show all neighbor information
+        DEBUGPRINT(std::cerr, "*   ID = %4d\n", chunkvec[*it]->get_id());
+        for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
+          for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
+            for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+              int id   = chunkvec[*it]->get_nb_id(dirz, diry, dirx);
+              int rank = chunkvec[*it]->get_nb_rank(dirz, diry, dirx);
+              int flag = 0;
+              MPI_Test(&mpibuf->recvreq(iz, iy, ix), &flag, MPI_STATUS_IGNORE);
+              DEBUGPRINT(std::cerr, "    nb: ID = %4d, rank = %4d, flag = %2d\n", id, rank, flag);
+            }
+          }
+        }
+      }
+    }
 
     // not found
     if (iter == queue.end())
@@ -930,6 +959,15 @@ DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, const int mode)
     // unpack
     chunkvec[*iter]->set_boundary_end(mode);
     queue.erase(*iter);
+  }
+
+  // exit on error
+  MPI_Allreduce(MPI_IN_PLACE, &status, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
+
+  if (status == false) {
+    ERRORPRINT("Error: exit possibly due to deadlock in wait_bc_exchange()\n");
+    finalize(-1);
+    exit(-1);
   }
 }
 

@@ -395,7 +395,7 @@ DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particl
 
     if (safe == false) {
       int elembyte = 2 * data_size * xt::amax(xt::view(snd_count, Ns, I, I, I))();
-      set_mpi_buffer(mpibuf, header_size, elembyte);
+      set_mpi_buffer(mpibuf, header_size * Ns, elembyte);
     }
   }
 
@@ -445,7 +445,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
   const size_t Ns          = particle.size();
 
   // wait for MPI recv calls to complete
-  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
+  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUSES_IGNORE);
 
   // array to store total number of particles
   std::vector<int> num_particle(Ns);
@@ -511,9 +511,6 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
     particle[is]->sort();
   }
 
-  // wait for MPI send calls to complete (optional)
-  MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
-
   //
   // automatically resize particle buffer
   //
@@ -536,6 +533,9 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
     // resize if needed
     particle[is]->resize(new_np);
   }
+
+  // wait for MPI send calls to complete (optional)
+  MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
 }
 
 DEFINE_MEMBER(template <typename T> void, begin_bc_exchange)
@@ -594,7 +594,7 @@ DEFINE_MEMBER(template <typename T> void, end_bc_exchange)
 (PtrMpiBuffer mpibuf, T& array, bool moment)
 {
   // wait for MPI recv calls to complete
-  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUS_IGNORE);
+  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUSES_IGNORE);
 
   //
   // unpack recv buffer
@@ -643,7 +643,7 @@ DEFINE_MEMBER(template <typename T> void, end_bc_exchange)
   }
 
   // wait for MPI send calls to complete (optional)
-  MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUS_IGNORE);
+  MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
 }
 
 DEFINE_MEMBER(template <typename T> void, set_mpi_buffer)
@@ -696,14 +696,14 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
 
   if (send == true && recv == true) {
     // both send/recv
-    MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUS_IGNORE);
-    MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUSES_IGNORE);
+    MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUSES_IGNORE);
   } else if (send == true) {
     // send
-    MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUSES_IGNORE);
   } else if (recv == true) {
     // recv
-    MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUS_IGNORE);
+    MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUSES_IGNORE);
   }
 
   return !(flag == 0);
@@ -758,6 +758,11 @@ DEFINE_MEMBER(void, set_boundary_particle)(PtrParticle particle, int Lbp, int Ub
     xu[1] += (xu[1] < gylim[0]) * ylength - (xu[1] >= gylim[1]) * ylength;
     xu[2] += (xu[2] < gzlim[0]) * zlength - (xu[2] >= gzlim[1]) * zlength;
   }
+}
+
+DEFINE_MEMBER(typename Chunk3D<Nb>::PtrMpiBuffer, get_mpi_buffer)(const int mode)
+{
+  return mpibufvec[mode];
 }
 
 DEFINE_MEMBER(, MpiBuffer::MpiBuffer)() : comm(MPI_COMM_WORLD)

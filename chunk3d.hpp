@@ -270,6 +270,13 @@ public:
   /// @param mode mode of boundary exchange
   ///
   virtual void set_boundary_end(const int mode) override = 0;
+
+  ///
+  /// @brief return MpiBuffer of given mode of boundary exchange
+  /// @param mode mode of MpiBuffer
+  /// @return PtrMpiBuffer or std::shared_ptr<MpiBuffer>
+  ///
+  PtrMpiBuffer get_mpi_buffer(const int mode);
 };
 
 NIX_NAMESPACE_END

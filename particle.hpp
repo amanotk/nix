@@ -97,13 +97,20 @@ public:
   ///
   /// @brief resize particle array
   ///
-  void resize(const int Np_total)
+  void resize(const int newsize)
   {
-    const size_t np = Np_total;
-    const size_t nc = Nc;
+    const int    np_min = 2 * Ng;
+    const size_t np     = newsize;
+    const size_t nc     = Nc;
 
-    // should not resize
-    if (Np_total == this->Np_total || Np_total <= Np) {
+    //
+    // Resize should not be performed either of the following conditions are met:
+    //
+    // (1) newsize is equal to the original (no need to resize)
+    // (2) newsize is smaller than minimum buffer size
+    // (3) newsize is smaller than the current active particle number
+    //
+    if (newsize == Np_total || newsize < np_min || newsize <= Np) {
       return;
     }
 
@@ -134,7 +141,7 @@ public:
     }
 
     // set new total number of particles
-    this->Np_total = Np_total;
+    Np_total = newsize;
   }
 
   ///
