@@ -458,7 +458,7 @@ DEFINE_MEMBER(void, push)()
 
 DEFINE_MEMBER(bool, is_push_needed)()
 {
-  if (curtime < tmax) {
+  if (curtime < tmax + delt) {
     return true;
   }
   return false;
