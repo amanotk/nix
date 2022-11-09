@@ -34,6 +34,7 @@ protected:
   char**      cl_argv;  ///< command-line argv
   std::string cfg_file; ///< configuration file name
   json        cfg_json; ///< configuration json object
+  json        log_json; ///< log json object
   cmdparser   parser;   ///< command line parser
   float64     wclock;   ///< wall clock time at initialization
   PtrBalancer balancer; ///< load balancer
@@ -126,6 +127,11 @@ protected:
   /// @brief setup initial conditions
   ///
   virtual void setup();
+
+  ///
+  /// @brief output log
+  ///
+  virtual void log();
 
   ///
   /// @brief perform various diagnostics output
@@ -445,6 +451,98 @@ DEFINE_MEMBER(void, setup)()
   this->load();
 }
 
+DEFINE_MEMBER(void, log)()
+{
+  json obj = cfg_json["application"]["log"];
+
+  // get parameters from json
+  int         loglevel = obj.value("level", 0);
+  std::string prefix   = obj.value("prefix", "log");
+  std::string path     = obj.value("path", ".") + "/";
+
+  // filename
+  std::string fn_json = prefix + ".json";
+  std::string fn_data = prefix + ".data";
+  std::string numstep = tfm::format("%06d", curstep);
+
+  MPI_File fh;
+  size_t   disp;
+  json     root;
+  json     dataset;
+  json     log;
+
+  log_json["timestamp"] = wall_clock();
+
+  if (curstep == 0) {
+    //
+    // initial setup
+    //
+
+    // create data file
+    jsonio::open_file((path + fn_data).c_str(), &fh, &disp, "w");
+    jsonio::close_file(&fh);
+
+    // create json file
+    root["meta"]    = {{"endian", nix::get_endian_flag()}, {"rawfile", fn_data}, {"order", 1}};
+    root["dataset"] = {};
+    root["log"]     = {};
+
+    if (thisrank == 0) {
+      std::ofstream ofs(path + fn_json);
+      ofs << std::setw(2) << root << std::flush;
+      ofs.close();
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+  } else {
+    //
+    // open existing json file
+    //
+    std::ifstream f(path + fn_json);
+    root    = json::parse(f, nullptr, true, true);
+    dataset = root["dataset"];
+    log     = root["log"];
+  }
+
+  jsonio::open_file((path + fn_data).c_str(), &fh, &disp, "a");
+
+  //
+  // chunk load
+  //
+  if (loglevel >= 1) {
+    const std::string name    = "load_" + numstep;
+    const char        desc[]  = "chunk load (field push, current deposit, particle push)";
+    const int         ndim    = 2;
+    const int         dims[2] = {cdims[3], Chunk::NumLoadMode};
+    const int         size    = dims[0] * dims[1] * sizeof(float64);
+
+    jsonio::put_metadata(dataset, name.c_str(), "f8", desc, disp, size, ndim, dims);
+    this->write_chunk_all(fh, disp, Chunk::DiagnosticLoad);
+  }
+
+  jsonio::close_file(&fh);
+
+  //
+  // overwrite existing json file
+  //
+  {
+    root["dataset"]      = dataset;
+    root["log"][numstep] = log_json;
+
+    // write
+    if (thisrank == 0) {
+      std::ofstream ofs(path + fn_json);
+      ofs << std::setw(2) << root << std::flush;
+      ofs.close();
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
+  // clear log
+  log_json.clear();
+}
+
 DEFINE_MEMBER(void, diagnostic)(std::ostream& out)
 {
   out << tfm::format("*** step = %8d (time = %10.5f)\n", curstep, curtime);
@@ -575,10 +673,11 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
   std::vector<int> oldrank(Nc);
   std::vector<int> newrank(Nc);
 
-  json obj = cfg_json["application"]["rebuild"];
-  json log;
-  int  interval = obj.value("interval", 10);
-  int  loglevel = obj.value("loglevel", 0);
+  json    rebuild;
+  int     interval = cfg_json["application"]["rebuild"].value("interval", 10);
+  int     loglevel = cfg_json["application"]["log"].value("level", 0);
+  float64 wclock1  = 0;
+  float64 wclock2  = 0;
 
   // accumulate workload
   accumulate_workload();
@@ -591,7 +690,7 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
   //
 
   // *** rebuild start ***
-  float64 etime = wall_clock();
+  wclock1 = wall_clock();
 
   get_global_workload();
 
@@ -603,23 +702,6 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
   balancer->partition(nprocess, workload, boundary);
   balancer->get_rank(boundary, newrank);
 
-  if (loglevel >= 1) {
-    json chunkid;
-    json old_rank;
-    json new_rank;
-
-    for (int i = 0; i < Nc; i++) {
-      if (newrank[i] != oldrank[i]) {
-        chunkid.push_back(i);
-        old_rank.push_back(oldrank[i]);
-        new_rank.push_back(newrank[i]);
-      }
-    }
-
-    log["exchange"] = {{"chunkid", chunkid}, {"old_rank", old_rank}, {"new_rank", new_rank}};
-    log["rankload"] = balancer->get_rankload(boundary, workload);
-  }
-
   // send/recv chunk
   sendrecv_chunk(newrank);
 
@@ -630,21 +712,46 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
   set_chunk_neighbors();
 
   // *** rebuild end ***
-  log["rebuild_time"] = wall_clock() - etime;
+  wclock2 = wall_clock();
 
-  // output log
-  if (thisrank == 0 && loglevel >= 1) {
-    std::string prefix   = obj.value("prefix", "rebuild");
-    std::string path     = obj.value("path", ".") + "/";
-    std::string filename = tfm::format("%s_%06d.json", path + prefix, curstep);
+  //
+  // log
+  //
+  {
+    if (loglevel >= 0) {
+      rebuild["start"]   = wclock1;
+      rebuild["end"]     = wclock2;
+      rebuild["elapsed"] = wclock2 - wclock1;
+    }
 
-    std::ofstream ofs(filename);
-    ofs << std::setw(2) << log << std::flush;
-    ofs.close();
+    if (loglevel >= 1) {
+      rebuild["boundary"] = boundary;
+      rebuild["rankload"] = balancer->get_rankload(boundary, workload);
+    }
 
     if (loglevel >= 2) {
-      balancer->print_assignment(std::cerr, boundary, workload);
+      int  nexchange = 0;
+      json chunkid;
+      json old_rank;
+      json new_rank;
+
+      for (int i = 0; i < Nc; i++) {
+        if (newrank[i] != oldrank[i]) {
+          nexchange++;
+          chunkid.push_back(i);
+          old_rank.push_back(oldrank[i]);
+          new_rank.push_back(newrank[i]);
+        }
+      }
+
+      rebuild["exchange"]             = {};
+      rebuild["exchange"]["number"]   = nexchange;
+      rebuild["exchange"]["chunkid"]  = chunkid;
+      rebuild["exchange"]["old_rank"] = old_rank;
+      rebuild["exchange"]["new_rank"] = new_rank;
     }
+
+    log_json["rebuild"] = rebuild;
   }
 
   // reset
@@ -1006,8 +1113,9 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
   // main loop
   while (is_push_needed()) {
     //
-    // output diagnostics
+    // output log and diagnostics
     //
+    log();
     diagnostic(out);
 
     //
