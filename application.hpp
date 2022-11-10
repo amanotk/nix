@@ -503,23 +503,23 @@ DEFINE_MEMBER(void, log)()
     MPI_Barrier(MPI_COMM_WORLD);
   }
 
-  jsonio::open_file((path + fn_data).c_str(), &fh, &disp, "a");
-
   //
   // chunk load
   //
-  if (loglevel >= 1) {
+  if (loglevel >= 2) {
     const std::string name    = "load_" + numstep;
     const char        desc[]  = "chunk load";
     const int         ndim    = 2;
     const int         dims[2] = {cdims[3], Chunk::NumLoadMode};
     const int         size    = dims[0] * dims[1] * sizeof(float64);
 
+    jsonio::open_file((path + fn_data).c_str(), &fh, &disp, "a");
+
     jsonio::put_metadata(dataset, name.c_str(), "f8", desc, disp, size, ndim, dims);
     this->write_chunk_all(fh, disp, Chunk::DiagnosticLoad);
-  }
 
-  jsonio::close_file(&fh);
+    jsonio::close_file(&fh);
+  }
 
   // update
   log_json["dataset"].push_back(dataset);
@@ -590,7 +590,7 @@ DEFINE_MEMBER(void, save_log)(bool force)
   std::string filename = prefix + ".json";
 
   float64 wclock              = wall_clock();
-  float64 etime_since_flushed = wclock - log_json["flushed"].get<float64>();
+  float64 etime_since_flushed = wclock - log_json.value("flushed", 0.0);
 
   if (thisrank == 0 && (force == true || etime_since_flushed > interval)) {
     std::ofstream ofs(filename);
@@ -599,8 +599,6 @@ DEFINE_MEMBER(void, save_log)(bool force)
     ofs << std::setw(2) << log_json << std::flush;
     ofs.close();
   }
-
-  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 DEFINE_MEMBER(void, accumulate_workload)()
@@ -829,13 +827,21 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
   const int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
   const int Ncmax   = Chunk::get_max_id();
   const int Nc      = cdims[0] * cdims[1] * cdims[2];
+  const int minrank = 0;
+  const int maxrank = nprocess - 1;
+
+  int sendcnt_l = 0;
+  int sendcnt_r = 0;
+  int recvcnt_l = 0;
+  int recvcnt_r = 0;
+  int rank_l    = thisrank > minrank ? thisrank - 1 : MPI_PROC_NULL;
+  int rank_r    = thisrank < maxrank ? thisrank + 1 : MPI_PROC_NULL;
 
   //
   // check buffer size and reallocate if necessary
   //
   {
-    int sendsize_l = 0;
-    int sendsize_r = 0;
+    MPI_Request request[4];
 
     for (int i = 0; i < numchunk; i++) {
       int id = chunkvec[i]->get_id();
@@ -844,27 +850,28 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
         // no need for transfer
       } else if (newrank[id] == thisrank - 1) {
         // send to left
-        sendsize_l += chunkvec[i]->pack(nullptr, 0);
+        sendcnt_l += chunkvec[i]->pack(nullptr, 0);
       } else if (newrank[id] == thisrank + 1) {
         // send to right
-        sendsize_r += chunkvec[i]->pack(nullptr, 0);
-      } else {
-        // FIXME; error handling
+        sendcnt_r += chunkvec[i]->pack(nullptr, 0);
       }
     }
 
-    // make buffer size the same for all processes
-    int bufsize = std::max(sendbuf.size, 2 * std::max(sendsize_l, sendsize_r));
-    MPI_Allreduce(MPI_IN_PLACE, &bufsize, 1, MPI_INT32_T, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Isend(&sendcnt_l, sizeof(int), MPI_BYTE, rank_l, 1, MPI_COMM_WORLD, &request[0]);
+    MPI_Isend(&sendcnt_r, sizeof(int), MPI_BYTE, rank_r, 2, MPI_COMM_WORLD, &request[1]);
+    MPI_Irecv(&recvcnt_l, sizeof(int), MPI_BYTE, rank_l, 2, MPI_COMM_WORLD, &request[2]);
+    MPI_Irecv(&recvcnt_r, sizeof(int), MPI_BYTE, rank_r, 1, MPI_COMM_WORLD, &request[3]);
 
-    sendbuf.resize(bufsize);
-    recvbuf.resize(bufsize);
+    MPI_Waitall(4, request, MPI_STATUSES_IGNORE);
+
+    sendbuf.resize(sendcnt_l + sendcnt_r);
+    recvbuf.resize(recvcnt_l + recvcnt_r);
   }
 
   const int spos_l = 0;
-  const int spos_r = sendbuf.size / 2;
+  const int spos_r = sendcnt_l;
   const int rpos_l = 0;
-  const int rpos_r = recvbuf.size / 2;
+  const int rpos_r = recvcnt_l;
 
   uint8_t* sbuf_l = sendbuf.get(spos_l);
   uint8_t* sbuf_r = sendbuf.get(spos_r);
@@ -902,7 +909,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
   }
 
   //
-  // send/recv chunkes
+  // send/recv chunks
   //
   {
     MPI_Request request[4];
@@ -912,10 +919,8 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
     int rbufcnt_r  = 0;
     int sbufsize_l = sbuf_l - sendbuf.get(spos_l);
     int sbufsize_r = sbuf_r - sendbuf.get(spos_r);
-    int rbufsize_l = recvbuf.size / 2;
-    int rbufsize_r = recvbuf.size / 2;
-    int rank_l     = thisrank > 0 ? thisrank - 1 : MPI_PROC_NULL;
-    int rank_r     = thisrank < nprocess - 1 ? thisrank + 1 : MPI_PROC_NULL;
+    int rbufsize_l = recvcnt_l;
+    int rbufsize_r = recvcnt_r;
 
     // send/recv chunks
     sbuf_l = sendbuf.get(spos_l);
