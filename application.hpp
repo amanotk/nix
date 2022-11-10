@@ -157,6 +157,22 @@ protected:
   virtual float64 get_available_etime();
 
   ///
+  /// @brief increment step and physical time
+  ///
+  virtual void increment_time();
+
+  ///
+  /// @brief append given json to log json object at current step
+  ///
+  virtual void append_log_step(json& obj);
+
+  ///
+  /// @brief save log json object to file
+  /// @param flush force flush if true
+  ///
+  virtual void save_log(bool flush = false);
+
+  ///
   /// @brief accumulate work load of local chunks
   ///
   virtual void accumulate_workload();
@@ -457,51 +473,34 @@ DEFINE_MEMBER(void, log)()
 
   // get parameters from json
   int         loglevel = obj.value("level", 0);
+  float64     interval = obj.value("interval", 1.0);
   std::string prefix   = obj.value("prefix", "log");
   std::string path     = obj.value("path", ".") + "/";
+  std::string numstep  = tfm::format("%06d", curstep);
 
   // filename
-  std::string fn_json = prefix + ".json";
   std::string fn_data = prefix + ".data";
-  std::string numstep = tfm::format("%06d", curstep);
 
   MPI_File fh;
   size_t   disp;
-  json     root;
   json     dataset;
-  json     log;
+  json     log_step = {{"timestamp", wall_clock()}};
 
-  log_json["timestamp"] = wall_clock();
-
+  //
+  // initial setup
+  //
   if (curstep == 0) {
-    //
-    // initial setup
-    //
-
     // create data file
     jsonio::open_file((path + fn_data).c_str(), &fh, &disp, "w");
     jsonio::close_file(&fh);
 
     // create json file
-    root["meta"]    = {{"endian", nix::get_endian_flag()}, {"rawfile", fn_data}, {"order", 1}};
-    root["dataset"] = {};
-    root["log"]     = {};
-
-    if (thisrank == 0) {
-      std::ofstream ofs(path + fn_json);
-      ofs << std::setw(2) << root << std::flush;
-      ofs.close();
-    }
+    log_json["meta"]    = {{"endian", nix::get_endian_flag()}, {"rawfile", fn_data}, {"order", 1}};
+    log_json["dataset"] = {};
+    log_json["log"]     = {};
+    log_json["flushed"] = 0.0;
 
     MPI_Barrier(MPI_COMM_WORLD);
-  } else {
-    //
-    // open existing json file
-    //
-    std::ifstream f(path + fn_json);
-    root    = json::parse(f, nullptr, true, true);
-    dataset = root["dataset"];
-    log     = root["log"];
   }
 
   jsonio::open_file((path + fn_data).c_str(), &fh, &disp, "a");
@@ -511,7 +510,7 @@ DEFINE_MEMBER(void, log)()
   //
   if (loglevel >= 1) {
     const std::string name    = "load_" + numstep;
-    const char        desc[]  = "chunk load (field push, current deposit, particle push)";
+    const char        desc[]  = "chunk load";
     const int         ndim    = 2;
     const int         dims[2] = {cdims[3], Chunk::NumLoadMode};
     const int         size    = dims[0] * dims[1] * sizeof(float64);
@@ -522,25 +521,12 @@ DEFINE_MEMBER(void, log)()
 
   jsonio::close_file(&fh);
 
-  //
-  // overwrite existing json file
-  //
-  {
-    root["dataset"]      = dataset;
-    root["log"][numstep] = log_json;
+  // update
+  log_json["dataset"].push_back(dataset);
+  append_log_step(log_step);
 
-    // write
-    if (thisrank == 0) {
-      std::ofstream ofs(path + fn_json);
-      ofs << std::setw(2) << root << std::flush;
-      ofs.close();
-    }
-
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
-
-  // clear log
-  log_json.clear();
+  // save log
+  save_log();
 }
 
 DEFINE_MEMBER(void, diagnostic)(std::ostream& out)
@@ -572,6 +558,49 @@ DEFINE_MEMBER(float64, get_available_etime)()
   MPI_Bcast(&etime, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   return emax - etime;
+}
+
+DEFINE_MEMBER(void, increment_time)()
+{
+  curtime += delt;
+  curstep++;
+}
+
+DEFINE_MEMBER(void, append_log_step)(json& obj)
+{
+  std::string numstep = tfm::format("%06d", curstep);
+
+  if (log_json["log"].contains(numstep) == false) {
+    log_json["log"][numstep] = {};
+  }
+
+  for (auto it = obj.begin(); it != obj.end(); ++it) {
+    log_json["log"][numstep][it.key()] = it.value();
+  }
+}
+
+DEFINE_MEMBER(void, save_log)(bool force)
+{
+  json obj = cfg_json["application"]["log"];
+
+  // get parameters from json
+  float64     interval = obj.value("interval", 1.0);
+  std::string prefix   = obj.value("prefix", "log");
+  std::string path     = obj.value("path", ".") + "/";
+  std::string filename = prefix + ".json";
+
+  float64 wclock              = wall_clock();
+  float64 etime_since_flushed = wclock - log_json["flushed"].get<float64>();
+
+  if (thisrank == 0 && (force == true || etime_since_flushed > interval)) {
+    std::ofstream ofs(filename);
+    log_json["flushed"] = wclock;
+
+    ofs << std::setw(2) << log_json << std::flush;
+    ofs.close();
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 DEFINE_MEMBER(void, accumulate_workload)()
@@ -751,7 +780,10 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
       rebuild["exchange"]["new_rank"] = new_rank;
     }
 
-    log_json["rebuild"] = rebuild;
+    {
+      json log_step = {{"rebuild", rebuild}};
+      append_log_step(log_step);
+    }
   }
 
   // reset
@@ -1083,6 +1115,9 @@ DEFINE_MEMBER(void, finalize)(int cleanup)
   // save snapshot
   this->save();
 
+  // write log
+  this->save_log(true);
+
   // MPI
   finalize_mpi(cleanup);
 }
@@ -1134,6 +1169,11 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
     // rebuild chankmap if needed
     //
     rebuild_chunkmap();
+
+    //
+    // increment step and time
+    //
+    increment_time();
   }
 
   //
