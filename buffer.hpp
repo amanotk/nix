@@ -40,10 +40,12 @@ struct Buffer {
   ///
   void resize(const int s)
   {
+    const int copysize = std::min(size, s);
+
     if (s > size) {
       // allocate new memory and copy contents
       Pointer p = std::make_unique<uint8_t[]>(s);
-      std::memcpy(p.get(), data.get(), size);
+      std::memcpy(p.get(), data.get(), copysize);
 
       // move
       data = std::move(p);

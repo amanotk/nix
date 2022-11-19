@@ -827,140 +827,165 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
   const int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
   const int Ncmax   = Chunk::get_max_id();
   const int Nc      = cdims[0] * cdims[1] * cdims[2];
-  const int minrank = 0;
-  const int maxrank = nprocess - 1;
+  const int rankmin = 0;
+  const int rankmax = nprocess - 1;
 
-  int sendcnt_l = 0;
-  int sendcnt_r = 0;
-  int recvcnt_l = 0;
-  int recvcnt_r = 0;
-  int rank_l    = thisrank > minrank ? thisrank - 1 : MPI_PROC_NULL;
-  int rank_r    = thisrank < maxrank ? thisrank + 1 : MPI_PROC_NULL;
+  int rank_l = thisrank > rankmin ? thisrank - 1 : MPI_PROC_NULL;
+  int rank_r = thisrank < rankmax ? thisrank + 1 : MPI_PROC_NULL;
 
   //
   // check buffer size and reallocate if necessary
   //
   {
-    MPI_Request request[4];
+    int sendsize   = 0;
+    int sendsize_l = 0;
+    int sendsize_r = 0;
+    int recvsize   = 0;
+    int recvsize_l = 0;
+    int recvsize_r = 0;
 
     for (int i = 0; i < numchunk; i++) {
       int id = chunkvec[i]->get_id();
 
-      if (newrank[id] == thisrank) {
-        // no need for transfer
-      } else if (newrank[id] == thisrank - 1) {
-        // send to left
-        sendcnt_l += chunkvec[i]->pack(nullptr, 0);
-      } else if (newrank[id] == thisrank + 1) {
-        // send to right
-        sendcnt_r += chunkvec[i]->pack(nullptr, 0);
+      if (newrank[id] == thisrank - 1) {
+        sendsize_l = std::max(sendsize_l, chunkvec[i]->pack(nullptr, 0));
+      }
+      if (newrank[id] == thisrank + 1) {
+        sendsize_r = std::max(sendsize_r, chunkvec[i]->pack(nullptr, 0));
       }
     }
 
-    MPI_Isend(&sendcnt_l, sizeof(int), MPI_BYTE, rank_l, 1, MPI_COMM_WORLD, &request[0]);
-    MPI_Isend(&sendcnt_r, sizeof(int), MPI_BYTE, rank_r, 2, MPI_COMM_WORLD, &request[1]);
-    MPI_Irecv(&recvcnt_l, sizeof(int), MPI_BYTE, rank_l, 2, MPI_COMM_WORLD, &request[2]);
-    MPI_Irecv(&recvcnt_r, sizeof(int), MPI_BYTE, rank_r, 1, MPI_COMM_WORLD, &request[3]);
+    // get maximum possible chunk size
+    {
+      MPI_Request request[4];
 
-    MPI_Waitall(4, request, MPI_STATUSES_IGNORE);
+      MPI_Isend(&sendsize_l, sizeof(int), MPI_BYTE, rank_l, 1, MPI_COMM_WORLD, &request[0]);
+      MPI_Isend(&sendsize_r, sizeof(int), MPI_BYTE, rank_r, 2, MPI_COMM_WORLD, &request[1]);
+      MPI_Irecv(&recvsize_l, sizeof(int), MPI_BYTE, rank_l, 2, MPI_COMM_WORLD, &request[2]);
+      MPI_Irecv(&recvsize_r, sizeof(int), MPI_BYTE, rank_r, 1, MPI_COMM_WORLD, &request[3]);
 
-    sendbuf.resize(sendcnt_l + sendcnt_r);
-    recvbuf.resize(recvcnt_l + recvcnt_r);
-  }
+      MPI_Waitall(4, request, MPI_STATUSES_IGNORE);
 
-  const int spos_l = 0;
-  const int spos_r = sendcnt_l;
-  const int rpos_l = 0;
-  const int rpos_r = recvcnt_l;
+      sendsize = std::max(sendsize_l, sendsize_r);
+      recvsize = std::max(recvsize_l, recvsize_r);
+    }
 
-  uint8_t* sbuf_l = sendbuf.get(spos_l);
-  uint8_t* sbuf_r = sendbuf.get(spos_r);
-  uint8_t* rbuf_l = nullptr;
-  uint8_t* rbuf_r = nullptr;
+    // resize send buffer
+    if (sendsize > sendbuf.size) {
+      sendbuf.resize(sendsize);
+    }
 
-  //
-  // pack and calculate message size to be sent
-  //
-  for (int i = 0; i < numchunk; i++) {
-    int id = chunkvec[i]->get_id();
-
-    if (newrank[id] == thisrank - 1) {
-      // send to left
-      int size = chunkvec[i]->pack(sbuf_l, 0);
-      sbuf_l += size;
-      chunkvec[i]->set_id(Ncmax); // to be removed
-    } else if (newrank[id] == thisrank + 1) {
-      // send to right
-      int size = chunkvec[i]->pack(sbuf_r, 0);
-      sbuf_r += size;
-      chunkvec[i]->set_id(Ncmax); // to be removed
-    } else if (newrank[id] == thisrank) {
-      // no need to seed
-      continue;
-    } else {
-      // something wrong
-      ERRORPRINT("chunk ID     = %4d\n"
-                 "current rank = %4d\n"
-                 "newrank      = %4d\n",
-                 id, thisrank, newrank[id]);
-      finalize(-1);
-      exit(-1);
+    // resize recv buffer
+    if (recvsize > recvbuf.size) {
+      recvbuf.resize(recvsize);
     }
   }
 
   //
-  // send/recv chunks
+  // function for sending chunk
   //
-  {
-    MPI_Request request[4];
-    MPI_Status  status[4];
+  auto send_chunk = [&](int chunkid, int rank, int tag, int dir, int pos) {
+    MPI_Request request;
+    int         size;
+    uint8_t*    buf = sendbuf.get(pos);
 
-    int rbufcnt_l  = 0;
-    int rbufcnt_r  = 0;
-    int sbufsize_l = sbuf_l - sendbuf.get(spos_l);
-    int sbufsize_r = sbuf_r - sendbuf.get(spos_r);
-    int rbufsize_l = recvcnt_l;
-    int rbufsize_r = recvcnt_r;
-
-    // send/recv chunks
-    sbuf_l = sendbuf.get(spos_l);
-    sbuf_r = sendbuf.get(spos_r);
-    rbuf_l = recvbuf.get(rpos_l);
-    rbuf_r = recvbuf.get(rpos_r);
-
-    MPI_Isend(sbuf_l, sbufsize_l, MPI_BYTE, rank_l, 1, MPI_COMM_WORLD, &request[0]);
-    MPI_Isend(sbuf_r, sbufsize_r, MPI_BYTE, rank_r, 2, MPI_COMM_WORLD, &request[1]);
-    MPI_Irecv(rbuf_l, rbufsize_l, MPI_BYTE, rank_l, 2, MPI_COMM_WORLD, &request[2]);
-    MPI_Irecv(rbuf_r, rbufsize_r, MPI_BYTE, rank_r, 1, MPI_COMM_WORLD, &request[3]);
-
-    MPI_Waitall(4, request, status);
-    MPI_Get_count(&status[2], MPI_BYTE, &rbufcnt_l);
-    MPI_Get_count(&status[3], MPI_BYTE, &rbufcnt_r);
-
-    // unpack buffer from left
-    {
-      int      size    = 0;
-      uint8_t* rbuf_l0 = rbuf_l;
-
-      while ((rbuf_l - rbuf_l0) < rbufcnt_l) {
-        PtrChunk p = create_chunk(dims, 0);
-        size       = p->unpack(rbuf_l, 0);
-        chunkvec.push_back(std::move(p));
-        rbuf_l += size;
-      }
+    if (chunkid < 0 || chunkid >= newrank.size()) {
+      return;
     }
 
-    // unpack buffer from right
-    {
-      int      size    = 0;
-      uint8_t* rbuf_r0 = rbuf_r;
+    auto it    = std::find_if(chunkvec.begin(), chunkvec.end(),
+                           [&](PtrChunk& p) { return p->get_id() == chunkid; });
+    int  index = std::distance(chunkvec.begin(), it);
 
-      while ((rbuf_r - rbuf_r0) < rbufcnt_r) {
-        PtrChunk p = create_chunk(dims, 0);
-        size       = p->unpack(rbuf_r, 0);
-        chunkvec.push_back(std::move(p));
-        rbuf_r += size;
-      }
+    while (newrank[chunkid] == rank) {
+      // pack
+      size = chunkvec[index]->pack(buf, 0);
+      chunkvec[index]->set_id(Ncmax); // to be removed
+
+      MPI_Isend(buf, size, MPI_BYTE, rank, tag, MPI_COMM_WORLD, &request);
+      MPI_Wait(&request, MPI_STATUS_IGNORE);
+
+      chunkid += dir;
+      index += dir;
+    }
+  };
+
+  //
+  // function for receiving chunk
+  //
+  auto recv_chunk = [&](int chunkid, int rank, int tag, int dir, int pos) {
+    MPI_Request request;
+    int         size = recvbuf.size - pos;
+    uint8_t*    buf  = recvbuf.get(pos);
+
+    if (chunkid < 0 || chunkid >= newrank.size()) {
+      return;
+    }
+
+    while (newrank[chunkid] == thisrank) {
+      MPI_Irecv(buf, size, MPI_BYTE, rank, tag, MPI_COMM_WORLD, &request);
+      MPI_Wait(&request, MPI_STATUS_IGNORE);
+
+      // unpack
+      PtrChunk p = create_chunk(dims, 0);
+      p->unpack(buf, 0);
+      chunkvec.push_back(std::move(p));
+
+      chunkid += dir;
+    }
+  };
+
+  //
+  // chunk exchange at odd boundary
+  //
+  if (thisrank % 2 == 1) {
+    // send to left
+    {
+      int chunkid = chunkvec[0]->get_id();
+      send_chunk(chunkid, rank_l, 1, +1, 0);
+    }
+    // recv from left
+    {
+      int chunkid = chunkvec[0]->get_id() - 1;
+      recv_chunk(chunkid, rank_l, 2, -1, 0);
+    }
+  } else {
+    // send to right
+    {
+      int chunkid = chunkvec[numchunk - 1]->get_id();
+      send_chunk(chunkid, rank_r, 2, -1, 0);
+    }
+    // recv from right
+    {
+      int chunkid = chunkvec[numchunk - 1]->get_id() + 1;
+      recv_chunk(chunkid, rank_r, 1, +1, 0);
+    }
+  }
+
+  //
+  // chunk exchange at even boundary
+  //
+  if (thisrank % 2 == 1) {
+    // send to right
+    {
+      int chunkid = chunkvec[numchunk - 1]->get_id();
+      send_chunk(chunkid, rank_r, 3, -1, 0);
+    }
+    // recv from right
+    {
+      int chunkid = chunkvec[numchunk - 1]->get_id() + 1;
+      recv_chunk(chunkid, rank_r, 4, +1, 0);
+    }
+  } else {
+    // send to left
+    {
+      int chunkid = chunkvec[0]->get_id();
+      send_chunk(chunkid, rank_l, 4, +1, 0);
+    }
+    // recv from left
+    {
+      int chunkid = chunkvec[0]->get_id() - 1;
+      recv_chunk(chunkid, rank_l, 3, -1, 0);
     }
   }
 

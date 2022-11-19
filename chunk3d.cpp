@@ -379,23 +379,20 @@ DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particl
       int iz  = dirz + 1;
       int iy  = diry + 1;
       int ix  = dirx + 1;
-      int pos = mpibuf->bufaddr(iz, iy, ix) + data_size * snd_count(Ns, iz, iy, ix) +
-                header_size * (is + 1);
+      int cnt = data_size * snd_count(Ns, iz, iy, ix) + header_size * (is + 1);
+      int pos = mpibuf->bufaddr(iz, iy, ix) + cnt;
+
+      // check buffer size
+      if (mpibuf->bufsize(iz, iy, ix) < cnt) {
+        ERRORPRINT("Error [%06d, %2d, %2d, %2d]: insufficient send buffer : "
+                   "%6d <=> %6d\n",
+                   myid, dirz, diry, dirx, mpibuf->bufsize(iz, iy, ix), cnt);
+      }
+
+      // pack
       std::memcpy(mpibuf->sendbuf.get(pos), ptcl, data_size);
       snd_count(is, iz, iy, ix)++;
       snd_count(Ns, iz, iy, ix)++; // total number of send particles
-    }
-  }
-
-  // check buffer size and reallocate if needed
-  {
-    auto I    = xt::all();
-    bool safe = xt::all(
-        xt::greater_equal(mpibuf->bufsize, 2 * data_size * xt::view(snd_count, Ns, I, I, I)));
-
-    if (safe == false) {
-      int elembyte = 2 * data_size * xt::amax(xt::view(snd_count, Ns, I, I, I))();
-      set_mpi_buffer(mpibuf, header_size * Ns, elembyte);
     }
   }
 
@@ -440,9 +437,14 @@ DEFINE_MEMBER(void, begin_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particl
 
 DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
 {
-  const size_t header_size = sizeof(int);
-  const size_t data_size   = sizeof(float64) * Particle::Nc;
-  const size_t Ns          = particle.size();
+  const size_t  header_size = sizeof(int);
+  const size_t  data_size   = sizeof(float64) * Particle::Nc;
+  const size_t  Ns          = particle.size();
+  const float64 fraction1   = 0.8; // increase buffer when more than this fraction is used
+  const float64 fraction2   = 0.2; // decrease buffer when less than this fraction is used
+
+  bool require_buffer_resize = false;
+  int  bufsize[3][3][3];
 
   // wait for MPI recv calls to complete
   MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUSES_IGNORE);
@@ -461,6 +463,7 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
       for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
         // skip send/recv to itself
         if (dirz == 0 && diry == 0 && dirx == 0) {
+          bufsize[iz][iy][ix] = 0;
           continue;
         }
 
@@ -469,8 +472,10 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
           continue;
         }
 
-        // copy to the end of particle array
+        int      recvcnt = 0;
         uint8_t* recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+
+        // copy to the end of particle array
         for (int is = 0; is < Ns; is++) {
           // header
           int cnt;
@@ -485,10 +490,32 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
           // particles
           float64* ptcl = &particle[is]->xu(num_particle[is], 0);
           std::memcpy(ptcl, recvptr, data_size * cnt);
-          recvptr += data_size * cnt;
+          recvptr += cnt * data_size;
+          recvcnt += cnt;
 
           // increment number of particles
           num_particle[is] += cnt;
+        }
+
+        // check received data size
+        int recvsize = Ns * header_size + recvcnt * data_size;
+        int nz       = recvub[0][iz] - recvlb[0][iz] + 1;
+        int ny       = recvub[1][iy] - recvlb[1][iy] + 1;
+        int nx       = recvub[2][ix] - recvlb[2][ix] + 1;
+        int volume   = nz * ny * nx;
+        int count    = (mpibuf->bufsize(iz, iy, ix) - (Ns * header_size)) / (data_size * volume);
+
+        if (recvsize > mpibuf->bufsize(iz, iy, ix)) {
+          tfm::format(std::cerr, "Error [%06d, %2d, %2d, %2d]: insufficient recv buffer\n", myid,
+                      dirz, diry, dirx);
+        } else if (recvsize > fraction1 * mpibuf->bufsize(iz, iy, ix)) {
+          require_buffer_resize = true;
+          bufsize[iz][iy][ix]   = std::max(2.0 * count, 4.0 * Ns) * data_size * volume;
+        } else if (recvsize < fraction2 * mpibuf->bufsize(iz, iy, ix)) {
+          require_buffer_resize = true;
+          bufsize[iz][iy][ix]   = std::max(0.5 * count, 4.0 * Ns) * data_size * volume;
+        } else {
+          bufsize[iz][iy][ix] = count * data_size * volume;
         }
       }
     }
@@ -515,9 +542,6 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
   // automatically resize particle buffer
   //
   for (int is = 0; is < Ns; is++) {
-    const float64 fraction1 = 0.8; // increase when > 80% is used
-    const float64 fraction2 = 0.2; // decrease when < 20% is used
-
     int new_np = particle[is]->Np_total;
 
     // increase particle buffer
@@ -534,7 +558,14 @@ DEFINE_MEMBER(void, end_bc_exchange)(PtrMpiBuffer mpibuf, ParticleVec& particle)
     particle[is]->resize(new_np);
   }
 
-  // wait for MPI send calls to complete (optional)
+  //
+  // resize MPI buffer
+  //
+  if (require_buffer_resize == true) {
+    set_mpi_buffer(mpibuf, 0, Ns * header_size, bufsize);
+  }
+
+  // wait for MPI send calls to complete
   MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
 }
 
@@ -642,42 +673,71 @@ DEFINE_MEMBER(template <typename T> void, end_bc_exchange)
     }
   }
 
-  // wait for MPI send calls to complete (optional)
+  // wait for MPI send calls to complete
   MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
 }
 
-DEFINE_MEMBER(template <typename T> void, set_mpi_buffer)
-(PtrMpiBuffer mpibuf, const int headbyte, const T& elembyte)
+DEFINE_MEMBER(void, set_mpi_buffer)
+(PtrMpiBuffer mpibuf, const int mode, const int headbyte, const int elembyte)
 {
-  const std::vector<size_t> shape = {3, 3};
+  int size = 0;
 
-  auto I   = xt::all();
-  auto J   = xt::newaxis();
-  auto xlb = xt::adapt(&recvlb[0][0], 9, xt::no_ownership(), shape);
-  auto xub = xt::adapt(&recvub[0][0], 9, xt::no_ownership(), shape);
-  auto xss = xub - xlb + 1;
-  auto pos = xt::eval(xt::view(xss, 0, I, J, J) * xt::view(xss, 1, J, I, J) *
-                      xt::view(xss, 2, J, J, I) * elembyte);
+  for (int iz = 0; iz < 3; iz++) {
+    for (int iy = 0; iy < 3; iy++) {
+      for (int ix = 0; ix < 3; ix++) {
+        if (iz == 1 && iy == 1 && ix == 1) {
+          mpibuf->bufsize(iz, iy, ix) = 0;
+          mpibuf->bufaddr(iz, iy, ix) = size;
+        } else {
+          int nz = recvub[0][iz] - recvlb[0][iz] + 1;
+          int ny = recvub[1][iy] - recvlb[1][iy] + 1;
+          int nx = recvub[2][ix] - recvlb[2][ix] + 1;
 
-  // no send/recv with itself
-  pos(1, 1, 1) = 0;
-
-  // buffer allocation
-  {
-    int size = headbyte + xt::sum(pos)();
-    mpibuf->sendbuf.resize(size);
-    mpibuf->recvbuf.resize(size);
+          mpibuf->bufsize(iz, iy, ix) = headbyte + elembyte * nz * ny * nx;
+          mpibuf->bufaddr(iz, iy, ix) = size;
+          size += mpibuf->bufsize(iz, iy, ix);
+        }
+      }
+    }
   }
 
-  // buffer size
-  mpibuf->bufsize = pos;
+  // buffer allocation
+  if (mode == +1 || mode == 0) {
+    mpibuf->sendbuf.resize(size);
+  }
+  if (mode == -1 || mode == 0) {
+    mpibuf->recvbuf.resize(size);
+  }
+}
 
-  // buffer address
-  pos    = xt::cumsum(pos);
-  pos    = xt::roll(pos, 1);
-  pos(0) = 0;
-  pos.reshape({3, 3, 3});
-  mpibuf->bufaddr = headbyte + pos;
+DEFINE_MEMBER(void, set_mpi_buffer)
+(PtrMpiBuffer mpibuf, const int mode, const int headbyte, const int sizebyte[3][3][3])
+{
+  // buffer size
+  int size = 0;
+
+  for (int iz = 0; iz < 3; iz++) {
+    for (int iy = 0; iy < 3; iy++) {
+      for (int ix = 0; ix < 3; ix++) {
+        if (iz == 1 && iy == 1 && ix == 1) {
+          mpibuf->bufsize(iz, iy, ix) = 0;
+          mpibuf->bufaddr(iz, iy, ix) = size;
+        } else {
+          mpibuf->bufsize(iz, iy, ix) = headbyte + sizebyte[iz][iy][ix];
+          mpibuf->bufaddr(iz, iy, ix) = size;
+          size += mpibuf->bufsize(iz, iy, ix);
+        }
+      }
+    }
+  }
+
+  // buffer allocation
+  if (mode == +1 || mode == 0) {
+    mpibuf->sendbuf.resize(size);
+  }
+  if (mode == -1 || mode == 0) {
+    mpibuf->recvbuf.resize(size);
+  }
 }
 
 DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
@@ -813,10 +873,7 @@ DEFINE_MEMBER(int, MpiBuffer::unpack)(void* buffer, const int address)
   template void Chunk3D<NB>::begin_bc_exchange(PtrMpiBuffer, xt::xtensor<float64, 4>&, bool);      \
   template void Chunk3D<NB>::begin_bc_exchange(PtrMpiBuffer, xt::xtensor<float64, 5>&, bool);      \
   template void Chunk3D<NB>::end_bc_exchange(PtrMpiBuffer, xt::xtensor<float64, 4>&, bool);        \
-  template void Chunk3D<NB>::end_bc_exchange(PtrMpiBuffer, xt::xtensor<float64, 5>&, bool);        \
-  template void Chunk3D<NB>::set_mpi_buffer(PtrMpiBuffer, const int, const int32_t&);              \
-  template void Chunk3D<NB>::set_mpi_buffer(PtrMpiBuffer, const int, const int64_t&);              \
-  template void Chunk3D<NB>::set_mpi_buffer(PtrMpiBuffer, const int, const size_t&);
+  template void Chunk3D<NB>::end_bc_exchange(PtrMpiBuffer, xt::xtensor<float64, 5>&, bool);
 
 INSTANTIATE_CHUNK3D(1)
 INSTANTIATE_CHUNK3D(2)

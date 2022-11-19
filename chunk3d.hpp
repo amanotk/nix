@@ -164,13 +164,22 @@ protected:
 
   ///
   /// @brief setup MPI Buffer
-  /// @tparam T typename used to represent number of bytes for each element
   /// @param mpibuf MPI buffer to be setup
+  /// @param mode +1 for send, -1 for recv, 0 for both
   /// @param headbyte number of bytes used for header
   /// @param elembyte number of bytes for each element
   ///
-  template <typename T>
-  void set_mpi_buffer(PtrMpiBuffer mpibuf, const int headbyte, const T& elembyte);
+  void set_mpi_buffer(PtrMpiBuffer mpibuf, const int mode, const int headbyte, const int elembyte);
+
+  ///
+  /// @brief setup MPI Buffer
+  /// @param mpibuf MPI buffer to be setup
+  /// @param mode +1 for send, -1 for recv, 0 for both
+  /// @param headbyte number of bytes used for header
+  /// @param sizebyte number of bytes
+  ///
+  void set_mpi_buffer(PtrMpiBuffer mpibuf, const int mode, const int headbyte,
+                      const int sizebyte[3][3][3]);
 
 public:
   ///
