@@ -1006,6 +1006,7 @@ DEFINE_MEMBER(void, sendrecv_chunk)(std::vector<int>& newrank)
 
     // resize and discard unused chunks
     chunkvec.resize(numchunk);
+    chunkvec.shrink_to_fit();
   }
 }
 
