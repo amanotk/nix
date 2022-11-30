@@ -19,7 +19,7 @@ struct Buffer {
   /// @brief Constructor
   /// @param s size of buffer
   ///
-  Buffer(const int s = 0) : size(s)
+  Buffer(int s = 0) : size(s)
   {
     data = std::make_unique<uint8_t[]>(size);
   }
@@ -29,7 +29,7 @@ struct Buffer {
   /// @param pos position in byte from the beginning of pointer
   /// @return return pointer
   ///
-  uint8_t* get(const int pos = 0)
+  uint8_t* get(int pos = 0)
   {
     return data.get() + pos;
   }
@@ -38,7 +38,7 @@ struct Buffer {
   /// @brief resize the buffer if 's' is larger than the current (otherwise do nothing)
   /// @param s new size for resize
   ///
-  void resize(const int s)
+  void resize(int s)
   {
     const int copysize = std::min(size, s);
 

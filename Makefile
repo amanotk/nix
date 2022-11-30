@@ -2,7 +2,7 @@
 include common.mk
 
 SUBDIRS = unittest maxwell
-SRCS    = balancer.cpp chunk.cpp chunkmap.cpp jsonio.cpp sfc.cpp
+SRCS    = balancer.cpp jsonio.cpp sfc.cpp
 OBJS    = $(SRCS:%.cpp=%.o)
 DEPS    = $(SRCS:%.cpp=%.d)
 

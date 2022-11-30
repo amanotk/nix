@@ -54,7 +54,7 @@ public:
   /// @param[in] Np_total Total number of particle for memory allocation
   /// @param[in] Ng       Number of grid
   ///
-  Particle(const int Np_total, const int Ng)
+  Particle(int Np_total, int Ng)
   {
     this->Np_total = Np_total;
     this->Ng       = Ng;
@@ -74,7 +74,7 @@ public:
   ///
   /// @brief initial memory allocation
   ///
-  void allocate(const int Np_total, const int Ng)
+  void allocate(int Np_total, int Ng)
   {
     const size_t np = Np_total;
     const size_t ng = Ng;
@@ -97,7 +97,7 @@ public:
   ///
   /// @brief resize particle array
   ///
-  void resize(const int newsize)
+  void resize(int newsize)
   {
     const int    np_min = 2 * Ng;
     const size_t np     = newsize;
@@ -155,7 +155,7 @@ public:
   ///
   /// @brief pack data into buffer
   ///
-  int pack(void* buffer, const int address)
+  int pack(void* buffer, int address)
   {
     int count = address;
 
@@ -176,7 +176,7 @@ public:
   ///
   /// @brief unpack data from buffer
   ///
-  int unpack(void* buffer, const int address)
+  int unpack(void* buffer, int address)
   {
     int count = address;
 
@@ -250,7 +250,7 @@ public:
   /// @param[in] ip particle index
   /// @param[in] ii grid index (where the particle resides)
   ///
-  void increment(const int ip, const int ii)
+  void increment(int ip, int ii)
   {
     int jj = ip % simd_width;
 
@@ -338,7 +338,7 @@ public:
   ///
   /// @brief return sign of argument
   ///
-  static float64 sign(const float64 x)
+  static float64 sign(float64 x)
   {
     return copysign(1.0, x);
   }
@@ -355,8 +355,7 @@ public:
   /// @param[out] s   weights at grid points (X, X + dx)
   /// @param[in]  w   normalization factor (1 by default)
   ///
-  static void S1(const float64 x, const float64 X, const float64 rdx, float64 s[2],
-                 const float64 w = 1)
+  static void S1(float64 x, float64 X, float64 rdx, float64 s[2], float64 w = 1)
   {
     float64 delta = (x - X) * rdx;
 
@@ -376,8 +375,7 @@ public:
   /// @param[out] s   weights at grid points (X - dx, X, X + dx)
   /// @param[in]  w   normalization factor (1 by default)
   ///
-  static void S2(const float64 x, const float64 X, const float64 rdx, float64 s[3],
-                 const float64 w = 1)
+  static void S2(float64 x, float64 X, float64 rdx, float64 s[3], float64 w = 1)
   {
     float64 delta = (x - X) * rdx;
 
@@ -404,9 +402,8 @@ public:
   /// @param[in] dt time step (multiplied to the returned electromagnetic field)
   ///
   template <typename T>
-  static float64 interp3d1(const T& eb, const int iz, const int iy, const int ix, const int ik,
-                           const float64 wz[2], const float64 wy[2], const float64 wx[2],
-                           const float64 dt = 1)
+  static float64 interp3d1(const T& eb, int iz, int iy, int ix, int ik, const float64 wz[2],
+                           const float64 wy[2], const float64 wx[2], float64 dt = 1)
   {
     float64 result;
 
@@ -441,8 +438,8 @@ public:
   /// @param[in]     ss      array of 1D weights
   /// @param[in,out] current array of local current
   ///
-  static void esirkepov3d1(const float64 dxdt, const float64 dydt, const float64 dzdt,
-                           float64 ss[2][3][4], float64 current[4][4][4][4])
+  static void esirkepov3d1(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][3][4],
+                           float64 current[4][4][4][4])
   {
     const float64 A = 1.0 / 2;
     const float64 B = 1.0 / 3;

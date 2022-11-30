@@ -52,7 +52,7 @@ public:
     /// @param ix x direction index
     /// @return buffer pointer
     ///
-    void* get_send_buffer(const int iz, const int iy, const int ix)
+    void* get_send_buffer(int iz, int iy, int ix)
     {
       return sendbuf.get(bufaddr(iz, iy, ix));
     }
@@ -64,7 +64,7 @@ public:
     /// @param ix x direction index
     /// @return buffer pointer
     ///
-    void* get_recv_buffer(const int iz, const int iy, const int ix)
+    void* get_recv_buffer(int iz, int iy, int ix)
     {
       return recvbuf.get(bufaddr(iz, iy, ix));
     }
@@ -75,7 +75,7 @@ public:
     /// @param address first address of buffer to which the data will be packed
     /// @return `address` + (number of bytes packed as a result)
     ///
-    int pack(void* buffer, const int address)
+    int pack(void* buffer, int address)
     {
       int count = address;
       int ssize = sendbuf.size;
@@ -96,7 +96,7 @@ public:
     /// @param address first address of buffer to which the data will be packed
     /// @return `address` + (number of bytes packed as a result)
     ///
-    int unpack(void* buffer, const int address)
+    int unpack(void* buffer, int address)
     {
       int count = address;
       int ssize = 0;
@@ -156,7 +156,7 @@ public:
   /// @param dims number of grids for each direction
   /// @param id Chunk ID
   ///
-  Chunk3D(const int dims[3], const int id = 0);
+  Chunk3D(const int dims[3], int id = 0);
 
   ///
   /// @brief setup initial condition (pure virtual)
@@ -168,13 +168,13 @@ public:
   /// @brief begin boundary exchange (pure virtual)
   /// @param mode mode of boundary exchange
   ///
-  virtual void set_boundary_begin(const int mode) override = 0;
+  virtual void set_boundary_begin(int mode) override = 0;
 
   ///
   /// @brief end boundary exchange (pure virtual)
   /// @param mode mode of boundary exchange
   ///
-  virtual void set_boundary_end(const int mode) override = 0;
+  virtual void set_boundary_end(int mode) override = 0;
 
   ///
   /// @brief pack the content of Chunk into given `buffer`
@@ -182,7 +182,7 @@ public:
   /// @param address first address of buffer to which the data will be packed
   /// @return `address` + (number of bytes packed as a result)
   ///
-  virtual int pack(void* buffer, const int address) override;
+  virtual int pack(void* buffer, int address) override;
 
   ///
   /// @brief unpack the content of Chunk from given `buffer`
@@ -190,7 +190,7 @@ public:
   /// @param address first address of buffer from which the data will be unpacked
   /// @return `address` + (number of bytes unpacked as a result)
   ///
-  virtual int unpack(void* buffer, const int address) override;
+  virtual int unpack(void* buffer, int address) override;
 
   ///
   /// @brief set the global context of Chunk
@@ -204,7 +204,7 @@ public:
   /// @param mode mode to specify MpiBuffer
   /// @param comm MPI communicator to be set to MpiBuffer
   ///
-  virtual void set_mpi_communicator(const int mode, MPI_Comm& comm);
+  virtual void set_mpi_communicator(int mode, MPI_Comm& comm);
 
   ///
   /// @brief count particles in cells to prepare for sorting
@@ -213,8 +213,7 @@ public:
   /// @param Ubp last index of particle array to be counted (inclusive)
   /// @param reset reset the count array before counting
   ///
-  virtual void count_particle(PtrParticle particle, const int Lbp, const int Ubp,
-                              bool reset = true);
+  virtual void count_particle(PtrParticle particle, int Lbp, int Ubp, bool reset = true);
 
   ///
   /// @brief perform particle sorting
@@ -233,13 +232,13 @@ public:
   /// @param mode mode of boundary exchange
   /// @return true if boundary exchange is finished and false otherwise
   ///
-  virtual bool set_boundary_query(const int mode = 0) override;
+  virtual bool set_boundary_query(int mode = 0) override;
 
   ///
   /// @brief set physical boundary condition
   /// @param mode mode of boundary exchange
   ///
-  virtual void set_boundary_physical(const int mode = 0) override;
+  virtual void set_boundary_physical(int mode = 0) override;
 
   ///
   /// @brief set boundary condition to particle array
@@ -256,7 +255,7 @@ public:
   /// @param headbyte number of bytes used for header
   /// @param elembyte number of bytes for each element
   ///
-  void set_mpi_buffer(PtrMpiBuffer mpibuf, const int mode, const int headbyte, const int elembyte);
+  void set_mpi_buffer(PtrMpiBuffer mpibuf, int mode, int headbyte, int elembyte);
 
   ///
   /// @brief setup MPI Buffer
@@ -265,15 +264,14 @@ public:
   /// @param headbyte number of bytes used for header
   /// @param sizebyte number of bytes
   ///
-  void set_mpi_buffer(PtrMpiBuffer mpibuf, const int mode, const int headbyte,
-                      const int sizebyte[3][3][3]);
+  void set_mpi_buffer(PtrMpiBuffer mpibuf, int mode, int headbyte, const int sizebyte[3][3][3]);
 
   ///
   /// @brief return MpiBuffer of given mode of boundary exchange
   /// @param mode mode of MpiBuffer
   /// @return PtrMpiBuffer or std::shared_ptr<MpiBuffer>
   ///
-  PtrMpiBuffer get_mpi_buffer(const int mode)
+  PtrMpiBuffer get_mpi_buffer(int mode)
   {
     return mpibufvec[mode];
   }
@@ -351,7 +349,7 @@ protected:
   /// @param address first address of buffer to which the data will be packed
   /// @return `address` + (number of bytes packed as a result)
   ///
-  int pack_diagnostic_load(void* buffer, const int address);
+  int pack_diagnostic_load(void* buffer, int address);
 
   ///
   /// @brief pack diagnostic for coordinate array
@@ -360,7 +358,7 @@ protected:
   /// @param dir direction of coordinate
   /// @return `address` + (number of bytes packed as a result)
   ///
-  int pack_diagnostic_coord(void* buffer, const int address, const int dir);
+  int pack_diagnostic_coord(void* buffer, int address, int dir);
 
   ///
   /// @brief pack diagnostic for field quantity
@@ -371,7 +369,7 @@ protected:
   /// @return `address` + (number of bytes packed as a result)
   ///
   template <typename T>
-  int pack_diagnostic_field(void* buffer, const int address, T& u);
+  int pack_diagnostic_field(void* buffer, int address, T& u);
 
   ///
   /// @brief pack diagnostic for particle (single species)
@@ -380,7 +378,7 @@ protected:
   /// @param p particle species
   /// @return `address` + (number of bytes packed as a result)
   ///
-  int pack_diagnostic_particle(void* buffer, const int address, PtrParticle p);
+  int pack_diagnostic_particle(void* buffer, int address, PtrParticle p);
 };
 
 //
@@ -391,7 +389,7 @@ protected:
   type Chunk3D<Nb>::name
 
 DEFINE_MEMBER(, Chunk3D)
-(const int dims[3], const int id)
+(const int dims[3], int id)
     : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0), require_sort(true)
 {
   size_t Nz = this->dims[0] + 2 * Nb;
@@ -463,7 +461,7 @@ DEFINE_MEMBER(, Chunk3D)
   reset_load();
 }
 
-DEFINE_MEMBER(int, pack)(void* buffer, const int address)
+DEFINE_MEMBER(int, pack)(void* buffer, int address)
 {
   int count = address;
 
@@ -493,7 +491,7 @@ DEFINE_MEMBER(int, pack)(void* buffer, const int address)
   return count;
 }
 
-DEFINE_MEMBER(int, unpack)(void* buffer, const int address)
+DEFINE_MEMBER(int, unpack)(void* buffer, int address)
 {
   int count = address;
 
@@ -562,7 +560,7 @@ DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* gdims)
   gxlim[2] = gxlim[1] - gxlim[0];
 }
 
-DEFINE_MEMBER(void, set_mpi_communicator)(const int mode, MPI_Comm& comm)
+DEFINE_MEMBER(void, set_mpi_communicator)(int mode, MPI_Comm& comm)
 {
   if (mode >= 0 && mode < mpibufvec.size()) {
     mpibufvec[mode]->comm = comm;
@@ -571,7 +569,7 @@ DEFINE_MEMBER(void, set_mpi_communicator)(const int mode, MPI_Comm& comm)
   }
 }
 
-DEFINE_MEMBER(void, count_particle)(PtrParticle particle, const int Lbp, const int Ubp, bool reset)
+DEFINE_MEMBER(void, count_particle)(PtrParticle particle, int Lbp, int Ubp, bool reset)
 {
   int     stride[3] = {0};
   int     xrange[2] = {0};
@@ -652,7 +650,7 @@ DEFINE_MEMBER(void, inject_particle)(ParticleVec& particle)
 {
 }
 
-DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
+DEFINE_MEMBER(bool, set_boundary_query)(int mode)
 {
   int  flag   = 0;
   int  bcmode = mode;
@@ -681,7 +679,7 @@ DEFINE_MEMBER(bool, set_boundary_query)(const int mode)
   return !(flag == 0);
 }
 
-DEFINE_MEMBER(void, set_boundary_physical)(const int mode)
+DEFINE_MEMBER(void, set_boundary_physical)(int mode)
 {
   // lower boundary in z
   if (get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {
@@ -733,7 +731,7 @@ DEFINE_MEMBER(void, set_boundary_particle)(PtrParticle particle, int Lbp, int Ub
 }
 
 DEFINE_MEMBER(void, set_mpi_buffer)
-(PtrMpiBuffer mpibuf, const int mode, const int headbyte, const int elembyte)
+(PtrMpiBuffer mpibuf, int mode, int headbyte, int elembyte)
 {
   int size = 0;
 
@@ -766,7 +764,7 @@ DEFINE_MEMBER(void, set_mpi_buffer)
 }
 
 DEFINE_MEMBER(void, set_mpi_buffer)
-(PtrMpiBuffer mpibuf, const int mode, const int headbyte, const int sizebyte[3][3][3])
+(PtrMpiBuffer mpibuf, int mode, int headbyte, const int sizebyte[3][3][3])
 {
   // buffer size
   int size = 0;
@@ -892,7 +890,7 @@ DEFINE_MEMBER(template <class Halo> void, end_bc_exchange)
   MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
 }
 
-DEFINE_MEMBER(int, pack_diagnostic_load)(void* buffer, const int address)
+DEFINE_MEMBER(int, pack_diagnostic_load)(void* buffer, int address)
 {
   int count = sizeof(float64) * load.size() + address;
 
@@ -906,7 +904,7 @@ DEFINE_MEMBER(int, pack_diagnostic_load)(void* buffer, const int address)
   return count;
 }
 
-DEFINE_MEMBER(int, pack_diagnostic_coord)(void* buffer, const int address, const int dir)
+DEFINE_MEMBER(int, pack_diagnostic_coord)(void* buffer, int address, int dir)
 {
   size_t size  = dims[dir];
   int    count = sizeof(float64) * size + address;
@@ -938,7 +936,7 @@ DEFINE_MEMBER(int, pack_diagnostic_coord)(void* buffer, const int address, const
 }
 
 DEFINE_MEMBER(template <typename T> int, pack_diagnostic_field)
-(void* buffer, const int address, T& u)
+(void* buffer, int address, T& u)
 {
   // calculate number of elements
   size_t size = dims[0] * dims[1] * dims[2];
@@ -965,7 +963,7 @@ DEFINE_MEMBER(template <typename T> int, pack_diagnostic_field)
 }
 
 DEFINE_MEMBER(int, pack_diagnostic_particle)
-(void* buffer, const int address, PtrParticle p)
+(void* buffer, int address, PtrParticle p)
 {
   int count = address;
 
