@@ -5,10 +5,6 @@
 #define MPICH_IGNORE_CXX_SEEK
 #include <mpi.h>
 
-// macros for consistent notations
-#define MPI_FLOAT32_T MPI_FLOAT
-#define MPI_FLOAT64_T MPI_DOUBLE
-
 ///
 /// @brief singleton class
 /// @tparam T typename
