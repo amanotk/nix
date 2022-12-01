@@ -793,48 +793,23 @@ DEFINE_MEMBER(bool, validate_chunkmap)()
 
 DEFINE_MEMBER(void, write_chunk_all)(MPI_File& fh, size_t& disp, int mode)
 {
-  int allsize = 0;
-  int maxsize = 0;
-  int bufaddr = 0;
-  int bufsize[numchunk];
+  int bufsize = 0;
 
-  // calculate local address
   for (int i = 0; i < numchunk; i++) {
-    bufsize[i] = chunkvec[i]->pack_diagnostic(mode, nullptr, 0);
-    allsize += bufsize[i];
-  }
-  MPI_Exscan(&allsize, &bufaddr, 1, MPI_INT32_T, MPI_SUM, MPI_COMM_WORLD);
-
-  // resize buffer if needed
-  maxsize = *std::max_element(bufsize, bufsize + numchunk);
-  if (sendbuf.size < maxsize) {
-    sendbuf.resize(maxsize);
-    recvbuf.resize(maxsize);
+    bufsize += chunkvec[i]->pack_diagnostic(mode, nullptr, 0);
   }
 
-  // write for each chunk
-  {
-    MPI_Request req;
-    size_t      chunkdisp = disp + bufaddr;
-    uint8_t*    sendptr   = sendbuf.get();
+  // write to disk
+  Buffer   buffer(bufsize);
+  uint8_t* bufptr  = buffer.get();
 
-    for (int i = 0; i < numchunk; i++) {
-      // pack
-      assert(bufsize[i] == chunkvec[i]->pack_diagnostic(mode, sendptr, 0));
-
-      // write
-      jsonio::write_contiguous_at(&fh, &chunkdisp, sendptr, bufsize[i], 1, &req);
-      MPI_Wait(&req, MPI_STATUS_IGNORE);
-
-      chunkdisp += bufsize[i];
-    }
+  // pack
+  for (int i = 0, address = 0; i < numchunk; i++) {
+    address = chunkvec[i]->pack_diagnostic(mode, bufptr, address);
   }
 
-  // get total size
-  MPI_Allreduce(MPI_IN_PLACE, &allsize, 1, MPI_INT32_T, MPI_SUM, MPI_COMM_WORLD);
-
-  // update pointer
-  disp += allsize;
+  // collective write
+  jsonio::write_contiguous(&fh, &disp, bufptr, bufsize, 1, 1);
 }
 
 DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, int mode)

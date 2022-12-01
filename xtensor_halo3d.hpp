@@ -223,12 +223,11 @@ public:
 
   static constexpr int32_t head_byte         = sizeof(int32_t);
   static constexpr int32_t elem_byte         = sizeof(float64) * Particle::Nc;
-  static constexpr float64 increase_fraction = 0.8;
-  static constexpr float64 decrease_fraction = 0.2;
+  static constexpr float64 increase_fraction = 0.80;
+  static constexpr float64 decrease_fraction = 0.20;
 
   int32_t                 Ns;
-  int32_t                 buffer_count[3][3][3];
-  bool                    buffer_resize;
+  int32_t                 buffer_flag[3][3][3];
   ParticleVec             particle;
   xt::xtensor<int32_t, 4> snd_count;
   std::vector<int32_t>    num_particle;
@@ -252,6 +251,8 @@ public:
     const float64 ymax = chunk->get_ymax();
     const float64 zmin = chunk->get_zmin();
     const float64 zmax = chunk->get_zmax();
+
+    bool status = true;
 
     // initialize with zero
     snd_count.fill(0);
@@ -281,9 +282,7 @@ public:
 
         // check buffer size
         if (mpibuf->bufsize(iz, iy, ix) < cnt) {
-          ERRORPRINT("Error [%06d, %2d, %2d, %2d]: insufficient send buffer : "
-                     "%6d <=> %6d\n",
-                     chunk->get_id(), dirz, diry, dirx, mpibuf->bufsize(iz, iy, ix), cnt);
+          status = false;
         }
 
         // pack
@@ -291,6 +290,11 @@ public:
         snd_count(is, iz, iy, ix)++;
         snd_count(Ns, iz, iy, ix)++; // total number of send particles
       }
+    }
+
+    if (status == false) {
+      ERRORPRINT("Error [%06d]: insufficient send buffer : ", chunk->get_id());
+      exit(-1);
     }
   }
 
@@ -331,7 +335,13 @@ public:
   template <class T_buffer>
   void pre_unpack(T_buffer& mpibuf)
   {
-    buffer_resize = false;
+    for (int iz = 0; iz < 3; iz++) {
+      for (int iy = 0; iy < 3; iy++) {
+        for (int ix = 0; ix < 3; ix++) {
+          buffer_flag[iz][iy][ix] = 0;
+        }
+      }
+    }
 
     for (int is = 0; is < Ns; is++) {
       num_particle[is] = particle[is]->Np;
@@ -342,10 +352,8 @@ public:
   bool unpack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
-    if (iz == 1 && iy == 1 && ix == 1) {
-      buffer_count[iz][iy][ix] = 0;
+    if (iz == 1 && iy == 1 && ix == 1)
       return false;
-    }
 
     int      recvcnt = 0;
     uint8_t* recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
@@ -374,22 +382,14 @@ public:
 
     // check received data size
     int recvsize = Ns * head_byte + recvcnt * elem_byte;
-    int nz       = recv_bound[0][1] - recv_bound[0][0] + 1;
-    int ny       = recv_bound[1][1] - recv_bound[1][0] + 1;
-    int nx       = recv_bound[2][1] - recv_bound[2][0] + 1;
-    int volume   = nz * ny * nx;
-    int count    = (mpibuf->bufsize(iz, iy, ix) - (Ns * head_byte)) / (elem_byte * volume);
 
     if (recvsize > mpibuf->bufsize(iz, iy, ix)) {
-      tfm::format(std::cerr, "Error: insufficient buffer\n");
+      ERRORPRINT("Error [%06d]: insufficient recv buffer : ", chunk->get_id());
+      exit(-1);
     } else if (recvsize > increase_fraction * mpibuf->bufsize(iz, iy, ix)) {
-      buffer_resize            = true;
-      buffer_count[iz][iy][ix] = std::max(2.0 * count, 4.0 * Ns) * elem_byte * volume;
+      buffer_flag[iz][iy][ix] = +1;
     } else if (recvsize < decrease_fraction * mpibuf->bufsize(iz, iy, ix)) {
-      buffer_resize            = true;
-      buffer_count[iz][iy][ix] = std::max(0.5 * count, 4.0 * Ns) * elem_byte * volume;
-    } else {
-      buffer_count[iz][iy][ix] = count * elem_byte * volume;
+      buffer_flag[iz][iy][ix] = -1;
     }
 
     return true;
@@ -436,10 +436,32 @@ public:
     }
 
     //
-    // resize MPI buffer
+    // resize MPI buffer if required
     //
-    if (buffer_resize == true) {
-      chunk->set_mpi_buffer(mpibuf, 0, Ns * head_byte, buffer_count);
+    {
+      bool increase = false;
+      bool decrease = true;
+
+      for (int iz = 0; iz < 3; iz++) {
+        for (int iy = 0; iy < 3; iy++) {
+          for (int ix = 0; ix < 3; ix++) {
+            // if increase flag is true in any directions
+            increase = increase | (buffer_flag[iz][iy][ix] == +1);
+            // if decrease flag is true in all directions
+            decrease = decrease & (buffer_flag[iz][iy][ix] == -1);
+          }
+        }
+      }
+
+      // resize
+      if (increase == true || decrease == true) {
+        int Nppc = 0;
+        for (int is = 0; is < Ns; is++) {
+          Nppc += particle[is]->Np / particle[is]->Ng + 1;
+        }
+
+        chunk->set_mpi_buffer(mpibuf, 0, Ns * head_byte, Nppc * elem_byte);
+      }
     }
   }
 };
