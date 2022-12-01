@@ -63,8 +63,9 @@ using real    = float64;
 using namespace typedefs;
 
 // MPI datatype for consistent notations
-constexpr MPI_Datatype MPI_FLOAT32_T = MPI_FLOAT;
-constexpr MPI_Datatype MPI_FLOAT64_T = MPI_DOUBLE;
+// (constexpr does not work with some MPI library)
+const MPI_Datatype MPI_FLOAT32_T = MPI_FLOAT;
+const MPI_Datatype MPI_FLOAT64_T = MPI_DOUBLE;
 
 //
 // SIMD width (512 bit for 64bit float by default)

@@ -18,7 +18,7 @@ class XtensorHaloField3D : public Halo3D<xt::xtensor<float64, 4>, T_chunk>
 {
 public:
   using Base = Halo3D<xt::xtensor<float64, 4>, T_chunk>;
-  using Base::Halo3D; // constructor
+  using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
   using Base::send_buffer;
@@ -83,7 +83,7 @@ class XtensorHaloCurrent3D : public Halo3D<xt::xtensor<float64, 4>, T_chunk>
 {
 public:
   using Base = Halo3D<xt::xtensor<float64, 4>, T_chunk>;
-  using Base::Halo3D; // constructor
+  using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
   using Base::send_buffer;
@@ -149,7 +149,7 @@ class XtensorHaloMoment3D : public Halo3D<xt::xtensor<float64, 5>, T_chunk>
 {
 public:
   using Base = Halo3D<xt::xtensor<float64, 5>, T_chunk>;
-  using Base::Halo3D; // constructor
+  using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
   using Base::send_buffer;
