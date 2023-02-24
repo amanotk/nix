@@ -479,12 +479,24 @@ DEFINE_MEMBER(void, parse_cfg)()
 
 DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
 {
-  // initialize MPI
-  if (mpi_init_with_nullptr == true) {
-    MPI_Init(nullptr, nullptr);
-  } else {
-    MPI_Init(argc, argv);
+  // initialize MPI with thread support
+  {
+    int thread_required = MPI_THREAD_SERIALIZED;
+    int thread_provided = -1;
+
+    if (mpi_init_with_nullptr == true) {
+      MPI_Init_thread(nullptr, nullptr, thread_required, &thread_provided);
+    } else {
+      MPI_Init_thread(argc, argv, thread_required, &thread_provided);
+    }
+
+    if (thread_provided < thread_required) {
+      ERRORPRINT("Your MPI does not support thread!\n");
+      MPI_Finalize();
+      exit(-1);
+    }
   }
+
   MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
   MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
 
@@ -801,7 +813,7 @@ DEFINE_MEMBER(void, write_chunk_all)(MPI_File& fh, size_t& disp, int mode)
 
   // write to disk
   Buffer   buffer(bufsize);
-  uint8_t* bufptr  = buffer.get();
+  uint8_t* bufptr = buffer.get();
 
   // pack
   for (int i = 0, address = 0; i < numchunk; i++) {
@@ -831,6 +843,7 @@ DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, int mode)
       DEBUGPRINT(std::cerr, "BoundaryMode = %04d\n", mode);
       DEBUGPRINT(std::cerr, "Remaining chunks:\n");
 
+#pragma omp critical
       for (auto it = queue.begin(); it != queue.end(); ++it) {
         auto mpibuf = chunkvec[*it]->get_mpi_buffer(mode);
 

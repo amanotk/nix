@@ -664,6 +664,7 @@ DEFINE_MEMBER(bool, set_boundary_query)(int mode)
   // MPI buffer
   PtrMpiBuffer mpibuf = mpibufvec[bcmode];
 
+#pragma omp critical
   if (send == true && recv == true) {
     // both send/recv
     MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUSES_IGNORE);
@@ -818,6 +819,7 @@ DEFINE_MEMBER(template <class Halo> void, begin_bc_exchange)
         // pack
         bool status = halo.pack(mpibuf, iz, iy, ix, send_bound, recv_bound);
 
+#pragma omp critical
         if (status) {
           int   nbrank  = get_nb_rank(dirz, diry, dirx);
           int   sendtag = get_sndtag(dirz, diry, dirx);
@@ -848,8 +850,11 @@ DEFINE_MEMBER(template <class Halo> void, begin_bc_exchange)
 DEFINE_MEMBER(template <class Halo> void, end_bc_exchange)
 (PtrMpiBuffer mpibuf, Halo& halo)
 {
-  // wait for MPI recv calls to complete
-  MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUSES_IGNORE);
+#pragma omp critical
+  {
+    // wait for MPI recv calls to complete
+    MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUSES_IGNORE);
+  }
 
   // pre-process
   halo.pre_unpack(mpibuf);
@@ -886,8 +891,11 @@ DEFINE_MEMBER(template <class Halo> void, end_bc_exchange)
   // post-proces
   halo.post_unpack(mpibuf);
 
-  // wait for MPI send calls to complete
-  MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
+#pragma omp critical
+  {
+    // wait for MPI send calls to complete
+    MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
+  }
 }
 
 DEFINE_MEMBER(int, pack_diagnostic_load)(void* buffer, int address)
