@@ -175,6 +175,12 @@ protected:
   virtual bool validate_chunkmap();
 
   ///
+  /// @brief check if the number of chunks per rank does not exceed MAX_CHUNK_PER_RANK
+  /// @return true if it is okay and false otherwise
+  ///
+  virtual bool validate_numchunk();
+
+  ///
   /// @brief write all chunk data retrieved with given `mode`
   /// @param fh MPI file handle to which the data will be written
   /// @param disp displacement of the file from its beginning
@@ -659,6 +665,9 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
         for (int i = 0; i < numchunk; i++) {
           chunkvec[i] = create_chunk(dims, idzero + i);
         }
+
+        // check number of chunks
+        assert(validate_numchunk() == true);
       }
 
       idzero += mc;
@@ -768,6 +777,9 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
   // reset
   std::fill(workload.begin(), workload.end(), 0.0);
 
+  // check number of chunks
+  assert(validate_numchunk() == true);
+
   return true;
 }
 
@@ -801,6 +813,16 @@ DEFINE_MEMBER(bool, validate_chunkmap)()
 
   MPI_Allreduce(MPI_IN_PLACE, &status, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
   return status;
+}
+
+DEFINE_MEMBER(bool, validate_numchunk)()
+{
+  if (numchunk > MAX_CHUNK_PER_RANK) {
+    ERRORPRINT("Number of chunk per rank should not exceed %8d\n", MAX_CHUNK_PER_RANK);
+    return false;
+  }
+
+  return true;
 }
 
 DEFINE_MEMBER(void, write_chunk_all)(MPI_File& fh, size_t& disp, int mode)

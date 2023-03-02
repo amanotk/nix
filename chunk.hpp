@@ -6,12 +6,22 @@
 
 NIX_NAMESPACE_BEGIN
 
-static constexpr int DIRTAG_BIT  = 5;
-static constexpr int DIRTAG_SIZE = 1 << DIRTAG_BIT;
-
 // template trick to set number of neighbors
 template <int N>
 struct NbSize;
+
+template <>
+struct NbSize<1> {
+  static constexpr int size = 3;
+};
+template <>
+struct NbSize<2> {
+  static constexpr int size = 9;
+};
+template <>
+struct NbSize<3> {
+  static constexpr int size = 27;
+};
 
 ///
 /// @brief Base class for Chunk
@@ -22,8 +32,6 @@ class Chunk
 {
 protected:
   static constexpr int nbsize = NbSize<Ndim>::size; ///< number of neighbors
-  static int           tagmask;                     ///< mask for directional tag
-  static int           dirtag[DIRTAG_SIZE];         ///< directional tag
 
   int                  myid;           ///< chunk ID
   int                  nbid[nbsize];   ///< neighboring chunk ID
@@ -33,21 +41,6 @@ protected:
 
   virtual void initialize(const int dims[Ndim], int id)
   {
-    int shift;
-
-    // endian flag
-    if (get_endian_flag() == 1) {
-      shift = 31 - DIRTAG_BIT;
-    } else {
-      shift = 0;
-    }
-
-    // set directional message tag
-    tagmask = (DIRTAG_SIZE - 1) << shift;
-    for (int i = 0; i < DIRTAG_SIZE; i++) {
-      dirtag[i] = i << shift;
-    }
-
     // set ID
     set_id(id);
 
@@ -68,7 +61,7 @@ public:
   static int get_max_id()
   {
     int max_int32_t = std::numeric_limits<int32_t>::max();
-    return tagmask ^ max_int32_t;
+    return max_int32_t;
   }
 
   /// @brief default constructor
@@ -203,8 +196,6 @@ public:
   ///
   void set_id(int id)
   {
-    assert(!(tagmask & id)); // ID must be < 2^(31-DIRTAG_BIT)
-
     myid = id;
   }
 
@@ -215,15 +206,6 @@ public:
   int get_id()
   {
     return myid;
-  }
-
-  ///
-  /// @brief get tag mask
-  /// @return tag mask
-  ///
-  int get_tagmask()
-  {
-    return tagmask;
   }
 
   ///
@@ -371,25 +353,8 @@ public:
   int get_rcvtag(int dirz, int diry, int dirx);
 };
 
-template <>
-struct NbSize<1> {
-  static constexpr int size = 3;
-};
-template <>
-struct NbSize<2> {
-  static constexpr int size = 9;
-};
-template <>
-struct NbSize<3> {
-  static constexpr int size = 27;
-};
-
 template <int Ndim>
 constexpr int Chunk<Ndim>::nbsize;
-template <int Ndim>
-int Chunk<Ndim>::tagmask;
-template <int Ndim>
-int Chunk<Ndim>::dirtag[DIRTAG_SIZE];
 
 //
 // implementation of small methods follows
@@ -471,42 +436,39 @@ template <>
 inline int Chunk<1>::get_sndtag(int dirx)
 {
   int dir = (dirx + 1);
-  return dirtag[dir] | nbid[dir];
+  return nbid[dir] % MAX_CHUNK_PER_RANK;
 }
 
 template <>
 inline int Chunk<2>::get_sndtag(int diry, int dirx)
 {
   int dir = 3 * (diry + 1) + (dirx + 1);
-  return dirtag[dir] | nbid[dir];
+  return nbid[dir] % MAX_CHUNK_PER_RANK;
 }
 
 template <>
 inline int Chunk<3>::get_sndtag(int dirz, int diry, int dirx)
 {
   int dir = 9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1);
-  return dirtag[dir] | nbid[dir];
+  return nbid[dir] % MAX_CHUNK_PER_RANK;
 }
 
 template <>
 inline int Chunk<1>::get_rcvtag(int dirx)
 {
-  int dir = (-dirx + 1);
-  return dirtag[dir] | myid;
+  return myid % MAX_CHUNK_PER_RANK;
 }
 
 template <>
 inline int Chunk<2>::get_rcvtag(int diry, int dirx)
 {
-  int dir = 3 * (-diry + 1) + (-dirx + 1);
-  return dirtag[dir] | myid;
+  return myid % MAX_CHUNK_PER_RANK;
 }
 
 template <>
 inline int Chunk<3>::get_rcvtag(int dirz, int diry, int dirx)
 {
-  int dir = 9 * (-dirz + 1) + 3 * (-diry + 1) + (-dirx + 1);
-  return dirtag[dir] | myid;
+  return myid % MAX_CHUNK_PER_RANK;
 }
 
 NIX_NAMESPACE_END

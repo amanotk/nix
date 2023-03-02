@@ -67,6 +67,10 @@ using namespace typedefs;
 const MPI_Datatype MPI_FLOAT32_T = MPI_FLOAT;
 const MPI_Datatype MPI_FLOAT64_T = MPI_DOUBLE;
 
+// maximum number of chunk per MPI rank
+// (used to make MPI send/recv tags less than this value)
+constexpr int MAX_CHUNK_PER_RANK = 32768;
+
 //
 // SIMD width (512 bit for 64bit float by default)
 //

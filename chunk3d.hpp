@@ -21,6 +21,7 @@ class Chunk3D : public Chunk<3>
 {
 public:
   using T_array3d  = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
+  using T_mpicomm  = xt::xtensor_fixed<MPI_Comm, xt::xshape<3, 3, 3>>;
   using T_request  = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
   using T_datatype = xt::xtensor_fixed<MPI_Datatype, xt::xshape<3, 3, 3>>;
 
@@ -28,11 +29,11 @@ public:
   /// @brief MPI buffer
   ///
   struct MpiBuffer {
-    MPI_Comm   comm;
     Buffer     sendbuf;
     Buffer     recvbuf;
     T_array3d  bufsize;
     T_array3d  bufaddr;
+    T_mpicomm  comm;
     T_request  sendreq;
     T_request  recvreq;
     T_datatype sendtype;
@@ -41,7 +42,7 @@ public:
     ///
     /// constructor
     ///
-    MpiBuffer() : comm(MPI_COMM_WORLD)
+    MpiBuffer()
     {
     }
 
@@ -204,7 +205,7 @@ public:
   /// @param mode mode to specify MpiBuffer
   /// @param comm MPI communicator to be set to MpiBuffer
   ///
-  virtual void set_mpi_communicator(int mode, MPI_Comm& comm);
+  virtual void set_mpi_communicator(int mode, int iz, int iy, int ix, MPI_Comm& comm);
 
   ///
   /// @brief count particles in cells to prepare for sorting
@@ -560,10 +561,10 @@ DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* gdims)
   gxlim[2] = gxlim[1] - gxlim[0];
 }
 
-DEFINE_MEMBER(void, set_mpi_communicator)(int mode, MPI_Comm& comm)
+DEFINE_MEMBER(void, set_mpi_communicator)(int mode, int iz, int iy, int ix, MPI_Comm& comm)
 {
   if (mode >= 0 && mode < mpibufvec.size()) {
-    mpibufvec[mode]->comm = comm;
+    mpibufvec[mode]->comm(iz, iy, ix) = comm;
   } else {
     ERRORPRINT("invalid index %d for mpibufvec\n", mode);
   }
@@ -829,10 +830,14 @@ DEFINE_MEMBER(template <class Halo> void, begin_bc_exchange)
           int   sendcnt = halo.send_count;
           int   recvcnt = halo.recv_count;
 
+          // communicator
+          MPI_Comm* send_comm = &mpibuf->comm(1 + dirz, 1 + diry, 1 + dirx);
+          MPI_Comm* recv_comm = &mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
+
           // send/recv calls
-          MPI_Isend(sendptr, sendcnt, mpibuf->sendtype(iz, iy, ix), nbrank, sendtag, mpibuf->comm,
+          MPI_Isend(sendptr, sendcnt, mpibuf->sendtype(iz, iy, ix), nbrank, sendtag, *send_comm,
                     &mpibuf->sendreq(iz, iy, ix));
-          MPI_Irecv(recvptr, recvcnt, mpibuf->recvtype(iz, iy, ix), nbrank, recvtag, mpibuf->comm,
+          MPI_Irecv(recvptr, recvcnt, mpibuf->recvtype(iz, iy, ix), nbrank, recvtag, *recv_comm,
                     &mpibuf->recvreq(iz, iy, ix));
         } else {
           // no send/recv required
