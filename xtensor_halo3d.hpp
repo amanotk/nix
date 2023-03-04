@@ -293,8 +293,11 @@ public:
     }
 
     if (status == false) {
-      ERRORPRINT("Error [%06d]: insufficient send buffer : ", chunk->get_id());
-      exit(-1);
+#pragma omp critical
+      {
+        ERRORPRINT("Error [%06d]: insufficient send buffer : ", chunk->get_id());
+        exit(-1);
+      }
     }
   }
 
@@ -384,8 +387,11 @@ public:
     int recvsize = Ns * head_byte + recvcnt * elem_byte;
 
     if (recvsize > mpibuf->bufsize(iz, iy, ix)) {
-      ERRORPRINT("Error [%06d]: insufficient recv buffer : ", chunk->get_id());
-      exit(-1);
+#pragma omp critical
+      {
+        ERRORPRINT("Error [%06d]: insufficient recv buffer : ", chunk->get_id());
+        exit(-1);
+      }
     } else if (recvsize > increase_fraction * mpibuf->bufsize(iz, iy, ix)) {
       buffer_flag[iz][iy][ix] = +1;
     } else if (recvsize < decrease_fraction * mpibuf->bufsize(iz, iy, ix)) {

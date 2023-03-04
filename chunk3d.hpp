@@ -194,6 +194,14 @@ public:
   virtual int unpack(void* buffer, int address) override;
 
   ///
+  /// @brief set coordinate of Chunk (using gdims and offset)
+  /// @param dz grid size in z direction
+  /// @param dy grid size in y direction
+  /// @param dx grid size in x direction
+  ///
+  virtual void set_coordinate(float64 dz, float64 dy, float64 dx);
+
+  ///
   /// @brief set the global context of Chunk
   /// @param offset offset for each direction in global dimensions
   /// @param gdims global number of grids for each direction
@@ -524,14 +532,12 @@ DEFINE_MEMBER(int, unpack)(void* buffer, int address)
   return count;
 }
 
-DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* gdims)
+DEFINE_MEMBER(void, set_coordinate)(float64 dz, float64 dy, float64 dx)
 {
-  this->gdims[0]  = gdims[0];
-  this->gdims[1]  = gdims[1];
-  this->gdims[2]  = gdims[2];
-  this->offset[0] = offset[0];
-  this->offset[1] = offset[1];
-  this->offset[2] = offset[2];
+  // set internal data members
+  delz = dx;
+  dely = dy;
+  delx = dx;
 
   // local domain
   zlim[0] = offset[0] * delz;
@@ -559,6 +565,16 @@ DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* gdims)
   gxlim[0] = 0.0;
   gxlim[1] = gdims[2] * delx;
   gxlim[2] = gxlim[1] - gxlim[0];
+}
+
+DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* gdims)
+{
+  this->gdims[0]  = gdims[0];
+  this->gdims[1]  = gdims[1];
+  this->gdims[2]  = gdims[2];
+  this->offset[0] = offset[0];
+  this->offset[1] = offset[1];
+  this->offset[2] = offset[2];
 }
 
 DEFINE_MEMBER(void, set_mpi_communicator)(int mode, int iz, int iy, int ix, MPI_Comm& comm)
