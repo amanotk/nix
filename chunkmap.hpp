@@ -312,7 +312,7 @@ DEFINE_MEMBER3(void, save_json)(json& obj)
 DEFINE_MEMBER1(void, load_json)(json& obj)
 {
   if (obj["ndim"].get<int>() != 1) {
-    ERRORPRINT("Invalid input to ChunkMap<1>::load_json\n");
+    ERROR << tfm::format("Invalid input to ChunkMap<1>::load_json");
   }
 
   // meta data
@@ -328,7 +328,7 @@ DEFINE_MEMBER1(void, load_json)(json& obj)
 DEFINE_MEMBER2(void, load_json)(json& obj)
 {
   if (obj["ndim"].get<int>() != 2) {
-    ERRORPRINT("Invalid input to ChunkMap<2>::load_json\n");
+    ERROR << tfm::format("Invalid input to ChunkMap<2>::load_json");
   }
 
   // meta data
@@ -345,7 +345,7 @@ DEFINE_MEMBER2(void, load_json)(json& obj)
 DEFINE_MEMBER3(void, load_json)(json& obj)
 {
   if (obj["ndim"].get<int>() != 3) {
-    ERRORPRINT("Invalid input to ChunkMap<3>::load_json\n");
+    ERROR << tfm::format("Invalid input to ChunkMap<3>::load_json");
   }
 
   // meta data

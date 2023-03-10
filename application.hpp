@@ -33,7 +33,7 @@ protected:
   using ChunkVec    = std::vector<PtrChunk>;
   using cmdparser   = cmdline::parser;
 
-  int         cleanup;  ///< cleanup flag
+  int         debug;    ///< debug level
   int         cl_argc;  ///< command-line argc
   char**      cl_argv;  ///< command-line argv
   std::string cfg_file; ///< configuration file name
@@ -73,7 +73,7 @@ protected:
 
 public:
   /// @brief default constructor
-  Application() : mpi_init_with_nullptr(false), cleanup(0), periodic{1, 1, 1}
+  Application() : mpi_init_with_nullptr(false), periodic{1, 1, 1}
   {
   }
 
@@ -82,7 +82,7 @@ public:
   /// @param argc number of arguments
   /// @param argv array of arguments
   ///
-  Application(int argc, char** argv) : mpi_init_with_nullptr(false), cleanup(0), periodic{1, 1, 1}
+  Application(int argc, char** argv) : mpi_init_with_nullptr(false), periodic{1, 1, 1}
   {
     cl_argc = argc;
     cl_argv = argv;
@@ -119,6 +119,12 @@ protected:
   /// @param argv array of arguments
   ///
   void initialize_mpi(int* argc, char*** argv);
+
+  ///
+  /// @brief initialize debug printing
+  /// @param level debug printing level
+  ///
+  void initialize_debugprinting(int level);
 
   ///
   /// @brief finalize MPI
@@ -273,8 +279,6 @@ protected:
   ///
   virtual void push()
   {
-    curtime += delt;
-    curstep++;
   }
 
   ///
@@ -329,24 +333,32 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
   // initialize the application
   //
   initialize(cl_argc, cl_argv);
+  DEBUG1 << tfm::format("initialize");
 
   //
   // set initial condition
   //
   setup();
+  DEBUG1 << tfm::format("setup");
 
+  //
   // main loop
+  //
   while (is_push_needed()) {
     //
     // output log and diagnostics
     //
     log();
+    DEBUG1 << tfm::format("step[%s] log", format_step(curstep));
+
     diagnostic(out);
+    DEBUG1 << tfm::format("step[%s] diagnostic", format_step(curstep));
 
     //
     // advance physical quantities by one step
     //
     push();
+    DEBUG1 << tfm::format("step[%s] push", format_step(curstep));
 
     //
     // exit if elapsed time exceeds a limit
@@ -359,6 +371,7 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
     // rebuild chankmap if needed
     //
     rebuild_chunkmap();
+    DEBUG1 << tfm::format("step[%s] rebuild", format_step(curstep));
 
     //
     // increment step and time
@@ -369,7 +382,11 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
   //
   // finalize the application
   //
-  finalize(cleanup);
+  DEBUG1 << tfm::format("finalize");
+  {
+    int cleanup = debug == 0 ? 0 : -1;
+    finalize(cleanup);
+  }
 
   return 0;
 }
@@ -385,6 +402,7 @@ DEFINE_MEMBER(void, setup_cmd)()
   parser.add<std::string>("save", 's', "save file for restart", false, "");
   parser.add<float64>("tmax", 't', "maximum physical time", false, ptmax);
   parser.add<float64>("emax", 'e', "maximum elased time [sec]", false, etmax);
+  parser.add<int>("debug", 'd', "debug level", false, 0);
 }
 
 DEFINE_MEMBER(void, parse_cmd)(int argc, char** argv)
@@ -395,11 +413,12 @@ DEFINE_MEMBER(void, parse_cmd)(int argc, char** argv)
   // parse
   parser.parse_check(argc, argv);
 
-  tmax     = parser.get<float64>("tmax");
-  emax     = parser.get<float64>("emax");
+  cfg_file = parser.get<std::string>("config");
   loadfile = parser.get<std::string>("load");
   savefile = parser.get<std::string>("save");
-  cfg_file = parser.get<std::string>("config");
+  tmax     = parser.get<float64>("tmax");
+  emax     = parser.get<float64>("emax");
+  debug    = parser.get<int>("debug");
 }
 
 DEFINE_MEMBER(void, parse_cfg)()
@@ -415,17 +434,17 @@ DEFINE_MEMBER(void, parse_cfg)()
     bool status = true;
 
     if (cfg_json["application"].is_null()) {
-      tfm::format(std::cerr, "Error: configuration file misses `application` section\n");
+      ERROR << tfm::format("Configuration file misses `application` section");
       status = false;
     }
 
     if (cfg_json["diagnostic"].is_null()) {
-      tfm::format(std::cerr, "Error: configuration file misses `diagnostic` section\n");
+      ERROR << tfm::format("Configuration file misses `diagnostic` section");
       status = false;
     }
 
     if (cfg_json["parameter"].is_null()) {
-      tfm::format(std::cerr, "Error: configuration file misses `parameter` section\n");
+      ERROR << tfm::format("Configuration file misses `parameter` section");
       status = false;
     }
 
@@ -454,10 +473,9 @@ DEFINE_MEMBER(void, parse_cfg)()
 
   // check dimensions
   if (!(nz % cz == 0 && ny % cy == 0 && nx % cx == 0)) {
-    ERRORPRINT("Number of grid must be divisible by number of chunk\n"
-               "Nx, Ny, Nz = [%4d, %4d, %4d]\n"
-               "Cx, Cy, Cz = [%4d, %4d, %4d]\n",
-               nx, ny, nz, cx, cy, cz);
+    ERROR << tfm::format("Number of grid must be divisible by number of chunk");
+    ERROR << tfm::format("Nx, Ny, Nz = [%4d, %4d, %4d]", nx, ny, nz);
+    ERROR << tfm::format("Cx, Cy, Cz = [%4d, %4d, %4d]", cx, cy, cz);
     finalize(-1);
     exit(-1);
   }
@@ -497,7 +515,7 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
     }
 
     if (thread_provided < thread_required) {
-      ERRORPRINT("Your MPI does not support thread!\n");
+      ERROR << tfm::format("Your MPI does not support thread!");
       MPI_Finalize();
       exit(-1);
     }
@@ -514,6 +532,12 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
 
   // redirect stdout/stderr
   mpistream::initialize(argv[0][0]);
+}
+
+DEFINE_MEMBER(void, initialize_debugprinting)(int level)
+{
+  DebugPrinter::init();
+  DebugPrinter::set_level(level);
 }
 
 DEFINE_MEMBER(void, finalize_mpi)(int cleanup)
@@ -581,6 +605,9 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   // MPI
   initialize_mpi(&argc, &argv);
 
+  // debug printing
+  initialize_debugprinting(debug);
+
   // chunkmap
   initialize_chunkmap();
 
@@ -633,10 +660,9 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
 
   // error check
   if (Nc < nprocess) {
-    ERRORPRINT("Number of processes exceeds number of chunks\n"
-               "* number of processes = %8d\n"
-               "* number of chunks    = %8d\n",
-               nprocess, Nc);
+    ERROR << tfm::format("Number of processes exceeds number of chunks");
+    ERROR << tfm::format("* number of processes = %8d", nprocess);
+    ERROR << tfm::format("* number of chunks    = %8d", Nc);
     finalize(-1);
     exit(-1);
   }
@@ -818,7 +844,7 @@ DEFINE_MEMBER(bool, validate_chunkmap)()
 DEFINE_MEMBER(bool, validate_numchunk)()
 {
   if (numchunk > MAX_CHUNK_PER_RANK) {
-    ERRORPRINT("Number of chunk per rank should not exceed %8d\n", MAX_CHUNK_PER_RANK);
+    ERROR << tfm::format("Number of chunk per rank should not exceed %8d", MAX_CHUNK_PER_RANK);
     return false;
   }
 
@@ -861,16 +887,16 @@ DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, int mode)
 
     if (nix::wall_clock() - wclock > deadlock_detection_limit) {
       status = false;
-      DEBUGPRINT(std::cerr, "Possible deadlock has been detected at rank = %04d!\n", thisrank);
-      DEBUGPRINT(std::cerr, "BoundaryMode = %04d\n", mode);
-      DEBUGPRINT(std::cerr, "Remaining chunks:\n");
+      ERROR << tfm::format("Possible deadlock has been detected at rank = %04d!", thisrank);
+      ERROR << tfm::format("BoundaryMode = %04d", mode);
+      ERROR << tfm::format("Remaining chunks:");
 
 #pragma omp critical
       for (auto it = queue.begin(); it != queue.end(); ++it) {
         auto mpibuf = chunkvec[*it]->get_mpi_buffer(mode);
 
         // show all neighbor information
-        DEBUGPRINT(std::cerr, "*   ID = %4d\n", chunkvec[*it]->get_id());
+        ERROR << tfm::format("*   ID = %4d", chunkvec[*it]->get_id());
         for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
           for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
             for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
@@ -878,7 +904,7 @@ DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, int mode)
               int rank = chunkvec[*it]->get_nb_rank(dirz, diry, dirx);
               int flag = 0;
               MPI_Test(&mpibuf->recvreq(iz, iy, ix), &flag, MPI_STATUS_IGNORE);
-              DEBUGPRINT(std::cerr, "    nb: ID = %4d, rank = %4d, flag = %2d\n", id, rank, flag);
+              ERROR << tfm::format("    nb: ID = %4d, rank = %4d, flag = %2d", id, rank, flag);
             }
           }
         }
@@ -898,7 +924,7 @@ DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, int mode)
   MPI_Allreduce(MPI_IN_PLACE, &status, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
 
   if (status == false) {
-    ERRORPRINT("Error: exit possibly due to deadlock in wait_bc_exchange()\n");
+    ERROR << tfm::format("Exit possibly due to deadlock in wait_bc_exchange()");
     finalize(-1);
     exit(-1);
   }
@@ -925,7 +951,7 @@ DEFINE_MEMBER(void, log)()
   float64     interval = obj.value("interval", 1.0);
   std::string prefix   = obj.value("prefix", "log");
   std::string path     = obj.value("path", ".") + "/";
-  std::string numstep  = tfm::format("%06d", curstep);
+  std::string numstep  = format_step(curstep);
 
   // filename
   std::string fn_data = prefix + ".data";
@@ -980,7 +1006,7 @@ DEFINE_MEMBER(void, log)()
 
 DEFINE_MEMBER(void, append_log_step)(json& obj)
 {
-  std::string numstep = tfm::format("%06d", curstep);
+  std::string numstep = format_step(curstep);
 
   if (log_json["log"].contains(numstep) == false) {
     log_json["log"][numstep] = {};

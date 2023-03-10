@@ -5,6 +5,10 @@
 #define MPICH_IGNORE_CXX_SEEK
 #include <mpi.h>
 
+// format for temporary stdout and stderr files
+static constexpr char stdout_format[] = "%s_PE%06d.stdout";
+static constexpr char stderr_format[] = "%s_PE%06d.stderr";
+
 ///
 /// @brief singleton class
 /// @tparam T typename
@@ -96,12 +100,12 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
 
     // open dummy standard output stream
-    instance->m_outf   = tfm::format("%s_PE%04d.stdout", header, thisrank);
+    instance->m_outf   = tfm::format(stdout_format, header, thisrank);
     instance->m_out    = std::make_unique<std::ofstream>(instance->m_outf.c_str());
     instance->m_outtee = std::make_unique<teebuf>(std::cout.rdbuf(), instance->m_out->rdbuf());
 
     // open dummy standard error stream
-    instance->m_errf   = tfm::format("%s_PE%04d.stderr", header, thisrank);
+    instance->m_errf   = tfm::format(stderr_format, header, thisrank);
     instance->m_err    = std::make_unique<std::ofstream>(instance->m_errf.c_str());
     instance->m_errtee = std::make_unique<teebuf>(std::cerr.rdbuf(), instance->m_err->rdbuf());
 

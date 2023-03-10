@@ -582,7 +582,7 @@ DEFINE_MEMBER(void, set_mpi_communicator)(int mode, int iz, int iy, int ix, MPI_
   if (mode >= 0 && mode < mpibufvec.size()) {
     mpibufvec[mode]->comm(iz, iy, ix) = comm;
   } else {
-    ERRORPRINT("invalid index %d for mpibufvec\n", mode);
+    ERROR << tfm::format("invalid index %d for mpibufvec", mode);
   }
 }
 
@@ -701,32 +701,32 @@ DEFINE_MEMBER(void, set_boundary_physical)(int mode)
 {
   // lower boundary in z
   if (get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+    ERROR << tfm::format("Non-periodic boundary condition has not been implemented!");
   }
 
   // upper boundary in z
   if (get_nb_rank(+1, 0, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+    ERROR << tfm::format("Non-periodic boundary condition has not been implemented!");
   }
 
   // lower boundary in y
   if (get_nb_rank(0, -1, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+    ERROR << tfm::format("Non-periodic boundary condition has not been implemented!");
   }
 
   // upper boundary in y
   if (get_nb_rank(0, +1, 0) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+    ERROR << tfm::format("Non-periodic boundary condition has not been implemented!");
   }
 
   // lower boundary in x
   if (get_nb_rank(0, 0, -1) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+    ERROR << tfm::format("Non-periodic boundary condition has not been implemented!");
   }
 
   // upper boundary in x
   if (get_nb_rank(0, 0, +1) == MPI_PROC_NULL) {
-    ERRORPRINT("Non-periodic boundary condition has not been implemented!\n");
+    ERROR << tfm::format("Non-periodic boundary condition has not been implemented!");
   }
 }
 

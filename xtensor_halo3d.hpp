@@ -295,7 +295,7 @@ public:
     if (status == false) {
 #pragma omp critical
       {
-        ERRORPRINT("Error [%06d]: insufficient send buffer : ", chunk->get_id());
+        ERROR << tfm::format("Chunk[%06d]: insufficient send buffer", chunk->get_id());
         exit(-1);
       }
     }
@@ -389,7 +389,7 @@ public:
     if (recvsize > mpibuf->bufsize(iz, iy, ix)) {
 #pragma omp critical
       {
-        ERRORPRINT("Error [%06d]: insufficient recv buffer : ", chunk->get_id());
+        ERROR << tfm::format("Chunk[%06d]: insufficient recv buffer", chunk->get_id());
         exit(-1);
       }
     } else if (recvsize > increase_fraction * mpibuf->bufsize(iz, iy, ix)) {

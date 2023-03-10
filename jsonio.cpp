@@ -69,7 +69,7 @@ void readwrite_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t o
     MPI_File_write_all(*fh, data, packed_size[0], ptype, &status);
     break;
   default:
-    ERRORPRINT("No such mode available\n");
+    ERROR << tfm::format("No such mode available");
   }
 
   MPI_Type_free(&ptype);
@@ -103,7 +103,7 @@ void readwrite_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_
     MPI_File_iwrite_at(*fh, pos, data, psize, ptype, req);
     break;
   default:
-    ERRORPRINT("No such mode available\n");
+    ERROR << tfm::format("No such mode available");
   }
 
   MPI_Type_free(&ptype);
@@ -136,7 +136,7 @@ void readwrite_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t nd
     MPI_File_write_all(*fh, data, count, ptype, &status);
     break;
   default:
-    ERRORPRINT("No such mode available\n");
+    ERROR << tfm::format("No such mode available");
   }
 
   MPI_Type_free(&ptype);
@@ -152,7 +152,7 @@ void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mod
     // read only
     status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, fh);
     if (status != MPI_SUCCESS) {
-      ERRORPRINT("Failed to open file: %s\n", filename);
+      ERROR << tfm::format("Failed to open file: %s", filename);
     }
 
     // set pointer to the beginning
@@ -166,7 +166,7 @@ void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mod
     status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE,
                            MPI_INFO_NULL, fh);
     if (status != MPI_SUCCESS) {
-      ERRORPRINT("Failed to open file: %s\n", filename);
+      ERROR << tfm::format("Failed to open file: %s", filename);
     }
 
     // set pointer to the beginning
@@ -179,7 +179,7 @@ void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mod
     status = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE,
                            MPI_INFO_NULL, fh);
     if (status != MPI_SUCCESS) {
-      ERRORPRINT("Failed to open file: %s\n", filename);
+      ERROR << tfm::format("Failed to open file: %s", filename);
     }
 
     //
@@ -195,7 +195,7 @@ void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mod
 
     break;
   default:
-    ERRORPRINT("No such mode available\n");
+    ERROR << tfm::format("No such mode available");
   }
 }
 
@@ -284,7 +284,7 @@ void read_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const 
                    const T3 lshape[], const T4 offset[], const T5 elembyte, const int order)
 {
   if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
-    ERRORPRINT("Error: No such order available\n");
+    ERROR << tfm::format(" No such order available");
   }
 
   // convert to int32_t for MPI call
@@ -309,7 +309,7 @@ void write_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const
                     const T3 lshape[], const T4 offset[], const T5 elembyte, const int order)
 {
   if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
-    ERRORPRINT("Error: No such order available\n");
+    ERROR << tfm::format("No such order available");
   }
 
   // convert to int32_t for MPI call

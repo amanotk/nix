@@ -153,6 +153,16 @@ inline size_t memcpy_count(void* dst, void* src, size_t count, size_t dstaddr, s
   return count;
 }
 
+///
+/// @brief return string representation of given step
+/// @param step time step
+/// @return formatted string
+///
+inline std::string format_step(int step)
+{
+  return tfm::format("%08d", step);
+}
+
 NIX_NAMESPACE_END
 
 // Local Variables:
