@@ -6,6 +6,7 @@
 #include "buffer.hpp"
 #include "cmdline.hpp"
 #include "jsonio.hpp"
+#include "logger.hpp"
 #include "mpistream.hpp"
 #include "nix.hpp"
 #include "tinyformat.hpp"
@@ -29,6 +30,7 @@ protected:
   using PtrBalancer = std::unique_ptr<Balancer>;
   using PtrChunk    = std::unique_ptr<Chunk>;
   using PtrChunkMap = std::unique_ptr<ChunkMap>;
+  using PtrLogger   = std::unique_ptr<Logger>;
   using FloatVec    = std::vector<float64>;
   using ChunkVec    = std::vector<PtrChunk>;
   using cmdparser   = cmdline::parser;
@@ -38,13 +40,13 @@ protected:
   char**      cl_argv;  ///< command-line argv
   std::string cfg_file; ///< configuration file name
   json        cfg_json; ///< configuration json object
-  json        log_json; ///< log json object
   cmdparser   parser;   ///< command line parser
   float64     wclock;   ///< wall clock time at initialization
   PtrBalancer balancer; ///< load balancer
   int         numchunk; ///< number of chunkes in current process
   ChunkVec    chunkvec; ///< chunk array
   PtrChunkMap chunkmap; ///< global chunkmap
+  PtrLogger   logger;   ///< logger
   FloatVec    workload; ///< global load array
   float64     tmax;     ///< maximum physical time
   float64     emax;     ///< maximum elapsed time
@@ -64,12 +66,10 @@ protected:
   float64     zlim[3];  ///< physical domain in z
 
   // MPI related
-  int    periodic[3];           ///< flag for periodic boundary
-  int    nprocess;              ///< number of mpi processes
-  int    thisrank;              ///< my rank
-  Buffer sendbuf;               ///< send buffer
-  Buffer recvbuf;               ///< recv buffer
-  bool   mpi_init_with_nullptr; ///< for testing purpose
+  int  periodic[3];           ///< flag for periodic boundary
+  int  nprocess;              ///< number of mpi processes
+  int  thisrank;              ///< my rank
+  bool mpi_init_with_nullptr; ///< for testing purpose
 
 public:
   /// @brief default constructor
@@ -119,6 +119,11 @@ protected:
   /// @param argv array of arguments
   ///
   void initialize_mpi(int* argc, char*** argv);
+
+  ///
+  /// @brief initialize logger
+  ///
+  void initialize_logger();
 
   ///
   /// @brief initialize debug printing
@@ -208,22 +213,6 @@ protected:
   virtual void finalize(int cleanup = 0);
 
   ///
-  /// @brief output log
-  ///
-  virtual void log();
-
-  ///
-  /// @brief append given json to log json object at current step
-  ///
-  virtual void append_log_step(json& obj);
-
-  ///
-  /// @brief save log json object to file
-  /// @param flush force flush if true
-  ///
-  virtual void save_log(bool flush = false);
-
-  ///
   /// @brief factory to create chunk object
   /// @param dims local number of grids in each direction
   /// @param id chunk ID
@@ -310,6 +299,14 @@ protected:
   }
 
   ///
+  /// @brief logging
+  ///
+  virtual void logging()
+  {
+    logger->log(curstep);
+  }
+
+  ///
   /// @brief increment step and physical time
   ///
   virtual void increment_time()
@@ -346,11 +343,8 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
   //
   while (is_push_needed()) {
     //
-    // output log and diagnostics
+    // output diagnostics
     //
-    log();
-    DEBUG1 << tfm::format("step[%s] log", format_step(curstep));
-
     diagnostic(out);
     DEBUG1 << tfm::format("step[%s] diagnostic", format_step(curstep));
 
@@ -372,6 +366,12 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
     //
     rebuild_chunkmap();
     DEBUG1 << tfm::format("step[%s] rebuild", format_step(curstep));
+
+    //
+    // logging
+    //
+    logging();
+    DEBUG1 << tfm::format("step[%s] logging", format_step(curstep));
 
     //
     // increment step and time
@@ -534,6 +534,11 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
   mpistream::initialize(argv[0][0]);
 }
 
+DEFINE_MEMBER(void, initialize_logger)()
+{
+  logger = std::make_unique<Logger>(cfg_json["application"]["log"]);
+}
+
 DEFINE_MEMBER(void, initialize_debugprinting)(int level)
 {
   DebugPrinter::init();
@@ -605,6 +610,9 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   // MPI
   initialize_mpi(&argc, &argv);
 
+  // logger
+  initialize_logger();
+
   // debug printing
   initialize_debugprinting(debug);
 
@@ -613,11 +621,6 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 
   // load balancer
   balancer = create_balancer();
-
-  // buffer; 16 kB by default
-  int bufsize = 1024 * 16;
-  sendbuf.resize(bufsize);
-  recvbuf.resize(bufsize);
 }
 
 DEFINE_MEMBER(void, accumulate_workload)()
@@ -716,9 +719,9 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
   std::vector<int> oldrank(Nc);
   std::vector<int> newrank(Nc);
 
-  json    rebuild;
-  int     interval = cfg_json["application"]["rebuild"].value("interval", 10);
-  int     loglevel = cfg_json["application"]["log"].value("level", 0);
+  json    config   = cfg_json["application"]["rebuild"];
+  int     interval = config.value("interval", 10);
+  int     loglevel = config.value("loglevel", 0);
   float64 wclock1  = 0;
   float64 wclock2  = 0;
 
@@ -758,9 +761,11 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
   wclock2 = wall_clock();
 
   //
-  // log
+  // rebuild log
   //
   {
+    json rebuild;
+
     if (loglevel >= 0) {
       rebuild["start"]   = wclock1;
       rebuild["end"]     = wclock2;
@@ -794,10 +799,7 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
       rebuild["exchange"]["new_rank"] = new_rank;
     }
 
-    {
-      json log_step = {{"rebuild", rebuild}};
-      append_log_step(log_step);
-    }
+    logger->append(curstep, "rebuild", rebuild);
   }
 
   // reset
@@ -935,108 +937,11 @@ DEFINE_MEMBER(void, finalize)(int cleanup)
   // save snapshot
   this->save();
 
-  // write log
-  this->save_log(true);
+  // save log
+  logger->save(curstep, true);
 
   // MPI
   finalize_mpi(cleanup);
-}
-
-DEFINE_MEMBER(void, log)()
-{
-  json obj = cfg_json["application"]["log"];
-
-  // get parameters from json
-  int         loglevel = obj.value("level", 0);
-  float64     interval = obj.value("interval", 1.0);
-  std::string prefix   = obj.value("prefix", "log");
-  std::string path     = obj.value("path", ".") + "/";
-  std::string numstep  = format_step(curstep);
-
-  // filename
-  std::string fn_data = prefix + ".data";
-
-  MPI_File fh;
-  size_t   disp;
-  json     dataset;
-  json     log_step = {{"timestamp", wall_clock()}};
-
-  //
-  // initial setup
-  //
-  if (curstep == 0) {
-    // create data file
-    jsonio::open_file((path + fn_data).c_str(), &fh, &disp, "w");
-    jsonio::close_file(&fh);
-
-    // create json file
-    log_json["meta"]    = {{"endian", nix::get_endian_flag()}, {"rawfile", fn_data}, {"order", 1}};
-    log_json["dataset"] = {};
-    log_json["log"]     = {};
-    log_json["flushed"] = 0.0;
-
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
-
-  //
-  // chunk load
-  //
-  if (loglevel >= 2) {
-    const std::string name    = "load_" + numstep;
-    const char        desc[]  = "chunk load";
-    const int         ndim    = 2;
-    const int         dims[2] = {cdims[3], Chunk::NumLoadMode};
-    const int         size    = dims[0] * dims[1] * sizeof(float64);
-
-    jsonio::open_file((path + fn_data).c_str(), &fh, &disp, "a");
-
-    jsonio::put_metadata(dataset, name.c_str(), "f8", desc, disp, size, ndim, dims);
-    this->write_chunk_all(fh, disp, Chunk::DiagnosticLoad);
-
-    jsonio::close_file(&fh);
-  }
-
-  // update
-  log_json["dataset"].push_back(dataset);
-  append_log_step(log_step);
-
-  // save log
-  save_log();
-}
-
-DEFINE_MEMBER(void, append_log_step)(json& obj)
-{
-  std::string numstep = format_step(curstep);
-
-  if (log_json["log"].contains(numstep) == false) {
-    log_json["log"][numstep] = {};
-  }
-
-  for (auto it = obj.begin(); it != obj.end(); ++it) {
-    log_json["log"][numstep][it.key()] = it.value();
-  }
-}
-
-DEFINE_MEMBER(void, save_log)(bool force)
-{
-  json obj = cfg_json["application"]["log"];
-
-  // get parameters from json
-  float64     interval = obj.value("interval", 1.0);
-  std::string prefix   = obj.value("prefix", "log");
-  std::string path     = obj.value("path", ".") + "/";
-  std::string filename = prefix + ".json";
-
-  float64 wclock              = wall_clock();
-  float64 etime_since_flushed = wclock - log_json.value("flushed", 0.0);
-
-  if (thisrank == 0 && (force == true || etime_since_flushed > interval)) {
-    std::ofstream ofs(filename);
-    log_json["flushed"] = wclock;
-
-    ofs << std::setw(2) << log_json << std::flush;
-    ofs.close();
-  }
 }
 
 #undef DEFINE_MEMBER
