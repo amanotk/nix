@@ -58,14 +58,14 @@ using uint64 = uint64_t;
 using float32 = float;
 using float64 = double;
 using real    = float64;
-} // namespace typedefs
-
-using namespace typedefs;
 
 // MPI datatype for consistent notations
 // (constexpr does not work with some MPI library)
 const MPI_Datatype MPI_FLOAT32_T = MPI_FLOAT;
 const MPI_Datatype MPI_FLOAT64_T = MPI_DOUBLE;
+} // namespace typedefs
+
+using namespace typedefs;
 
 // maximum number of chunk per MPI rank
 // (used to make MPI send/recv tags less than this value)

@@ -22,11 +22,8 @@ NIX_NAMESPACE_BEGIN
 template <class Chunk, class ChunkMap>
 class Application
 {
-  // make friend
-  friend class Balancer;
-
 protected:
-  using this_type   = Application<Chunk, ChunkMap>;
+  using ThisType    = Application<Chunk, ChunkMap>;
   using PtrBalancer = std::unique_ptr<Balancer>;
   using PtrChunk    = std::unique_ptr<Chunk>;
   using PtrChunkMap = std::unique_ptr<ChunkMap>;
@@ -71,6 +68,29 @@ protected:
   int  thisrank;              ///< my rank
   bool mpi_init_with_nullptr; ///< for testing purpose
 
+  ///
+  /// @brief internal data struct
+  ///
+  struct InternalData {
+    int*         ndims;
+    int*         cdims;
+    int&         nprocess;
+    int&         thisrank;
+    int&         numchunk;
+    int&         curstep;
+    float64&     curtime;
+    PtrChunkMap& chunkmap;
+    ChunkVec&    chunkvec;
+  };
+
+  ///
+  /// @brief return internal data struct
+  ///
+  InternalData get_internal_data()
+  {
+    return {ndims, cdims, nprocess, thisrank, numchunk, curstep, curtime, chunkmap, chunkvec};
+  }
+
 public:
   /// @brief default constructor
   Application() : mpi_init_with_nullptr(false), periodic{1, 1, 1}
@@ -94,6 +114,17 @@ public:
   /// @return return code of application
   ///
   virtual int main(std::ostream& out);
+
+  ///
+  /// @brief factory to create chunk object
+  /// @param dims local number of grids in each direction
+  /// @param id chunk ID
+  /// @return chunk object
+  ///
+  virtual std::unique_ptr<Chunk> create_chunk(const int dims[], int id)
+  {
+    return std::make_unique<Chunk>(dims, id);
+  }
 
 protected:
   ///
@@ -211,17 +242,6 @@ protected:
   /// @param cleanup return code
   ///
   virtual void finalize(int cleanup = 0);
-
-  ///
-  /// @brief factory to create chunk object
-  /// @param dims local number of grids in each direction
-  /// @param id chunk ID
-  /// @return chunk object
-  ///
-  virtual std::unique_ptr<Chunk> create_chunk(const int dims[], int id)
-  {
-    return std::make_unique<Chunk>(dims, id);
-  }
 
   ///
   /// @brief factory to create Balancer object
@@ -749,7 +769,7 @@ DEFINE_MEMBER(bool, rebuild_chunkmap)()
   balancer->get_rank(boundary, newrank);
 
   // send/recv chunk
-  balancer->sendrecv_chunk(*this, newrank);
+  balancer->sendrecv_chunk(*this, get_internal_data(), newrank);
 
   // reset rank
   for (int id = 0; id < Nc; id++) {

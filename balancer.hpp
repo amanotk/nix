@@ -2,8 +2,8 @@
 #ifndef _BALANCER_HPP_
 #define _BALANCER_HPP_
 
-#include "nix.hpp"
 #include "buffer.hpp"
+#include "nix.hpp"
 
 NIX_NAMESPACE_BEGIN
 
@@ -69,11 +69,13 @@ public:
   /// @brief send/recv chunks for load balancing
   ///
   /// @tparam T_app Application class
+  /// @tparam T_data Application internal data struct
   /// @param app Application object
+  /// @param data Application internal data object
   /// @param newrank new rank for each chunk
   ///
-  template <class T_app>
-  void sendrecv_chunk(T_app& app, std::vector<int>& newrank);
+  template <typename T_app, typename T_data>
+  void sendrecv_chunk(T_app&& app, T_data&& data, std::vector<int>& newrank);
 
 protected:
   ///
@@ -89,19 +91,17 @@ protected:
 /// implementation for template methods follows
 ///
 
-template <class T_app>
-void Balancer::sendrecv_chunk(T_app& app, std::vector<int>& newrank)
+template <typename T_app, typename T_data>
+void Balancer::sendrecv_chunk(T_app&& app, T_data&& data, std::vector<int>& newrank)
 {
-  using PtrChunk = typename T_app::PtrChunk;
-
-  const int dims[3] = {app.ndims[0] / app.cdims[0], app.ndims[1] / app.cdims[1],
-                       app.ndims[2] / app.cdims[2]};
+  const int dims[3] = {data.ndims[0] / data.cdims[0], data.ndims[1] / data.cdims[1],
+                       data.ndims[2] / data.cdims[2]};
   const int Nc      = newrank.size();
   const int Ncmax   = Nc + 1;
 
-  int numchunk = app.numchunk;
-  int thisrank = app.thisrank;
-  int nprocess = app.nprocess;
+  int numchunk = data.numchunk;
+  int thisrank = data.thisrank;
+  int nprocess = data.nprocess;
   int rankmin  = 0;
   int rankmax  = nprocess - 1;
   int rank_l   = thisrank > rankmin ? thisrank - 1 : MPI_PROC_NULL;
@@ -122,13 +122,13 @@ void Balancer::sendrecv_chunk(T_app& app, std::vector<int>& newrank)
     int recvsize_r = 0;
 
     for (int i = 0; i < numchunk; i++) {
-      int id = app.chunkvec[i]->get_id();
+      int id = data.chunkvec[i]->get_id();
 
       if (newrank[id] == thisrank - 1) {
-        sendsize_l = std::max(sendsize_l, app.chunkvec[i]->pack(nullptr, 0));
+        sendsize_l = std::max(sendsize_l, data.chunkvec[i]->pack(nullptr, 0));
       }
       if (newrank[id] == thisrank + 1) {
-        sendsize_r = std::max(sendsize_r, app.chunkvec[i]->pack(nullptr, 0));
+        sendsize_r = std::max(sendsize_r, data.chunkvec[i]->pack(nullptr, 0));
       }
     }
 
@@ -164,14 +164,14 @@ void Balancer::sendrecv_chunk(T_app& app, std::vector<int>& newrank)
       return;
     }
 
-    auto it    = std::find_if(app.chunkvec.begin(), app.chunkvec.end(),
-                           [&](PtrChunk& p) { return p->get_id() == chunkid; });
-    int  index = std::distance(app.chunkvec.begin(), it);
+    auto it    = std::find_if(data.chunkvec.begin(), data.chunkvec.end(),
+                              [&](auto& p) { return p->get_id() == chunkid; });
+    int  index = std::distance(data.chunkvec.begin(), it);
 
     while (newrank[chunkid] == rank) {
       // pack
-      size = app.chunkvec[index]->pack(buf, 0);
-      app.chunkvec[index]->set_id(Ncmax); // to be removed
+      size = data.chunkvec[index]->pack(buf, 0);
+      data.chunkvec[index]->set_id(Ncmax); // to be removed
 
       MPI_Isend(buf, size, MPI_BYTE, rank, tag, MPI_COMM_WORLD, &request);
       MPI_Wait(&request, MPI_STATUS_IGNORE);
@@ -198,9 +198,9 @@ void Balancer::sendrecv_chunk(T_app& app, std::vector<int>& newrank)
       MPI_Wait(&request, MPI_STATUS_IGNORE);
 
       // unpack
-      PtrChunk p = app.create_chunk(dims, 0);
+      auto p = app.create_chunk(dims, 0);
       p->unpack(buf, 0);
-      app.chunkvec.push_back(std::move(p));
+      data.chunkvec.push_back(std::move(p));
 
       chunkid += dir;
     }
@@ -212,23 +212,23 @@ void Balancer::sendrecv_chunk(T_app& app, std::vector<int>& newrank)
   if (thisrank % 2 == 1) {
     // send to left
     {
-      int chunkid = app.chunkvec[0]->get_id();
+      int chunkid = data.chunkvec[0]->get_id();
       send_chunk(chunkid, rank_l, 1, +1, 0);
     }
     // recv from left
     {
-      int chunkid = app.chunkvec[0]->get_id() - 1;
+      int chunkid = data.chunkvec[0]->get_id() - 1;
       recv_chunk(chunkid, rank_l, 2, -1, 0);
     }
   } else {
     // send to right
     {
-      int chunkid = app.chunkvec[numchunk - 1]->get_id();
+      int chunkid = data.chunkvec[numchunk - 1]->get_id();
       send_chunk(chunkid, rank_r, 2, -1, 0);
     }
     // recv from right
     {
-      int chunkid = app.chunkvec[numchunk - 1]->get_id() + 1;
+      int chunkid = data.chunkvec[numchunk - 1]->get_id() + 1;
       recv_chunk(chunkid, rank_r, 1, +1, 0);
     }
   }
@@ -239,23 +239,23 @@ void Balancer::sendrecv_chunk(T_app& app, std::vector<int>& newrank)
   if (thisrank % 2 == 1) {
     // send to right
     {
-      int chunkid = app.chunkvec[numchunk - 1]->get_id();
+      int chunkid = data.chunkvec[numchunk - 1]->get_id();
       send_chunk(chunkid, rank_r, 3, -1, 0);
     }
     // recv from right
     {
-      int chunkid = app.chunkvec[numchunk - 1]->get_id() + 1;
+      int chunkid = data.chunkvec[numchunk - 1]->get_id() + 1;
       recv_chunk(chunkid, rank_r, 4, +1, 0);
     }
   } else {
     // send to left
     {
-      int chunkid = app.chunkvec[0]->get_id();
+      int chunkid = data.chunkvec[0]->get_id();
       send_chunk(chunkid, rank_l, 4, +1, 0);
     }
     // recv from left
     {
-      int chunkid = app.chunkvec[0]->get_id() - 1;
+      int chunkid = data.chunkvec[0]->get_id() - 1;
       recv_chunk(chunkid, rank_l, 3, -1, 0);
     }
   }
@@ -264,21 +264,21 @@ void Balancer::sendrecv_chunk(T_app& app, std::vector<int>& newrank)
   // sort chunkvec and remove unused chunks
   //
   {
-    std::sort(app.chunkvec.begin(), app.chunkvec.end(),
-              [](const PtrChunk& x, const PtrChunk& y) { return x->get_id() < y->get_id(); });
+    std::sort(data.chunkvec.begin(), data.chunkvec.end(),
+              [](const auto& x, const auto& y) { return x->get_id() < y->get_id(); });
 
     // reset numchunk
     numchunk = 0;
-    for (int i = 0; i < app.chunkvec.size(); i++) {
-      if (app.chunkvec[i]->get_id() == Ncmax)
+    for (int i = 0; i < data.chunkvec.size(); i++) {
+      if (data.chunkvec[i]->get_id() == Ncmax)
         break;
       numchunk++;
     }
 
     // resize and discard unused chunks
-    app.chunkvec.resize(numchunk);
-    app.chunkvec.shrink_to_fit();
-    app.numchunk = numchunk;
+    data.chunkvec.resize(numchunk);
+    data.chunkvec.shrink_to_fit();
+    data.numchunk = numchunk;
   }
 }
 
