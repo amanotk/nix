@@ -16,16 +16,25 @@ static constexpr int logger_flush_interval = 10;
 class Logger
 {
 private:
-  int  thisrank; ///< MPI rank
-  json config;   ///< configuration
-  json content;  ///< log content
+  int     thisrank; ///< MPI rank
+  float64 flushed;  ///< last flushed time
+  json    config;   ///< configuration
+  json    content;  ///< log content
 
 public:
   Logger(json& cfg)
   {
     MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
+    initialize_content();
+
     config  = cfg;
-    content = {};
+    flushed = wall_clock();
+  }
+
+  virtual void initialize_content()
+  {
+    content = json::array();
+    content.push_back({});
   }
 
   virtual void log(int curstep)
@@ -38,45 +47,48 @@ public:
 
     // clear
     if (is_final_step)
-      content = {};
+      initialize_content();
   }
 
   virtual void append(int curstep, const char* name, json& obj)
   {
-    if (content.contains(name) == false) {
-      // step
-      content[name]["step"] = json::array();
-      // data
-      for (auto it = obj.begin(); it != obj.end(); ++it) {
-        content[name][it.key()] = json::array();
-      }
+    // add new element if the last element already contains the given entry
+    json last = content.back();
+    if (last.contains(name) == true) {
+      content.push_back({});
+    }
+
+    json& element = content.back();
+
+    // data
+    element[name] = {};
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
+      element[name][it.key()] = it.value();
     }
 
     // step
-    content[name]["step"].push_back(curstep);
-
-    // data
-    for (auto it = obj.begin(); it != obj.end(); ++it) {
-      content[name][it.key()].push_back(it.value());
-    }
+    element[name]["step"] = curstep;
   }
 
   virtual void save(int curstep, bool force = false)
   {
-    int         interval     = config.value("interval", 1);
-    int         step         = interval * (curstep / interval);
-    std::string path         = config.value("path", ".");
-    std::string prefix       = config.value("prefix", "log");
-    std::string filename     = tfm::format("%s/%s_%s.json", path, prefix, format_step(step));
-    float64     last_flushed = content.value("flushed", 0.0);
-    float64     wclock       = wall_clock();
+    int         interval = config.value("interval", 1);
+    int         step     = interval * (curstep / interval);
+    std::string path     = config.value("path", ".");
+    std::string prefix   = config.value("prefix", "log");
+    std::string filename = tfm::format("%s/%s_%s.msgpack", path, prefix, format_step(step));
+    float64     wclock   = wall_clock();
 
-    if (thisrank == 0 && (force == true || (wclock - last_flushed > logger_flush_interval))) {
-      content["flushed"] = wclock;
+    if (thisrank == 0 && (force == true || (wclock - flushed > logger_flush_interval))) {
+      // serialize to msgpack
+      std::vector<std::uint8_t> buffer = json::to_msgpack(content);
 
-      std::ofstream ofs(filename);
-      ofs << std::setw(2) << content << std::flush;
+      // output
+      std::ofstream ofs(filename, std::ios::binary);
+      ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
       ofs.close();
+
+      flushed = wclock;
     }
   }
 };

@@ -145,16 +145,16 @@ protected:
   virtual void parse_cfg();
 
   ///
+  /// @brief save profile of run
+  ///
+  virtual void save_profile();
+
+  ///
   /// @brief initialize MPI
   /// @param argc number of arguments
   /// @param argv array of arguments
   ///
   void initialize_mpi(int* argc, char*** argv);
-
-  ///
-  /// @brief initialize logger
-  ///
-  void initialize_logger();
 
   ///
   /// @brief initialize debug printing
@@ -255,14 +255,14 @@ protected:
   ///
   /// @brief load a snapshot file for restart
   ///
-  virtual void load()
+  virtual void load_snapshot()
   {
   }
 
   ///
   /// @brief save current state to a snapshot file (for restart)
   ///
-  virtual void save()
+  virtual void save_snapshot()
   {
   }
 
@@ -272,7 +272,7 @@ protected:
   virtual void setup()
   {
     // load snapshot
-    this->load();
+    this->load_snapshot();
   }
 
   ///
@@ -357,6 +357,11 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
   //
   setup();
   DEBUG1 << tfm::format("setup");
+
+  //
+  // save profile
+  //
+  save_profile();
 
   //
   // main loop
@@ -521,6 +526,31 @@ DEFINE_MEMBER(void, parse_cfg)()
   zlim[2] = zlim[1] - zlim[0];
 }
 
+DEFINE_MEMBER(void, save_profile)()
+{
+  if (thisrank == 0) {
+    std::string filename = "profile.msgpack";
+
+    // timestamp
+    json timestamp_json = wclock;
+
+    // chunkmap
+    json cmap_json;
+    chunkmap->save_json(cmap_json);
+
+    // content
+    json content = {
+        {"timestamp", timestamp_json}, {"configuration", cfg_json}, {"chunkmap", cmap_json}};
+
+    // serialize and output
+    std::vector<std::uint8_t> buffer = json::to_msgpack(content);
+
+    std::ofstream ofs(filename, std::ios::binary);
+    ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    ofs.close();
+  }
+}
+
 DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
 {
   // initialize MPI with thread support
@@ -552,11 +582,6 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
 
   // redirect stdout/stderr
   mpistream::initialize(argv[0][0]);
-}
-
-DEFINE_MEMBER(void, initialize_logger)()
-{
-  logger = std::make_unique<Logger>(cfg_json["application"]["log"]);
 }
 
 DEFINE_MEMBER(void, initialize_debugprinting)(int level)
@@ -630,9 +655,6 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   // MPI
   initialize_mpi(&argc, &argv);
 
-  // logger
-  initialize_logger();
-
   // debug printing
   initialize_debugprinting(debug);
 
@@ -641,6 +663,9 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 
   // load balancer
   balancer = create_balancer();
+
+  // logger
+  logger = std::make_unique<Logger>(cfg_json["application"]["log"]);
 }
 
 DEFINE_MEMBER(void, accumulate_workload)()
@@ -955,7 +980,7 @@ DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, int mode)
 DEFINE_MEMBER(void, finalize)(int cleanup)
 {
   // save snapshot
-  this->save();
+  this->save_snapshot();
 
   // save log
   logger->save(curstep, true);
