@@ -277,9 +277,8 @@ protected:
 
   ///
   /// @brief perform various diagnostics output
-  /// @param out output stream to which console message will be printed (if any)
   ///
-  virtual void diagnostic(std::ostream& out)
+  virtual void diagnostic()
   {
   }
 
@@ -370,7 +369,7 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
     //
     // output diagnostics
     //
-    diagnostic(out);
+    diagnostic();
     DEBUG1 << tfm::format("step[%s] diagnostic", format_step(curstep));
 
     //
