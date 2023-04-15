@@ -11,3 +11,9 @@ add_library(nix STATIC balancer.cpp jsonio.cpp sfc.cpp)
 # include directory
 target_include_directories(nix PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(nix PUBLIC ${PROJECT_SOURCE_DIR}/thirdparty)
+
+# unittest
+if(ENABLE_TESTING)
+	enable_testing()
+	add_subdirectory(unittest)
+endif()
