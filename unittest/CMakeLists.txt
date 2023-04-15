@@ -20,7 +20,9 @@ set(LIBRARY_DIRS
 set(SERIAL_EXECS
 	test_sfc
 	test_jsonio1
+	test_chunk
 	test_chunkmap
+	test_particle
 	)
 
 add_library(obj_serial OBJECT test_serial.cpp)

@@ -1,9 +1,8 @@
 // -*- C++ -*-
 
+#include "chunkmap.hpp"
 #include <fstream>
 #include <iostream>
-
-#include "../chunkmap.hpp"
 #include <nlohmann/json.hpp>
 
 #include "catch.hpp"

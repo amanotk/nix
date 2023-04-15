@@ -3,7 +3,7 @@
 #include <iostream>
 
 #define CATCH_CONFIG_RUNNER
-#include "../thirdparty/catch.hpp"
+#include "catch.hpp"
 
 int main(int argc, char **argv)
 {

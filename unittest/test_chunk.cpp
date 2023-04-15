@@ -1,12 +1,40 @@
 // -*- C++ -*-
 
+#include "chunk.hpp"
 #include <iostream>
 
-#include "../chunk.hpp"
-
-#include "../thirdparty/catch.hpp"
+#include "catch.hpp"
 
 using namespace nix;
+
+//
+// dummy for testing
+//
+template <int Nb>
+class TestChunk : public Chunk<Nb>
+{
+  virtual int pack_diagnostic(int mode, void* buffer, int address) override
+  {
+    return 0;
+  }
+
+  virtual bool set_boundary_query(int mode) override
+  {
+    return false;
+  }
+
+  virtual void set_boundary_physical(int mode) override
+  {
+  }
+
+  virtual void set_boundary_begin(int mode) override
+  {
+  }
+
+  virtual void set_boundary_end(int mode) override
+  {
+  }
+};
 
 //
 // Chunk<1>
@@ -14,12 +42,12 @@ using namespace nix;
 TEST_CASE("Chunk1")
 {
   const int bufsize = 4096;
-  const int N = 5;
+  const int N       = 5;
 
-  char buffer[bufsize];
-  int chunkid[N];
-  Chunk<1> chunk[N];
-  Chunk<1> unpack_chunk;
+  char         buffer[bufsize];
+  int          chunkid[N];
+  TestChunk<1> chunk[N];
+  TestChunk<1> unpack_chunk;
 
   // set IDs
   for (int i = 0; i < N; i++) {
@@ -74,12 +102,12 @@ TEST_CASE("Chunk1")
 TEST_CASE("Chunk2")
 {
   const int bufsize = 4096;
-  const int N = 5;
+  const int N       = 5;
 
-  char buffer[bufsize];
-  int chunkid[N][N];
-  Chunk<2> chunk[N][N];
-  Chunk<2> unpack_chunk;
+  char         buffer[bufsize];
+  int          chunkid[N][N];
+  TestChunk<2> chunk[N][N];
+  TestChunk<2> unpack_chunk;
 
   // set IDs
   for (int i = 0; i < N; i++) {
@@ -116,8 +144,7 @@ TEST_CASE("Chunk2")
       for (int j = -1; j <= +1; j++) {
         int is = 2, ir = 2 + i;
         int js = 2, jr = 2 + j;
-        REQUIRE(chunk[is][js].get_sndtag(+i, +j) ==
-                chunk[ir][jr].get_rcvtag(-i, -j));
+        REQUIRE(chunk[is][js].get_sndtag(+i, +j) == chunk[ir][jr].get_rcvtag(-i, -j));
       }
     }
     // test recv tags
@@ -125,8 +152,7 @@ TEST_CASE("Chunk2")
       for (int j = -1; j <= +1; j++) {
         int ir = 2, is = 2 + i;
         int jr = 2, js = 2 + j;
-        REQUIRE(chunk[ir][jr].get_rcvtag(+i, +j) ==
-                chunk[is][js].get_sndtag(-i, -j));
+        REQUIRE(chunk[ir][jr].get_rcvtag(+i, +j) == chunk[is][js].get_sndtag(-i, -j));
       }
     }
   }
@@ -145,10 +171,8 @@ TEST_CASE("Chunk2")
       for (int j = -1; j <= +1; j++) {
         int ir = 2, is = 2 + i;
         int jr = 2, js = 2 + j;
-        REQUIRE(chunk[2][2].get_rcvtag(+i, +j) ==
-                unpack_chunk.get_rcvtag(+i, +j));
-        REQUIRE(chunk[2][2].get_sndtag(+i, +j) ==
-                unpack_chunk.get_sndtag(+i, +j));
+        REQUIRE(chunk[2][2].get_rcvtag(+i, +j) == unpack_chunk.get_rcvtag(+i, +j));
+        REQUIRE(chunk[2][2].get_sndtag(+i, +j) == unpack_chunk.get_sndtag(+i, +j));
       }
     }
   }
@@ -160,12 +184,12 @@ TEST_CASE("Chunk2")
 TEST_CASE("Chunk3")
 {
   const int bufsize = 4096;
-  const int N = 5;
+  const int N       = 5;
 
-  char buffer[bufsize];
-  int chunkid[N][N][N];
-  Chunk<3> chunk[N][N][N];
-  Chunk<3> unpack_chunk;
+  char         buffer[bufsize];
+  int          chunkid[N][N][N];
+  TestChunk<3> chunk[N][N][N];
+  TestChunk<3> unpack_chunk;
 
   // set IDs
   for (int i = 0; i < N; i++) {
@@ -182,68 +206,41 @@ TEST_CASE("Chunk3")
     for (int j = 1; j < N - 1; j++) {
       for (int k = 1; k < N - 1; k++) {
         //
-        chunk[i][j][k].set_nb_id(-1, -1, -1,
-                                 chunk[i - 1][j - 1][k - 1].get_id());
-        chunk[i][j][k].set_nb_id(-1, -1, +0,
-                                 chunk[i - 1][j - 1][k + 0].get_id());
-        chunk[i][j][k].set_nb_id(-1, -1, +1,
-                                 chunk[i - 1][j - 1][k + 1].get_id());
+        chunk[i][j][k].set_nb_id(-1, -1, -1, chunk[i - 1][j - 1][k - 1].get_id());
+        chunk[i][j][k].set_nb_id(-1, -1, +0, chunk[i - 1][j - 1][k + 0].get_id());
+        chunk[i][j][k].set_nb_id(-1, -1, +1, chunk[i - 1][j - 1][k + 1].get_id());
         //
-        chunk[i][j][k].set_nb_id(-1, +0, -1,
-                                 chunk[i - 1][j + 0][k - 1].get_id());
-        chunk[i][j][k].set_nb_id(-1, +0, +0,
-                                 chunk[i - 1][j + 0][k + 0].get_id());
-        chunk[i][j][k].set_nb_id(-1, +0, +1,
-                                 chunk[i - 1][j + 0][k + 1].get_id());
+        chunk[i][j][k].set_nb_id(-1, +0, -1, chunk[i - 1][j + 0][k - 1].get_id());
+        chunk[i][j][k].set_nb_id(-1, +0, +0, chunk[i - 1][j + 0][k + 0].get_id());
+        chunk[i][j][k].set_nb_id(-1, +0, +1, chunk[i - 1][j + 0][k + 1].get_id());
         //
-        chunk[i][j][k].set_nb_id(-1, +1, -1,
-                                 chunk[i - 1][j + 1][k - 1].get_id());
-        chunk[i][j][k].set_nb_id(-1, +1, +0,
-                                 chunk[i - 1][j + 1][k + 0].get_id());
-        chunk[i][j][k].set_nb_id(-1, +1, +1,
-                                 chunk[i - 1][j + 1][k + 1].get_id());
+        chunk[i][j][k].set_nb_id(-1, +1, -1, chunk[i - 1][j + 1][k - 1].get_id());
+        chunk[i][j][k].set_nb_id(-1, +1, +0, chunk[i - 1][j + 1][k + 0].get_id());
+        chunk[i][j][k].set_nb_id(-1, +1, +1, chunk[i - 1][j + 1][k + 1].get_id());
         //
-        chunk[i][j][k].set_nb_id(+0, -1, -1,
-                                 chunk[i + 0][j - 1][k - 1].get_id());
-        chunk[i][j][k].set_nb_id(+0, -1, +0,
-                                 chunk[i + 0][j - 1][k + 0].get_id());
-        chunk[i][j][k].set_nb_id(+0, -1, +1,
-                                 chunk[i + 0][j - 1][k + 1].get_id());
+        chunk[i][j][k].set_nb_id(+0, -1, -1, chunk[i + 0][j - 1][k - 1].get_id());
+        chunk[i][j][k].set_nb_id(+0, -1, +0, chunk[i + 0][j - 1][k + 0].get_id());
+        chunk[i][j][k].set_nb_id(+0, -1, +1, chunk[i + 0][j - 1][k + 1].get_id());
         //
-        chunk[i][j][k].set_nb_id(+0, +0, -1,
-                                 chunk[i + 0][j + 0][k - 1].get_id());
-        chunk[i][j][k].set_nb_id(+0, +0, +0,
-                                 chunk[i + 0][j + 0][k + 0].get_id());
-        chunk[i][j][k].set_nb_id(+0, +0, +1,
-                                 chunk[i + 0][j + 0][k + 1].get_id());
+        chunk[i][j][k].set_nb_id(+0, +0, -1, chunk[i + 0][j + 0][k - 1].get_id());
+        chunk[i][j][k].set_nb_id(+0, +0, +0, chunk[i + 0][j + 0][k + 0].get_id());
+        chunk[i][j][k].set_nb_id(+0, +0, +1, chunk[i + 0][j + 0][k + 1].get_id());
         //
-        chunk[i][j][k].set_nb_id(+0, +1, -1,
-                                 chunk[i + 0][j + 1][k - 1].get_id());
-        chunk[i][j][k].set_nb_id(+0, +1, +0,
-                                 chunk[i + 0][j + 1][k + 0].get_id());
-        chunk[i][j][k].set_nb_id(+0, +1, +1,
-                                 chunk[i + 0][j + 1][k + 1].get_id());
+        chunk[i][j][k].set_nb_id(+0, +1, -1, chunk[i + 0][j + 1][k - 1].get_id());
+        chunk[i][j][k].set_nb_id(+0, +1, +0, chunk[i + 0][j + 1][k + 0].get_id());
+        chunk[i][j][k].set_nb_id(+0, +1, +1, chunk[i + 0][j + 1][k + 1].get_id());
         //
-        chunk[i][j][k].set_nb_id(+1, -1, -1,
-                                 chunk[i + 1][j - 1][k - 1].get_id());
-        chunk[i][j][k].set_nb_id(+1, -1, +0,
-                                 chunk[i + 1][j - 1][k + 0].get_id());
-        chunk[i][j][k].set_nb_id(+1, -1, +1,
-                                 chunk[i + 1][j - 1][k + 1].get_id());
+        chunk[i][j][k].set_nb_id(+1, -1, -1, chunk[i + 1][j - 1][k - 1].get_id());
+        chunk[i][j][k].set_nb_id(+1, -1, +0, chunk[i + 1][j - 1][k + 0].get_id());
+        chunk[i][j][k].set_nb_id(+1, -1, +1, chunk[i + 1][j - 1][k + 1].get_id());
         //
-        chunk[i][j][k].set_nb_id(+1, +0, -1,
-                                 chunk[i + 1][j + 0][k - 1].get_id());
-        chunk[i][j][k].set_nb_id(+1, +0, +0,
-                                 chunk[i + 1][j + 0][k + 0].get_id());
-        chunk[i][j][k].set_nb_id(+1, +0, +1,
-                                 chunk[i + 1][j + 0][k + 1].get_id());
+        chunk[i][j][k].set_nb_id(+1, +0, -1, chunk[i + 1][j + 0][k - 1].get_id());
+        chunk[i][j][k].set_nb_id(+1, +0, +0, chunk[i + 1][j + 0][k + 0].get_id());
+        chunk[i][j][k].set_nb_id(+1, +0, +1, chunk[i + 1][j + 0][k + 1].get_id());
         //
-        chunk[i][j][k].set_nb_id(+1, +1, -1,
-                                 chunk[i + 1][j + 1][k - 1].get_id());
-        chunk[i][j][k].set_nb_id(+1, +1, +0,
-                                 chunk[i + 1][j + 1][k + 0].get_id());
-        chunk[i][j][k].set_nb_id(+1, +1, +1,
-                                 chunk[i + 1][j + 1][k + 1].get_id());
+        chunk[i][j][k].set_nb_id(+1, +1, -1, chunk[i + 1][j + 1][k - 1].get_id());
+        chunk[i][j][k].set_nb_id(+1, +1, +0, chunk[i + 1][j + 1][k + 0].get_id());
+        chunk[i][j][k].set_nb_id(+1, +1, +1, chunk[i + 1][j + 1][k + 1].get_id());
       }
     }
   }
@@ -294,10 +291,8 @@ TEST_CASE("Chunk3")
           int ir = 2, is = 2 + i;
           int jr = 2, js = 2 + j;
           int kr = 2, ks = 2 + k;
-          REQUIRE(chunk[2][2][2].get_rcvtag(+i, +j, +k) ==
-                  unpack_chunk.get_rcvtag(+i, +j, +k));
-          REQUIRE(chunk[2][2][2].get_sndtag(+i, +j, +k) ==
-                  unpack_chunk.get_sndtag(+i, +j, +k));
+          REQUIRE(chunk[2][2][2].get_rcvtag(+i, +j, +k) == unpack_chunk.get_rcvtag(+i, +j, +k));
+          REQUIRE(chunk[2][2][2].get_sndtag(+i, +j, +k) == unpack_chunk.get_sndtag(+i, +j, +k));
         }
       }
     }

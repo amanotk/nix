@@ -1,9 +1,9 @@
 // -*- C++ -*-
 
-#include "../jsonio.hpp"
+#include "jsonio.hpp"
 #include <iostream>
 
-#include "../thirdparty/catch.hpp"
+#include "catch.hpp"
 
 static const auto json_to_check = R"(
 {
@@ -137,22 +137,22 @@ TEST_CASE("Attribute")
   using jsonio::float32;
   using jsonio::float64;
 
-  const int N = 5;
-  int32_t i32s = 32;
-  int64_t i64s = 64;
-  int32_t i32a[N] = {10, 20, 30, 40, 50};
-  int64_t i64a[N] = {15, 30, 45, 60, 75};
-  float32 f32s = 1.0;
-  float64 f64s = 10.0;
-  float32 f32a[N] = {0.0, 1.0, 2.0, 3.0, 4.0};
-  float64 f64a[N] = {0.0, -1.0, -2.0, -3.0, -4.0};
+  const int N       = 5;
+  int32_t   i32s    = 32;
+  int64_t   i64s    = 64;
+  int32_t   i32a[N] = {10, 20, 30, 40, 50};
+  int64_t   i64a[N] = {15, 30, 45, 60, 75};
+  float32   f32s    = 1.0;
+  float64   f64s    = 10.0;
+  float32   f32a[N] = {0.0, 1.0, 2.0, 3.0, 4.0};
+  float64   f64a[N] = {0.0, -1.0, -2.0, -3.0, -4.0};
 
   //
   // check put_attribute
   //
   {
     size_t disp;
-    json writer, diff;
+    json   writer, diff;
 
     disp = 0;
     jsonio::put_attribute(writer, "scalar_int32", disp, i32s);
@@ -190,7 +190,7 @@ TEST_CASE("Attribute")
   {
     json reader = json_to_check;
 
-    size_t disp1, disp2;
+    size_t  disp1, disp2;
     int32_t in_i32s;
     int64_t in_i64s;
     int32_t in_i32a[N];

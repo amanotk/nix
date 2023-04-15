@@ -1,12 +1,11 @@
 // -*- C++ -*-
 
+#include "jsonio.hpp"
+#include "xtensorall.hpp"
 #include <fstream>
 #include <iostream>
 
-#include "../jsonio.hpp"
-#include "../xtensorall.hpp"
-
-#include "../thirdparty/catch.hpp"
+#include "catch.hpp"
 
 using jsonio::float32;
 using jsonio::float64;
@@ -122,10 +121,10 @@ TEST_CASE("ReadSingle")
   // write to file
   {
     std::ofstream ofs(filename, std::ios::out | std::ios::binary);
-    ofs.write(reinterpret_cast<char *>(i32a), sizeof(int32_t) * N);
-    ofs.write(reinterpret_cast<char *>(i64a), sizeof(int64_t) * N);
-    ofs.write(reinterpret_cast<char *>(f32a), sizeof(float32) * N);
-    ofs.write(reinterpret_cast<char *>(f64a), sizeof(float64) * N);
+    ofs.write(reinterpret_cast<char*>(i32a), sizeof(int32_t) * N);
+    ofs.write(reinterpret_cast<char*>(i64a), sizeof(int64_t) * N);
+    ofs.write(reinterpret_cast<char*>(f32a), sizeof(float32) * N);
+    ofs.write(reinterpret_cast<char*>(f64a), sizeof(float64) * N);
     ofs.close();
   }
 
@@ -193,10 +192,10 @@ TEST_CASE("WriteSingle")
     float64 in_f64a[N];
 
     std::ifstream ifs(filename, std::ios::in | std::ios::binary);
-    ifs.read(reinterpret_cast<char *>(in_i32a), sizeof(int32_t) * N);
-    ifs.read(reinterpret_cast<char *>(in_i64a), sizeof(int64_t) * N);
-    ifs.read(reinterpret_cast<char *>(in_f32a), sizeof(float32) * N);
-    ifs.read(reinterpret_cast<char *>(in_f64a), sizeof(float64) * N);
+    ifs.read(reinterpret_cast<char*>(in_i32a), sizeof(int32_t) * N);
+    ifs.read(reinterpret_cast<char*>(in_i64a), sizeof(int64_t) * N);
+    ifs.read(reinterpret_cast<char*>(in_f32a), sizeof(float32) * N);
+    ifs.read(reinterpret_cast<char*>(in_f64a), sizeof(float64) * N);
     ifs.close();
 
     REQUIRE(is_array_equal(N, i32a, in_i32a));
@@ -225,10 +224,10 @@ TEST_CASE("ReadContiguous")
   // write to file
   {
     std::ofstream ofs(filename, std::ios::out | std::ios::binary);
-    ofs.write(reinterpret_cast<char *>(i32a), sizeof(int32_t) * N);
-    ofs.write(reinterpret_cast<char *>(i64a), sizeof(int64_t) * N);
-    ofs.write(reinterpret_cast<char *>(f32a), sizeof(float32) * N);
-    ofs.write(reinterpret_cast<char *>(f64a), sizeof(float64) * N);
+    ofs.write(reinterpret_cast<char*>(i32a), sizeof(int32_t) * N);
+    ofs.write(reinterpret_cast<char*>(i64a), sizeof(int64_t) * N);
+    ofs.write(reinterpret_cast<char*>(f32a), sizeof(float32) * N);
+    ofs.write(reinterpret_cast<char*>(f64a), sizeof(float64) * N);
     ofs.close();
   }
 
@@ -317,10 +316,10 @@ TEST_CASE("WriteContiguous")
     float64 in_f64a[N];
 
     std::ifstream ifs(filename, std::ios::in | std::ios::binary);
-    ifs.read(reinterpret_cast<char *>(in_i32a), sizeof(int32_t) * N);
-    ifs.read(reinterpret_cast<char *>(in_i64a), sizeof(int64_t) * N);
-    ifs.read(reinterpret_cast<char *>(in_f32a), sizeof(float32) * N);
-    ifs.read(reinterpret_cast<char *>(in_f64a), sizeof(float64) * N);
+    ifs.read(reinterpret_cast<char*>(in_i32a), sizeof(int32_t) * N);
+    ifs.read(reinterpret_cast<char*>(in_i64a), sizeof(int64_t) * N);
+    ifs.read(reinterpret_cast<char*>(in_f32a), sizeof(float32) * N);
+    ifs.read(reinterpret_cast<char*>(in_f64a), sizeof(float64) * N);
     ifs.close();
 
     REQUIRE(is_array_equal(N, i32a, in_i32a));
@@ -349,10 +348,10 @@ TEST_CASE("ReadContiguousAt")
   // write to file
   {
     std::ofstream ofs(filename, std::ios::out | std::ios::binary);
-    ofs.write(reinterpret_cast<char *>(i32a), sizeof(int32_t) * N);
-    ofs.write(reinterpret_cast<char *>(i64a), sizeof(int64_t) * N);
-    ofs.write(reinterpret_cast<char *>(f32a), sizeof(float32) * N);
-    ofs.write(reinterpret_cast<char *>(f64a), sizeof(float64) * N);
+    ofs.write(reinterpret_cast<char*>(i32a), sizeof(int32_t) * N);
+    ofs.write(reinterpret_cast<char*>(i64a), sizeof(int64_t) * N);
+    ofs.write(reinterpret_cast<char*>(f32a), sizeof(float32) * N);
+    ofs.write(reinterpret_cast<char*>(f64a), sizeof(float64) * N);
     ofs.close();
   }
 
@@ -469,10 +468,10 @@ TEST_CASE("WriteContiguousAt")
     float64 in_f64a[N];
 
     std::ifstream ifs(filename, std::ios::in | std::ios::binary);
-    ifs.read(reinterpret_cast<char *>(in_i32a), sizeof(int32_t) * N);
-    ifs.read(reinterpret_cast<char *>(in_i64a), sizeof(int64_t) * N);
-    ifs.read(reinterpret_cast<char *>(in_f32a), sizeof(float32) * N);
-    ifs.read(reinterpret_cast<char *>(in_f64a), sizeof(float64) * N);
+    ifs.read(reinterpret_cast<char*>(in_i32a), sizeof(int32_t) * N);
+    ifs.read(reinterpret_cast<char*>(in_i64a), sizeof(int64_t) * N);
+    ifs.read(reinterpret_cast<char*>(in_f32a), sizeof(float32) * N);
+    ifs.read(reinterpret_cast<char*>(in_f64a), sizeof(float64) * N);
     ifs.close();
 
     REQUIRE(is_array_equal(N, i32a, in_i32a));
@@ -512,10 +511,10 @@ TEST_CASE("ReadSubarray")
   // write to file
   {
     std::ofstream ofs(filename, std::ios::out | std::ios::binary);
-    ofs.write(reinterpret_cast<char *>(i32a), sizeof(int32_t) * N);
-    ofs.write(reinterpret_cast<char *>(i64a), sizeof(int64_t) * N);
-    ofs.write(reinterpret_cast<char *>(f32a), sizeof(float32) * N);
-    ofs.write(reinterpret_cast<char *>(f64a), sizeof(float64) * N);
+    ofs.write(reinterpret_cast<char*>(i32a), sizeof(int32_t) * N);
+    ofs.write(reinterpret_cast<char*>(i64a), sizeof(int64_t) * N);
+    ofs.write(reinterpret_cast<char*>(f32a), sizeof(float32) * N);
+    ofs.write(reinterpret_cast<char*>(f64a), sizeof(float64) * N);
     ofs.close();
   }
 
@@ -526,9 +525,9 @@ TEST_CASE("ReadSubarray")
     MPI_File fh;
     size_t   disp;
     size_t   nd = ndim;
-    size_t  *gs = gshape.data();
-    size_t  *ls = lshape.data();
-    size_t  *os = offset.data();
+    size_t*  gs = gshape.data();
+    size_t*  ls = lshape.data();
+    size_t*  os = offset.data();
 
     // local array
     xt::xarray<int32_t> in_i32a(lshape);
@@ -595,9 +594,9 @@ TEST_CASE("WriteSubarray")
     MPI_File fh;
     size_t   disp;
     size_t   nd = ndim;
-    size_t  *gs = gshape.data();
-    size_t  *ls = lshape.data();
-    size_t  *os = offset.data();
+    size_t*  gs = gshape.data();
+    size_t*  ls = lshape.data();
+    size_t*  os = offset.data();
 
     // local array
     xt::xarray<int32_t> local_i32a(lshape);
@@ -630,10 +629,10 @@ TEST_CASE("WriteSubarray")
     float64 in_f64a[N];
 
     std::ifstream ifs(filename, std::ios::in | std::ios::binary);
-    ifs.read(reinterpret_cast<char *>(in_i32a), sizeof(int32_t) * N);
-    ifs.read(reinterpret_cast<char *>(in_i64a), sizeof(int64_t) * N);
-    ifs.read(reinterpret_cast<char *>(in_f32a), sizeof(float32) * N);
-    ifs.read(reinterpret_cast<char *>(in_f64a), sizeof(float64) * N);
+    ifs.read(reinterpret_cast<char*>(in_i32a), sizeof(int32_t) * N);
+    ifs.read(reinterpret_cast<char*>(in_i64a), sizeof(int64_t) * N);
+    ifs.read(reinterpret_cast<char*>(in_f32a), sizeof(float32) * N);
+    ifs.read(reinterpret_cast<char*>(in_f64a), sizeof(float64) * N);
     ifs.close();
 
     REQUIRE(is_array_equal(N, xt_i32a.data(), in_i32a));

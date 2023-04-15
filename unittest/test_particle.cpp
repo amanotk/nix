@@ -1,16 +1,15 @@
 // -*- C++ -*-
 
+#include "particle.hpp"
 #include <iostream>
 
-#include "../particle.hpp"
-
-#include "../thirdparty/catch.hpp"
+#include "catch.hpp"
 
 using namespace nix;
 using uniform_rand = std::uniform_real_distribution<float64>;
 
 // set random particle position
-void set_random_particle(Particle &particle, int k, float64 rmin, float64 rmax)
+void set_random_particle(Particle& particle, int k, float64 rmin, float64 rmax)
 {
   std::random_device seed;
   std::mt19937       engine(seed());
@@ -22,7 +21,7 @@ void set_random_particle(Particle &particle, int k, float64 rmin, float64 rmax)
 }
 
 // prepare particle sort for 1D mesh
-void prepare_sort1d(Particle &particle, const int Nx)
+void prepare_sort1d(Particle& particle, const int Nx)
 {
   const float64 delh = 1.0;
   const float64 xmin = 0.0;
@@ -46,7 +45,7 @@ void prepare_sort1d(Particle &particle, const int Nx)
 }
 
 // check particle sort for 1D mesh
-bool check_sort1d(Particle &particle, const int Nx)
+bool check_sort1d(Particle& particle, const int Nx)
 {
   const float64 delh = 1.0;
   const float64 xmin = 0.0;
@@ -66,7 +65,7 @@ bool check_sort1d(Particle &particle, const int Nx)
 }
 
 // prepare particle sort for 2D mesh
-void prepare_sort2d(Particle &particle, const int Nx, const int Ny)
+void prepare_sort2d(Particle& particle, const int Nx, const int Ny)
 {
   const float64 delh = 1.0;
   const float64 xmin = 0.0;
@@ -93,7 +92,7 @@ void prepare_sort2d(Particle &particle, const int Nx, const int Ny)
 }
 
 // check particle sort for 2D mesh
-bool check_sort2d(Particle &particle, const int Nx, const int Ny)
+bool check_sort2d(Particle& particle, const int Nx, const int Ny)
 {
   const float64 delh = 1.0;
   const float64 xmin = 0.0;
@@ -114,7 +113,7 @@ bool check_sort2d(Particle &particle, const int Nx, const int Ny)
 }
 
 // prepare particle sort for 3D mesh
-void prepare_sort3d(Particle &particle, const int Nx, const int Ny, const int Nz)
+void prepare_sort3d(Particle& particle, const int Nx, const int Ny, const int Nz)
 {
   const float64 delh = 1.0;
   const float64 xmin = 0.0;
@@ -144,7 +143,7 @@ void prepare_sort3d(Particle &particle, const int Nx, const int Ny, const int Nz
 }
 
 // check particle sort for 3D mesh
-bool check_sort3d(Particle &particle, const int Nx, const int Ny, const int Nz)
+bool check_sort3d(Particle& particle, const int Nx, const int Ny, const int Nz)
 {
   const float64 delh = 1.0;
   const float64 xmin = 0.0;
@@ -314,8 +313,8 @@ TEST_CASE("SwapParticle")
   Particle particle(Np, Ng);
   particle.Np = Np;
 
-  float64 *ptr1 = particle.xu.data();
-  float64 *ptr2 = particle.xv.data();
+  float64* ptr1 = particle.xu.data();
+  float64* ptr2 = particle.xv.data();
 
   // set random number
   {
@@ -487,7 +486,7 @@ TEST_CASE("Interp3D1st")
       float64 wy[2] = {0};
       float64 wz[2] = {0};
 
-      float64 *xu = &particle.xu(ip, 0);
+      float64* xu = &particle.xu(ip, 0);
 
       int ix = Particle::digitize(xu[0], xmin, rdh);
       int iy = Particle::digitize(xu[1], ymin, rdh);
@@ -543,8 +542,8 @@ TEST_CASE("Esirkepov3D1st")
       float64 cur[4][4][4][4] = {0};
       float64 rho[4][4][4]    = {0};
 
-      float64 *xv = &particle.xv(ip, 0);
-      float64 *xu = &particle.xu(ip, 0);
+      float64* xv = &particle.xv(ip, 0);
+      float64* xu = &particle.xu(ip, 0);
 
       status1 = status1 & esirkepov3d1st(delt, delh, xu, xv, rho, cur, eps);
       status2 = status2 & check_charge_continuity(delt, delh, rho, cur, eps);
@@ -562,8 +561,8 @@ TEST_CASE("Esirkepov3D1st")
     float64 rho[4][4][4]    = {0};
 
     for (int ip = 0; ip < particle.Np; ip++) {
-      float64 *xv = &particle.xv(ip, 0);
-      float64 *xu = &particle.xu(ip, 0);
+      float64* xv = &particle.xv(ip, 0);
+      float64* xu = &particle.xu(ip, 0);
 
       status1 = status1 & esirkepov3d1st(delt, delh, xu, xv, rho, cur, eps);
     }
