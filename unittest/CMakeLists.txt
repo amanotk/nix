@@ -18,6 +18,7 @@ set(LIBRARY_DIRS
 # serial testing
 #
 set(SERIAL_EXECS
+	test_balancer
 	test_sfc
 	test_jsonio1
 	test_chunk

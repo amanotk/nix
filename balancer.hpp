@@ -14,6 +14,14 @@ class Balancer
 {
 public:
   ///
+  /// @brief perform chunk assignment to processes
+  /// @param[in] load array for chunk load
+  /// @param[out] boundary array for assignment boundary
+  /// @param[in] init true for initial assignment
+  ///
+  virtual void assign(std::vector<float64>& load, std::vector<int>& boundary, bool init = false);
+
+  ///
   /// @brief perform partition of chunks into ranks
   ///
   /// @param[in] Nr number of ranks
@@ -85,6 +93,14 @@ protected:
   /// @param[out] boundary boundary between ranks
   ///
   void doit_smilei(std::vector<float64>& load, std::vector<int>& boundary);
+
+  ///
+  /// @brief perform assignment of chunks via binary search for the best
+  ///
+  /// @param[in] load load of chunks
+  /// @param[out] boundary boundary between ranks
+  ///
+  void doit_binary_search(std::vector<float64>& load, std::vector<int>& boundary);
 };
 
 ///
@@ -165,7 +181,7 @@ void Balancer::sendrecv_chunk(T_app&& app, T_data&& data, std::vector<int>& newr
     }
 
     auto it    = std::find_if(data.chunkvec.begin(), data.chunkvec.end(),
-                              [&](auto& p) { return p->get_id() == chunkid; });
+                           [&](auto& p) { return p->get_id() == chunkid; });
     int  index = std::distance(data.chunkvec.begin(), it);
 
     while (newrank[chunkid] == rank) {

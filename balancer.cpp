@@ -5,6 +5,29 @@
 
 NIX_NAMESPACE_BEGIN
 
+DEFINE_MEMBER(void, assign)
+(std::vector<float64>& load, std::vector<int>& boundary, bool init)
+{
+  //
+  // The size of `load` array should be the number of chunks.
+  // The size of `boundary` array should be the number of rank plus one.
+  //
+  // The chunk specified by `i_chunk` should be assigned to the rank specified by `i_rank` when the
+  // following condition is met:
+  //
+  //     boundary[i_rank] <= i_chunk < boundary[i_rank+1]
+  //
+  // Therefore, our task is to find an appropriate boundary array first and then use it to calculate
+  // `rank` array for output.
+  //
+
+  if (init == true) {
+    doit_binary_search(load, boundary);
+  } else {
+    doit_smilei(load, boundary);
+  }
+}
+
 DEFINE_MEMBER(void, partition)
 (int Nr, std::vector<float64>& load, std::vector<int>& boundary)
 {
@@ -158,6 +181,32 @@ DEFINE_MEMBER(void, doit_smilei)(std::vector<float64>& load, std::vector<int>& b
         boundary[i] = old_boundary[i + 1] - 1; // accommodate at least one chunk
       }
     }
+  }
+}
+
+DEFINE_MEMBER(void, doit_binary_search)(std::vector<float64>& load, std::vector<int>& boundary)
+{
+  const int Nc = load.size();
+  const int Nr = boundary.size() - 1;
+
+  float64              mean_load = 0;
+  std::vector<float64> cumload(Nc + 1);
+  std::vector<int>     old_boundary(Nr + 1);
+
+  // calculate cumulative load
+  cumload[0] = 0;
+  for (int i = 0; i < Nc; i++) {
+    cumload[i + 1] = cumload[i] + load[i];
+  }
+  mean_load = cumload[Nc] / Nr;
+
+  boundary[0]  = 0;
+  boundary[Nr] = Nc;
+
+  for (int i = 1; i < Nr; i++) {
+    auto it     = std::lower_bound(cumload.begin(), cumload.end(), mean_load * i);
+    int  index  = std::distance(cumload.begin(), it);
+    boundary[i] = index;
   }
 }
 
