@@ -200,6 +200,12 @@ protected:
   virtual void get_global_workload();
 
   ///
+  /// @brief initialize work load array
+  /// @param workload array of chunk work load
+  ///
+  virtual void initialize_workload(FloatVec& workload);
+
+  ///
   /// @brief initialize chunkmap object
   ///
   virtual void initialize_chunkmap();
@@ -242,15 +248,6 @@ protected:
   /// @param cleanup return code
   ///
   virtual void finalize(int cleanup = 0);
-
-  ///
-  /// @brief factory to create Balancer object
-  /// @return unique_ptr to Balancer
-  ///
-  virtual PtrBalancer create_balancer()
-  {
-    return std::make_unique<Balancer>();
-  }
 
   ///
   /// @brief load a snapshot file for restart
@@ -641,6 +638,8 @@ DEFINE_MEMBER(void, set_chunk_neighbors)()
 
 DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 {
+  initialize_mpi(&argc, &argv);
+
   // parse command line arguments
   parse_cmd(argc, argv);
 
@@ -648,23 +647,13 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   parse_cfg();
 
   // initialize current physical time and time step
-  curstep = 0;
-  curtime = 0.0;
+  curstep  = 0;
+  curtime  = 0.0;
+  balancer = std::make_unique<Balancer>();
+  logger   = std::make_unique<Logger>(cfg_json["application"]["log"]);
 
-  // MPI
-  initialize_mpi(&argc, &argv);
-
-  // debug printing
   initialize_debugprinting(debug);
-
-  // chunkmap
   initialize_chunkmap();
-
-  // load balancer
-  balancer = create_balancer();
-
-  // logger
-  logger = std::make_unique<Logger>(cfg_json["application"]["log"]);
 }
 
 DEFINE_MEMBER(void, accumulate_workload)()
@@ -701,9 +690,17 @@ DEFINE_MEMBER(void, get_global_workload)()
                  disp.data(), MPI_FLOAT64_T, MPI_COMM_WORLD);
 }
 
+DEFINE_MEMBER(void, initialize_workload)(FloatVec& workload)
+{
+  std::fill(workload.begin(), workload.end(), 1.0);
+}
+
 DEFINE_MEMBER(void, initialize_chunkmap)()
 {
-  const int Nc = cdims[3];
+  const int Nc      = cdims[3];
+  int       dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
+
+  std::vector<int> boundary(nprocess + 1);
 
   // error check
   if (Nc < nprocess) {
@@ -714,46 +711,46 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
     exit(-1);
   }
 
-  //
-  // initialize chunkmap and chunkvec
-  //
-  {
-    int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
-    int idzero  = 0;
+  // create chunkmap
+  chunkmap = std::make_unique<ChunkMap>(cdims);
 
-    chunkmap = std::make_unique<ChunkMap>(cdims);
+  // allocate workload and initialize
+  workload.resize(Nc);
+  initialize_workload(workload);
 
-    for (int rank = 0; rank < nprocess; rank++) {
-      int mc = (Nc + rank) / nprocess;
+  // initial assignment
+  balancer->assign(workload, boundary, true);
 
-      // initialize global chunkmap
-      for (int id = idzero; id < idzero + mc; id++) {
-        chunkmap->set_rank(id, rank);
-      }
-
-      if (rank == thisrank) {
-        // initialize local chunkvec
-        numchunk = mc;
-        chunkvec.resize(numchunk);
-        for (int i = 0; i < numchunk; i++) {
-          chunkvec[i] = create_chunk(dims, idzero + i);
-        }
-
-        // check number of chunks
-        assert(validate_numchunk() == true);
-      }
-
-      idzero += mc;
+  // set rank in chunkmap using boundary
+  for (int i = 0, rank = 0; i < Nc; i++) {
+    if (i < boundary[rank + 1]) {
+      chunkmap->set_rank(i, rank);
+    } else if (i == boundary[rank + 1]) {
+      rank++;
+      chunkmap->set_rank(i, rank);
+    } else {
+      ERROR << tfm::format("Inconsistent boundary array detected");
+      ERROR << tfm::format("* boundary[%08d] = %08d", rank + 1, boundary[rank + 1]);
+      assert(false);
     }
-
-    set_chunk_neighbors();
   }
 
-  //
-  // allocate workload and initialize
-  //
-  workload.resize(Nc);
+  // create local chunkvec
+  numchunk = boundary[thisrank + 1] - boundary[thisrank];
+  chunkvec.resize(numchunk);
+  for (int i = 0, id = boundary[thisrank]; id < boundary[thisrank + 1]; i++, id++) {
+    chunkvec[i] = create_chunk(dims, id);
+  }
+
+  // set neighbor
+  set_chunk_neighbors();
+
+  // reset workload
   std::fill(workload.begin(), workload.end(), 0.0);
+
+  // check chunkmap
+  assert(validate_numchunk() == true);
+  assert(validate_chunkmap() == true);
 }
 
 DEFINE_MEMBER(bool, rebalance)()
@@ -774,7 +771,28 @@ DEFINE_MEMBER(bool, rebalance)()
   // accumulate workload
   accumulate_workload();
 
-  if (curstep == 0 || curstep % interval == 0) {
+  if (curstep == 0) {
+    // calculate boundary from rank in chunkamp
+    for (int i = 0, rank = 0; i < Nc; i++) {
+      if (rank == chunkmap->get_rank(i))
+        continue;
+      // found a boundary
+      boundary[rank + 1] = i;
+      rank++;
+    }
+    boundary[0]        = 0;
+    boundary[nprocess] = Nc;
+
+    // log
+    if (loglevel >= 1) {
+      log["boundary"] = boundary;
+    }
+
+    if (loglevel >= 2) {
+      log["workload"] = workload;
+    }
+  } else if (curstep % interval == 0) {
+    // calculate workload
     get_global_workload();
 
     // calculate boundary from rank in chunkamp
