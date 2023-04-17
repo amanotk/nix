@@ -205,10 +205,10 @@ protected:
   virtual void initialize_chunkmap();
 
   ///
-  /// @brief rebuild chunkmap object by performing load balancing
-  /// @return return true if rebuild performed and false otherwise
+  /// @brief performing load balancing
+  /// @return return true if rebalancing is performed and false otherwise
   ///
-  virtual bool rebuild_chunkmap();
+  virtual bool rebalance();
 
   ///
   /// @brief check the validity of chunkmap object
@@ -386,10 +386,10 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
     }
 
     //
-    // rebuild chankmap if needed
+    // perform rebalance
     //
-    rebuild_chunkmap();
-    DEBUG1 << tfm::format("step[%s] rebuild", format_step(curstep));
+    rebalance();
+    DEBUG1 << tfm::format("step[%s] rebalance", format_step(curstep));
 
     //
     // logging
@@ -707,7 +707,7 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
 
   // error check
   if (Nc < nprocess) {
-    ERROR << tfm::format("Number of processes exceeds number of chunks");
+    ERROR << tfm::format("Number of processes should not exceed number of chunks");
     ERROR << tfm::format("* number of processes = %8d", nprocess);
     ERROR << tfm::format("* number of chunks    = %8d", Nc);
     finalize(-1);
@@ -756,103 +756,89 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
   std::fill(workload.begin(), workload.end(), 0.0);
 }
 
-DEFINE_MEMBER(bool, rebuild_chunkmap)()
+DEFINE_MEMBER(bool, rebalance)()
 {
   const int        Nc = cdims[3];
   std::vector<int> boundary(nprocess + 1);
-  std::vector<int> oldrank(Nc);
   std::vector<int> newrank(Nc);
 
-  json    config   = cfg_json["application"]["rebuild"];
-  int     interval = config.value("interval", 10);
-  int     loglevel = config.value("loglevel", 0);
-  float64 wclock1  = 0;
-  float64 wclock2  = 0;
+  bool status   = false;
+  json config   = cfg_json["application"]["rebalance"];
+  json log      = {};
+  int  interval = config.value("interval", 10);
+  int  loglevel = config.value("loglevel", 1);
+
+  DEBUG2 << "rebalance() start";
+  float64 wclock1 = nix::wall_clock();
 
   // accumulate workload
   accumulate_workload();
 
-  if (curstep != 0 && curstep % interval != 0)
-    return false;
+  if (curstep == 0 || curstep % interval == 0) {
+    get_global_workload();
 
-  //
-  // now rebuild chunkmap
-  //
+    // calculate boundary from rank in chunkamp
+    for (int i = 0, rank = 0; i < Nc; i++) {
+      if (rank == chunkmap->get_rank(i))
+        continue;
+      // found a boundary
+      boundary[rank + 1] = i;
+      rank++;
+    }
+    boundary[0]        = 0;
+    boundary[nprocess] = Nc;
 
-  // *** rebuild start ***
-  wclock1 = wall_clock();
+    //
+    // rebalance
+    //
+    balancer->assign(workload, boundary);
+    balancer->get_rank(boundary, newrank);
+    balancer->sendrecv_chunk(*this, get_internal_data(), newrank);
 
-  get_global_workload();
-
-  // calculate new chunk distribution
-  for (int i = 0; i < Nc; i++) {
-    oldrank[i] = chunkmap->get_rank(i);
-  }
-  balancer->get_boundary(oldrank, boundary);
-  balancer->partition(nprocess, workload, boundary);
-  balancer->get_rank(boundary, newrank);
-
-  // send/recv chunk
-  balancer->sendrecv_chunk(*this, get_internal_data(), newrank);
-
-  // reset rank
-  for (int id = 0; id < Nc; id++) {
-    chunkmap->set_rank(id, newrank[id]);
-  }
-  set_chunk_neighbors();
-
-  // *** rebuild end ***
-  wclock2 = wall_clock();
-
-  //
-  // rebuild log
-  //
-  {
-    json rebuild;
-
-    if (loglevel >= 0) {
-      rebuild["start"]   = wclock1;
-      rebuild["end"]     = wclock2;
-      rebuild["elapsed"] = wclock2 - wclock1;
+    // reset rank in chunkmap using boundary
+    for (int i = 0, rank = 0; i < Nc; i++) {
+      if (i < boundary[rank + 1]) {
+        chunkmap->set_rank(i, rank);
+      } else if (i == boundary[rank + 1]) {
+        rank++;
+        chunkmap->set_rank(i, rank);
+      } else {
+        ERROR << tfm::format("Inconsistent boundary array detected");
+        ERROR << tfm::format("* boundary[%08d] = %08d", rank + 1, boundary[rank + 1]);
+        assert(false);
+      }
     }
 
+    // reset neighbor
+    set_chunk_neighbors();
+
+    // reset workload
+    std::fill(workload.begin(), workload.end(), 0.0);
+
+    // check number of chunks
+    assert(validate_numchunk() == true);
+
+    // log
     if (loglevel >= 1) {
-      rebuild["boundary"] = boundary;
-      rebuild["rankload"] = balancer->get_rankload(boundary, workload);
+      log["boundary"] = boundary;
     }
 
     if (loglevel >= 2) {
-      int  nexchange = 0;
-      json chunkid;
-      json old_rank;
-      json new_rank;
-
-      for (int i = 0; i < Nc; i++) {
-        if (newrank[i] != oldrank[i]) {
-          nexchange++;
-          chunkid.push_back(i);
-          old_rank.push_back(oldrank[i]);
-          new_rank.push_back(newrank[i]);
-        }
-      }
-
-      rebuild["exchange"]             = {};
-      rebuild["exchange"]["number"]   = nexchange;
-      rebuild["exchange"]["chunkid"]  = chunkid;
-      rebuild["exchange"]["old_rank"] = old_rank;
-      rebuild["exchange"]["new_rank"] = new_rank;
+      log["workload"] = workload;
     }
 
-    logger->append(curstep, "rebuild", rebuild);
+    status = true;
   }
 
-  // reset
-  std::fill(workload.begin(), workload.end(), 0.0);
+  DEBUG2 << "rebalance() end";
+  float64 wclock2 = nix::wall_clock();
 
-  // check number of chunks
-  assert(validate_numchunk() == true);
+  log["start"]   = wclock1;
+  log["end"]     = wclock2;
+  log["elapsed"] = wclock2 - wclock1;
+  logger->append(curstep, "rebalance", log);
 
-  return true;
+  return status;
 }
 
 DEFINE_MEMBER(bool, validate_chunkmap)()
