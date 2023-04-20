@@ -498,7 +498,7 @@ DEFINE_MEMBER(int, unpack)(void* buffer, int address)
 DEFINE_MEMBER(void, set_coordinate)(float64 dz, float64 dy, float64 dx)
 {
   // set internal data members
-  delz = dx;
+  delz = dz;
   dely = dy;
   delx = dx;
 
