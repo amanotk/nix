@@ -157,15 +157,6 @@ public:
   }
 
   ///
-  /// @brief pack diagnostic information
-  /// @param mode mode of diagnostic packing
-  /// @param buffer pointer to buffer to bpack
-  /// @param address  first address of buffer to which the data will be packed
-  /// @return `address` + (number of bytes packed as a result)
-  ///
-  virtual int pack_diagnostic(int mode, void* buffer, int address) = 0;
-
-  ///
   /// @brief query status of boundary exchange
   /// @param mode mode of boundary exchange
   /// @return true if boundary exchange is finished and false otherwise

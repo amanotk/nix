@@ -13,11 +13,6 @@ using namespace nix;
 template <int Nb>
 class TestChunk : public Chunk<Nb>
 {
-  virtual int pack_diagnostic(int mode, void* buffer, int address) override
-  {
-    return 0;
-  }
-
   virtual bool set_boundary_query(int mode) override
   {
     return false;

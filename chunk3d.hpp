@@ -351,43 +351,6 @@ protected:
   ///
   template <class Halo>
   void end_bc_exchange(PtrMpiBuffer mpibuf, Halo& halo);
-
-  ///
-  /// @brief pack diagnostic for load array
-  /// @param buffer pointer to buffer to pack
-  /// @param address first address of buffer to which the data will be packed
-  /// @return `address` + (number of bytes packed as a result)
-  ///
-  int pack_diagnostic_load(void* buffer, int address);
-
-  ///
-  /// @brief pack diagnostic for coordinate array
-  /// @param buffer pointer to buffer to pack
-  /// @param address first address of buffer to which the data will be packed
-  /// @param dir direction of coordinate
-  /// @return `address` + (number of bytes packed as a result)
-  ///
-  int pack_diagnostic_coord(void* buffer, int address, int dir);
-
-  ///
-  /// @brief pack diagnostic for field quantity
-  /// @tparam T typename for field array
-  /// @param buffer pointer to buffer to pack
-  /// @param address first address of buffer to which the data will be packed
-  /// @param u field quantity to be packed
-  /// @return `address` + (number of bytes packed as a result)
-  ///
-  template <typename T>
-  int pack_diagnostic_field(void* buffer, int address, T& u);
-
-  ///
-  /// @brief pack diagnostic for particle (single species)
-  /// @param buffer pointer to buffer to pack
-  /// @param address first address of buffer to which the data will be packed
-  /// @param p particle species
-  /// @return `address` + (number of bytes packed as a result)
-  ///
-  int pack_diagnostic_particle(void* buffer, int address, PtrParticle p);
 };
 
 //
@@ -917,88 +880,6 @@ DEFINE_MEMBER(template <class Halo> void, end_bc_exchange)
     // wait for MPI send calls to complete
     MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
   }
-}
-
-DEFINE_MEMBER(int, pack_diagnostic_load)(void* buffer, int address)
-{
-  int count = sizeof(float64) * load.size() + address;
-
-  if (buffer == nullptr) {
-    return count;
-  }
-
-  float64* ptr = reinterpret_cast<float64*>(static_cast<uint8_t*>(buffer) + address);
-  std::copy(load.begin(), load.end(), ptr);
-
-  return count;
-}
-
-DEFINE_MEMBER(int, pack_diagnostic_coord)(void* buffer, int address, int dir)
-{
-  size_t size  = dims[dir];
-  int    count = sizeof(float64) * size + address;
-
-  if (buffer == nullptr) {
-    return count;
-  }
-
-  float64* ptr = reinterpret_cast<float64*>(static_cast<uint8_t*>(buffer) + address);
-
-  switch (dir) {
-  case 0: {
-    auto zz = xt::view(zc, xt::range(Lbz, Ubz + 1));
-    std::copy(zz.begin(), zz.end(), ptr);
-  } break;
-  case 1: {
-    auto yy = xt::view(yc, xt::range(Lby, Uby + 1));
-    std::copy(yy.begin(), yy.end(), ptr);
-  } break;
-  case 2: {
-    auto xx = xt::view(xc, xt::range(Lbx, Ubx + 1));
-    std::copy(xx.begin(), xx.end(), ptr);
-  } break;
-  default:
-    break;
-  }
-
-  return count;
-}
-
-DEFINE_MEMBER(template <typename T> int, pack_diagnostic_field)
-(void* buffer, int address, T& u)
-{
-  // calculate number of elements
-  size_t size = dims[0] * dims[1] * dims[2];
-  for (int i = 3; i < u.dimension(); i++) {
-    size *= u.shape(i);
-  }
-
-  int count = sizeof(float64) * size + address;
-
-  if (buffer == nullptr) {
-    return count;
-  }
-
-  auto Iz = xt::range(Lbz, Ubz + 1);
-  auto Iy = xt::range(Lby, Uby + 1);
-  auto Ix = xt::range(Lbx, Ubx + 1);
-  auto vv = xt::strided_view(u, {Iz, Iy, Ix, xt::ellipsis()});
-
-  // packing
-  float64* ptr = reinterpret_cast<float64*>(static_cast<uint8_t*>(buffer) + address);
-  std::copy(vv.begin(), vv.end(), ptr);
-
-  return count;
-}
-
-DEFINE_MEMBER(int, pack_diagnostic_particle)
-(void* buffer, int address, PtrParticle p)
-{
-  int count = address;
-
-  count += memcpy_count(buffer, p->xu.data(), p->Np * Particle::Nc * sizeof(float64), count, 0);
-
-  return count;
 }
 
 #undef DEFINE_MEMBER

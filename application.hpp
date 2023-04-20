@@ -229,14 +229,6 @@ protected:
   virtual bool validate_numchunk();
 
   ///
-  /// @brief write all chunk data retrieved with given `mode`
-  /// @param fh MPI file handle to which the data will be written
-  /// @param disp displacement of the file from its beginning
-  /// @param mode mode of data to be retrieved from chunks
-  ///
-  virtual void write_chunk_all(MPI_File& fh, size_t& disp, int mode);
-
-  ///
   /// @brief wait boundary exchange operation in `queue` and perform unpacking
   /// @param queue list of chunk IDs performing boundary exchange
   /// @param mode mode of boundary exchange
@@ -899,27 +891,6 @@ DEFINE_MEMBER(bool, validate_numchunk)()
   }
 
   return true;
-}
-
-DEFINE_MEMBER(void, write_chunk_all)(MPI_File& fh, size_t& disp, int mode)
-{
-  int bufsize = 0;
-
-  for (int i = 0; i < numchunk; i++) {
-    bufsize += chunkvec[i]->pack_diagnostic(mode, nullptr, 0);
-  }
-
-  // write to disk
-  Buffer   buffer(bufsize);
-  uint8_t* bufptr = buffer.get();
-
-  // pack
-  for (int i = 0, address = 0; i < numchunk; i++) {
-    address = chunkvec[i]->pack_diagnostic(mode, bufptr, address);
-  }
-
-  // collective write
-  jsonio::write_contiguous(&fh, &disp, bufptr, bufsize, 1, 1);
 }
 
 DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, int mode)
