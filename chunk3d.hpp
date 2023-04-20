@@ -137,9 +137,6 @@ protected:
   int  recvlb[3][3]; ///< lower bound for recv
   int  recvub[3][3]; ///< upper bound for recv
 
-  xt::xtensor<float64, 1> xc;        ///< x coordinate
-  xt::xtensor<float64, 1> yc;        ///< y coordinate
-  xt::xtensor<float64, 1> zc;        ///< z coordinate
   float64                 delx;      ///< grid size in x
   float64                 dely;      ///< grid size in y
   float64                 delz;      ///< grid size in z
@@ -244,10 +241,10 @@ public:
   virtual bool set_boundary_query(int mode = 0) override;
 
   ///
-  /// @brief set physical boundary condition
+  /// @brief set field boundary condition
   /// @param mode mode of boundary exchange
   ///
-  virtual void set_boundary_physical(int mode = 0) override;
+  virtual void set_boundary_field(int mode = 0);
 
   ///
   /// @brief set boundary condition to particle array
@@ -337,7 +334,7 @@ protected:
   ///
   /// @brief pack and start boundary exchange
   /// @tparam Halo boundary halo class
-  /// @param mpibuf MIP buffer
+  /// @param mpibuf MPI buffer
   /// @param halo boundary halo object
   ///
   template <class Halo>
@@ -346,7 +343,7 @@ protected:
   ///
   /// @brief wait boundary exchange and unpack
   /// @tparam Halo boundary halo class
-  /// @param mpibuf MIP buffer
+  /// @param mpibuf MPI buffer
   /// @param halo boundary halo object
   ///
   template <class Halo>
@@ -421,14 +418,6 @@ DEFINE_MEMBER(, Chunk3D)
   recvub[2][1] = Ubx;
   recvub[2][2] = Ubx + Nb;
 
-  // memory allocation
-  zc.resize({Nz});
-  yc.resize({Ny});
-  xc.resize({Nx});
-  zc.fill(0);
-  yc.fill(0);
-  xc.fill(0);
-
   // reset load
   reset_load();
 }
@@ -438,9 +427,6 @@ DEFINE_MEMBER(int, pack)(void* buffer, int address)
   int count = address;
 
   count += Chunk<3>::pack(buffer, count);
-  count += memcpy_count(buffer, xc.data(), xc.size() * sizeof(float64), count, 0);
-  count += memcpy_count(buffer, yc.data(), yc.size() * sizeof(float64), count, 0);
-  count += memcpy_count(buffer, zc.data(), zc.size() * sizeof(float64), count, 0);
   count += memcpy_count(buffer, &delx, sizeof(float64), count, 0);
   count += memcpy_count(buffer, &dely, sizeof(float64), count, 0);
   count += memcpy_count(buffer, &delz, sizeof(float64), count, 0);
@@ -468,9 +454,6 @@ DEFINE_MEMBER(int, unpack)(void* buffer, int address)
   int count = address;
 
   count += Chunk<3>::unpack(buffer, count);
-  count += memcpy_count(xc.data(), buffer, xc.size() * sizeof(float64), 0, count);
-  count += memcpy_count(yc.data(), buffer, yc.size() * sizeof(float64), 0, count);
-  count += memcpy_count(zc.data(), buffer, zc.size() * sizeof(float64), 0, count);
   count += memcpy_count(&delx, buffer, sizeof(float64), 0, count);
   count += memcpy_count(&dely, buffer, sizeof(float64), 0, count);
   count += memcpy_count(&delz, buffer, sizeof(float64), 0, count);
@@ -512,11 +495,6 @@ DEFINE_MEMBER(void, set_coordinate)(float64 dz, float64 dy, float64 dx)
   xlim[0] = offset[2] * delx;
   xlim[1] = offset[2] * delx + dims[2] * delx;
   xlim[2] = xlim[1] - xlim[0];
-
-  // local coordinate
-  zc = zlim[0] + delz * (xt::arange<float64>(Lbz - Nb, Ubz + Nb + 1) - Lbz + 0.5);
-  yc = ylim[0] + dely * (xt::arange<float64>(Lby - Nb, Uby + Nb + 1) - Lby + 0.5);
-  xc = xlim[0] + delx * (xt::arange<float64>(Lbx - Nb, Ubx + Nb + 1) - Lbx + 0.5);
 
   // global domain
   gzlim[0] = 0.0;
@@ -660,7 +638,7 @@ DEFINE_MEMBER(bool, set_boundary_query)(int mode)
   return !(flag == 0);
 }
 
-DEFINE_MEMBER(void, set_boundary_physical)(int mode)
+DEFINE_MEMBER(void, set_boundary_field)(int mode)
 {
   // lower boundary in z
   if (get_nb_rank(-1, 0, 0) == MPI_PROC_NULL) {

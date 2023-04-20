@@ -164,12 +164,6 @@ public:
   virtual bool set_boundary_query(int mode) = 0;
 
   ///
-  /// @brief set physical boundary condition
-  /// @param mode mode of boundary exchange
-  ///
-  virtual void set_boundary_physical(int mode) = 0;
-
-  ///
   /// @brief begin boundary exchange
   /// @param mode mode of boundary exchange
   ///

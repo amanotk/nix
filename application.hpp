@@ -201,9 +201,8 @@ protected:
 
   ///
   /// @brief initialize work load array
-  /// @param workload array of chunk work load
   ///
-  virtual void initialize_workload(FloatVec& workload);
+  virtual void initialize_workload();
 
   ///
   /// @brief initialize chunkmap object
@@ -227,13 +226,6 @@ protected:
   /// @return true if it is okay and false otherwise
   ///
   virtual bool validate_numchunk();
-
-  ///
-  /// @brief wait boundary exchange operation in `queue` and perform unpacking
-  /// @param queue list of chunk IDs performing boundary exchange
-  /// @param mode mode of boundary exchange
-  ///
-  virtual void wait_bc_exchange(std::set<int>& queue, int mode);
 
   ///
   /// @brief finalize application
@@ -682,7 +674,7 @@ DEFINE_MEMBER(void, get_global_workload)()
                  disp.data(), MPI_FLOAT64_T, MPI_COMM_WORLD);
 }
 
-DEFINE_MEMBER(void, initialize_workload)(FloatVec& workload)
+DEFINE_MEMBER(void, initialize_workload)()
 {
   std::fill(workload.begin(), workload.end(), 1.0);
 }
@@ -708,7 +700,7 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
 
   // allocate workload and initialize
   workload.resize(Nc);
-  initialize_workload(workload);
+  initialize_workload();
 
   // initial assignment
   balancer->assign(workload, boundary, true);
@@ -891,64 +883,6 @@ DEFINE_MEMBER(bool, validate_numchunk)()
   }
 
   return true;
-}
-
-DEFINE_MEMBER(void, wait_bc_exchange)(std::set<int>& queue, int mode)
-{
-  const float64 deadlock_detection_limit = 60;
-
-  bool    status   = true;
-  int     recvmode = RecvMode | mode;
-  float64 wclock   = nix::wall_clock();
-
-  while (queue.empty() == false) {
-    // find chunk for unpacking
-    auto iter = std::find_if(queue.begin(), queue.end(),
-                             [&](int i) { return chunkvec[i]->set_boundary_query(recvmode); });
-
-    if (nix::wall_clock() - wclock > deadlock_detection_limit) {
-      status = false;
-      ERROR << tfm::format("Possible deadlock has been detected at rank = %04d!", thisrank);
-      ERROR << tfm::format("BoundaryMode = %04d", mode);
-      ERROR << tfm::format("Remaining chunks:");
-
-#pragma omp critical
-      for (auto it = queue.begin(); it != queue.end(); ++it) {
-        auto mpibuf = chunkvec[*it]->get_mpi_buffer(mode);
-
-        // show all neighbor information
-        ERROR << tfm::format("*   ID = %4d", chunkvec[*it]->get_id());
-        for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-          for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-            for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
-              int id   = chunkvec[*it]->get_nb_id(dirz, diry, dirx);
-              int rank = chunkvec[*it]->get_nb_rank(dirz, diry, dirx);
-              int flag = 0;
-              MPI_Test(&mpibuf->recvreq(iz, iy, ix), &flag, MPI_STATUS_IGNORE);
-              ERROR << tfm::format("    nb: ID = %4d, rank = %4d, flag = %2d", id, rank, flag);
-            }
-          }
-        }
-      }
-    }
-
-    // not found
-    if (iter == queue.end())
-      continue;
-
-    // unpack
-    chunkvec[*iter]->set_boundary_end(mode);
-    queue.erase(*iter);
-  }
-
-  // exit on error
-  MPI_Allreduce(MPI_IN_PLACE, &status, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
-
-  if (status == false) {
-    ERROR << tfm::format("Exit possibly due to deadlock in wait_bc_exchange()");
-    finalize(-1);
-    exit(-1);
-  }
 }
 
 DEFINE_MEMBER(void, finalize)(int cleanup)

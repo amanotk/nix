@@ -18,10 +18,6 @@ class TestChunk : public Chunk<Nb>
     return false;
   }
 
-  virtual void set_boundary_physical(int mode) override
-  {
-  }
-
   virtual void set_boundary_begin(int mode) override
   {
   }
