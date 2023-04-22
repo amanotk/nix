@@ -34,7 +34,7 @@ void prepare_sort1d(Particle& particle, const int Nx)
   particle.gindex.fill(0);
   particle.pcount.fill(0);
   for (int ip = 0; ip < particle.Np; ip++) {
-    int ix = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+    int ix = digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
     int ii = ix;
 
     // take care out-of-bounds particles
@@ -54,7 +54,7 @@ bool check_sort1d(Particle& particle, const int Nx)
 
   for (int ii = 0; ii < particle.Ng; ii++) {
     for (int ip = particle.pindex.at(ii); ip < particle.pindex.at(ii + 1); ip++) {
-      int jx = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+      int jx = digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
       int jj = jx;
 
       status = status & (ii == jj);
@@ -79,8 +79,8 @@ void prepare_sort2d(Particle& particle, const int Nx, const int Ny)
   particle.gindex.fill(0);
   particle.pcount.fill(0);
   for (int ip = 0; ip < particle.Np; ip++) {
-    int ix = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
-    int iy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
+    int ix = digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+    int iy = digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
     int ii = ix + iy * Nx;
 
     // take care out-of-bounds particles
@@ -101,8 +101,8 @@ bool check_sort2d(Particle& particle, const int Nx, const int Ny)
 
   for (int ii = 0; ii < particle.Ng; ii++) {
     for (int ip = particle.pindex.at(ii); ip < particle.pindex.at(ii + 1); ip++) {
-      int jx = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
-      int jy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
+      int jx = digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+      int jy = digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
       int jj = jx + jy * Nx;
 
       status = status & (ii == jj);
@@ -128,9 +128,9 @@ void prepare_sort3d(Particle& particle, const int Nx, const int Ny, const int Nz
   particle.gindex.fill(0);
   particle.pcount.fill(0);
   for (int ip = 0; ip < particle.Np; ip++) {
-    int ix = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
-    int iy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
-    int iz = Particle::digitize(particle.xu.at(ip, 2), xmin, 1 / delh);
+    int ix = digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+    int iy = digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
+    int iz = digitize(particle.xu.at(ip, 2), xmin, 1 / delh);
     int ii = ix + iy * Nx + iz * Nx * Ny;
 
     // take care out-of-bounds particles
@@ -152,9 +152,9 @@ bool check_sort3d(Particle& particle, const int Nx, const int Ny, const int Nz)
 
   for (int ii = 0; ii < particle.Ng; ii++) {
     for (int ip = particle.pindex.at(ii); ip < particle.pindex.at(ii + 1); ip++) {
-      int jx = Particle::digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
-      int jy = Particle::digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
-      int jz = Particle::digitize(particle.xu.at(ip, 2), xmin, 1 / delh);
+      int jx = digitize(particle.xu.at(ip, 0), xmin, 1 / delh);
+      int jy = digitize(particle.xu.at(ip, 1), xmin, 1 / delh);
+      int jz = digitize(particle.xu.at(ip, 2), xmin, 1 / delh);
       int jj = jx + jy * Nx + jz * Nx * Ny;
 
       status = status & (ii == jj);
@@ -227,13 +227,13 @@ bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float
   //
   // before move
   //
-  int ix0 = Particle::digitize(xv[0], 0.0, rdh);
-  int iy0 = Particle::digitize(xv[1], 0.0, rdh);
-  int iz0 = Particle::digitize(xv[2], 0.0, rdh);
+  int ix0 = digitize(xv[0], 0.0, rdh);
+  int iy0 = digitize(xv[1], 0.0, rdh);
+  int iz0 = digitize(xv[2], 0.0, rdh);
 
-  Particle::S1(xv[0], ix0 * delh, rdh, &ss[0][0][1], q);
-  Particle::S1(xv[1], iy0 * delh, rdh, &ss[0][1][1], q);
-  Particle::S1(xv[2], iz0 * delh, rdh, &ss[0][2][1], q);
+  shape1(xv[0], ix0 * delh, rdh, &ss[0][0][1], q);
+  shape1(xv[1], iy0 * delh, rdh, &ss[0][1][1], q);
+  shape1(xv[2], iz0 * delh, rdh, &ss[0][2][1], q);
 
   // check charge density
   for (int jz = 0; jz < 4; jz++) {
@@ -250,16 +250,16 @@ bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float
   //
   // after move
   //
-  int ix1 = Particle::digitize(xu[0], 0.0, rdh);
-  int iy1 = Particle::digitize(xu[1], 0.0, rdh);
-  int iz1 = Particle::digitize(xu[2], 0.0, rdh);
+  int ix1 = digitize(xu[0], 0.0, rdh);
+  int iy1 = digitize(xu[1], 0.0, rdh);
+  int iz1 = digitize(xu[2], 0.0, rdh);
 
-  Particle::S1(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0], q);
-  Particle::S1(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0], q);
-  Particle::S1(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0], q);
+  shape1(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0], q);
+  shape1(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0], q);
+  shape1(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0], q);
 
   // calculate charge and current density
-  Particle::esirkepov3d1(dhdt, dhdt, dhdt, ss, cur);
+  esirkepov3d1(dhdt, dhdt, dhdt, ss, cur);
 
   // check charge density
   for (int jz = 0; jz < 4; jz++) {
@@ -488,17 +488,17 @@ TEST_CASE("Interp3D1st")
 
       float64* xu = &particle.xu(ip, 0);
 
-      int ix = Particle::digitize(xu[0], xmin, rdh);
-      int iy = Particle::digitize(xu[1], ymin, rdh);
-      int iz = Particle::digitize(xu[2], zmin, rdh);
+      int ix = digitize(xu[0], xmin, rdh);
+      int iy = digitize(xu[1], ymin, rdh);
+      int iz = digitize(xu[2], zmin, rdh);
 
-      Particle::S1(xu[0], ix * delh, rdh, wx);
-      Particle::S1(xu[1], iy * delh, rdh, wy);
-      Particle::S1(xu[2], iz * delh, rdh, wz);
+      shape1(xu[0], ix * delh, rdh, wx);
+      shape1(xu[1], iy * delh, rdh, wy);
+      shape1(xu[2], iz * delh, rdh, wz);
 
       for (int ik = 0; ik < 6; ik++) {
         float64 val1 = a[ik] + bx[ik] * xu[0] + by[ik] * xu[1] + bz[ik] * xu[2];
-        float64 val2 = Particle::interp3d1(eb, iz, iy, ix, ik, wz, wy, wx, 1.0);
+        float64 val2 = interp3d1(eb, iz, iy, ix, ik, wz, wy, wx, 1.0);
 
         // check absolute error for small values, and relative error otherwise
         status = status & (std::abs(val1 - val2) < std::max(eps, eps * std::abs(val1)));

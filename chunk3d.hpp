@@ -581,9 +581,9 @@ DEFINE_MEMBER(void, count_particle)(PtrParticle particle, int Lbp, int Ubp, bool
 
   // loop over particles
   for (int ip = Lbp; ip <= Ubp; ip++) {
-    int iz = Particle::digitize(xu[Particle::Nc * ip + 2], zlim[0], rdh[0]);
-    int iy = Particle::digitize(xu[Particle::Nc * ip + 1], ylim[0], rdh[1]);
-    int ix = Particle::digitize(xu[Particle::Nc * ip + 0], xlim[0], rdh[2]);
+    int iz = digitize(xu[Particle::Nc * ip + 2], zlim[0], rdh[0]);
+    int iy = digitize(xu[Particle::Nc * ip + 1], ylim[0], rdh[1]);
+    int ix = digitize(xu[Particle::Nc * ip + 0], xlim[0], rdh[2]);
     int ii = iz * stride[0] + iy * stride[1] + ix * stride[2];
 
     // take care out-of-bounds particles
