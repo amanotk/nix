@@ -76,14 +76,14 @@ public:
   ///
   /// @brief send/recv chunks for load balancing
   ///
-  /// @tparam T_app Application class
-  /// @tparam T_data Application internal data struct
+  /// @tparam App Application class
+  /// @tparam Data Application internal data struct
   /// @param app Application object
   /// @param data Application internal data object
   /// @param newrank new rank for each chunk
   ///
-  template <typename T_app, typename T_data>
-  void sendrecv_chunk(T_app&& app, T_data&& data, std::vector<int>& newrank);
+  template <typename App, typename Data>
+  void sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank);
 
 protected:
   ///
@@ -107,8 +107,8 @@ protected:
 /// implementation for template methods follows
 ///
 
-template <typename T_app, typename T_data>
-void Balancer::sendrecv_chunk(T_app&& app, T_data&& data, std::vector<int>& newrank)
+template <typename App, typename Data>
+void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
 {
   const int dims[3] = {data.ndims[0] / data.cdims[0], data.ndims[1] / data.cdims[1],
                        data.ndims[2] / data.cdims[2]};

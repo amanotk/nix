@@ -5,10 +5,10 @@
 
 namespace nixio
 {
-template <typename T_int>
-T_int get_size(const int32_t ndim, const T_int shape[])
+template <typename T>
+T get_size(const int32_t ndim, const T shape[])
 {
-  T_int size = 1;
+  T size = 1;
   for (int i = 0; i < ndim; i++) {
     size *= shape[i];
   }

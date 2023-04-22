@@ -10,21 +10,21 @@ NIX_NAMESPACE_BEGIN
 ///
 /// @brief Halo3D
 ///
-template <class T_data, class T_chunk>
+template <typename Data, typename Chunk>
 class Halo3D
 {
 public:
-  T_data*  data;
-  T_chunk* chunk;
-  void*    send_buffer;
-  void*    recv_buffer;
-  int32_t  send_count;
-  int32_t  recv_count;
+  Data*   data;
+  Chunk*  chunk;
+  void*   send_buffer;
+  void*   recv_buffer;
+  int32_t send_count;
+  int32_t recv_count;
 
   ///
   /// @brief constructor
   ///
-  Halo3D(T_data& data, T_chunk& chunk)
+  Halo3D(Data& data, Chunk& chunk)
   {
     this->data  = &data;
     this->chunk = &chunk;
@@ -33,32 +33,32 @@ public:
   ///
   /// @brief pre-processing for packing
   ///
-  template <class T_buffer>
-  void pre_pack(T_buffer& mpibuf)
+  template <typename BufferPtr>
+  void pre_pack(BufferPtr& mpibuf)
   {
   }
 
   ///
   /// @brief post-processing for packing
   ///
-  template <class T_buffer>
-  void post_pack(T_buffer& mpibuf)
+  template <typename BufferPtr>
+  void post_pack(BufferPtr& mpibuf)
   {
   }
 
   ///
   /// @brief pre-processing for unpacking
   ///
-  template <class T_buffer>
-  void pre_unpack(T_buffer& mpibuf)
+  template <typename BufferPtr>
+  void pre_unpack(BufferPtr& mpibuf)
   {
   }
 
   ///
   /// @brief post-processing for unpacking
   ///
-  template <class T_buffer>
-  void post_unpack(T_buffer& mpibuf)
+  template <typename BufferPtr>
+  void post_unpack(BufferPtr& mpibuf)
   {
   }
 
@@ -71,8 +71,8 @@ public:
   /// @param send_bound send lower- and upper- bounds
   /// @param recv_bound recv lower- and upper- bounds
   ///
-  template <class T_buffer>
-  bool pack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2]);
+  template <typename BufferPtr>
+  bool pack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2]);
 
   ///
   /// @brief perform unpacking; return false if send/recv is not required
@@ -83,8 +83,9 @@ public:
   /// @param send_bound send lower- and upper- bounds
   /// @param recv_bound recv lower- and upper- bounds
   ///
-  template <class T_buffer>
-  bool unpack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2]);
+  template <typename BufferPtr>
+  bool unpack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2],
+              int recv_bound[3][2]);
 };
 
 NIX_NAMESPACE_END

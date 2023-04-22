@@ -55,7 +55,7 @@ void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d& index, array2d& coord);
 /// @param index index of cells
 /// @return true if it is valid and false otherwise
 ///
-template <class T>
+template <typename T>
 bool check_index(T& index);
 
 ///

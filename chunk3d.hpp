@@ -19,24 +19,24 @@ template <int Nb>
 class Chunk3D : public Chunk<3>
 {
 public:
-  using T_array3d  = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
-  using T_mpicomm  = xt::xtensor_fixed<MPI_Comm, xt::xshape<3, 3, 3>>;
-  using T_request  = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
-  using T_datatype = xt::xtensor_fixed<MPI_Datatype, xt::xshape<3, 3, 3>>;
+  using IntArray = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
+  using Comm     = xt::xtensor_fixed<MPI_Comm, xt::xshape<3, 3, 3>>;
+  using Request  = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
+  using Datatype = xt::xtensor_fixed<MPI_Datatype, xt::xshape<3, 3, 3>>;
 
   ///
   /// @brief MPI buffer
   ///
   struct MpiBuffer {
-    Buffer     sendbuf;
-    Buffer     recvbuf;
-    T_array3d  bufsize;
-    T_array3d  bufaddr;
-    T_mpicomm  comm;
-    T_request  sendreq;
-    T_request  recvreq;
-    T_datatype sendtype;
-    T_datatype recvtype;
+    Buffer   sendbuf;
+    Buffer   recvbuf;
+    IntArray bufsize;
+    IntArray bufaddr;
+    Comm     comm;
+    Request  sendreq;
+    Request  recvreq;
+    Datatype sendtype;
+    Datatype recvtype;
 
     ///
     /// constructor
@@ -115,8 +115,8 @@ public:
       return count;
     }
   };
-  using PtrMpiBuffer = std::shared_ptr<MpiBuffer>;
-  using MpiBufferVec = std::vector<PtrMpiBuffer>;
+  using MpiBufferPtr = std::shared_ptr<MpiBuffer>;
+  using MpiBufferVec = std::vector<MpiBufferPtr>;
 
   /// boundary margin
   static const int boundary_margin = Nb;
@@ -136,16 +136,16 @@ protected:
   int  recvlb[3][3]; ///< lower bound for recv
   int  recvub[3][3]; ///< upper bound for recv
 
-  float64                 delx;      ///< grid size in x
-  float64                 dely;      ///< grid size in y
-  float64                 delz;      ///< grid size in z
-  float64                 xlim[3];   ///< physical domain in x
-  float64                 ylim[3];   ///< physical domain in y
-  float64                 zlim[3];   ///< physical domain in z
-  float64                 gxlim[3];  ///< global physical domain in x
-  float64                 gylim[3];  ///< global physical domain in y
-  float64                 gzlim[3];  ///< global physical domain in z
-  MpiBufferVec            mpibufvec; ///< MPI buffer vector
+  float64      delx;      ///< grid size in x
+  float64      dely;      ///< grid size in y
+  float64      delz;      ///< grid size in z
+  float64      xlim[3];   ///< physical domain in x
+  float64      ylim[3];   ///< physical domain in y
+  float64      zlim[3];   ///< physical domain in z
+  float64      gxlim[3];  ///< global physical domain in x
+  float64      gylim[3];  ///< global physical domain in y
+  float64      gzlim[3];  ///< global physical domain in z
+  MpiBufferVec mpibufvec; ///< MPI buffer vector
 
 public:
   ///
@@ -260,7 +260,7 @@ public:
   /// @param headbyte number of bytes used for header
   /// @param elembyte number of bytes for each element
   ///
-  void set_mpi_buffer(PtrMpiBuffer mpibuf, int mode, int headbyte, int elembyte);
+  void set_mpi_buffer(MpiBufferPtr mpibuf, int mode, int headbyte, int elembyte);
 
   ///
   /// @brief setup MPI Buffer
@@ -269,14 +269,14 @@ public:
   /// @param headbyte number of bytes used for header
   /// @param sizebyte number of bytes
   ///
-  void set_mpi_buffer(PtrMpiBuffer mpibuf, int mode, int headbyte, const int sizebyte[3][3][3]);
+  void set_mpi_buffer(MpiBufferPtr mpibuf, int mode, int headbyte, const int sizebyte[3][3][3]);
 
   ///
   /// @brief return MpiBuffer of given mode of boundary exchange
   /// @param mode mode of MpiBuffer
-  /// @return PtrMpiBuffer or std::shared_ptr<MpiBuffer>
+  /// @return MpiBufferPtr or std::shared_ptr<MpiBuffer>
   ///
-  PtrMpiBuffer get_mpi_buffer(int mode)
+  MpiBufferPtr get_mpi_buffer(int mode)
   {
     return mpibufvec[mode];
   }
@@ -336,8 +336,8 @@ protected:
   /// @param mpibuf MPI buffer
   /// @param halo boundary halo object
   ///
-  template <class Halo>
-  void begin_bc_exchange(PtrMpiBuffer mpibuf, Halo& halo);
+  template <typename Halo>
+  void begin_bc_exchange(MpiBufferPtr mpibuf, Halo& halo);
 
   ///
   /// @brief wait boundary exchange and unpack
@@ -345,8 +345,8 @@ protected:
   /// @param mpibuf MPI buffer
   /// @param halo boundary halo object
   ///
-  template <class Halo>
-  void end_bc_exchange(PtrMpiBuffer mpibuf, Halo& halo);
+  template <typename Halo>
+  void end_bc_exchange(MpiBufferPtr mpibuf, Halo& halo);
 };
 
 //
@@ -619,7 +619,7 @@ DEFINE_MEMBER(bool, set_boundary_query)(int mode)
   bcmode &= ~RecvMode;
 
   // MPI buffer
-  PtrMpiBuffer mpibuf = mpibufvec[bcmode];
+  MpiBufferPtr mpibuf = mpibufvec[bcmode];
 
 #pragma omp critical
   if (send == true && recv == true) {
@@ -689,7 +689,7 @@ DEFINE_MEMBER(void, set_boundary_particle)(PtrParticle particle, int Lbp, int Ub
 }
 
 DEFINE_MEMBER(void, set_mpi_buffer)
-(PtrMpiBuffer mpibuf, int mode, int headbyte, int elembyte)
+(MpiBufferPtr mpibuf, int mode, int headbyte, int elembyte)
 {
   int size = 0;
 
@@ -722,7 +722,7 @@ DEFINE_MEMBER(void, set_mpi_buffer)
 }
 
 DEFINE_MEMBER(void, set_mpi_buffer)
-(PtrMpiBuffer mpibuf, int mode, int headbyte, const int sizebyte[3][3][3])
+(MpiBufferPtr mpibuf, int mode, int headbyte, const int sizebyte[3][3][3])
 {
   // buffer size
   int size = 0;
@@ -751,8 +751,8 @@ DEFINE_MEMBER(void, set_mpi_buffer)
   }
 }
 
-DEFINE_MEMBER(template <class Halo> void, begin_bc_exchange)
-(PtrMpiBuffer mpibuf, Halo& halo)
+DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
+(MpiBufferPtr mpibuf, Halo& halo)
 {
   // pre-process
   halo.pre_pack(mpibuf);
@@ -808,8 +808,8 @@ DEFINE_MEMBER(template <class Halo> void, begin_bc_exchange)
   halo.post_pack(mpibuf);
 }
 
-DEFINE_MEMBER(template <class Halo> void, end_bc_exchange)
-(PtrMpiBuffer mpibuf, Halo& halo)
+DEFINE_MEMBER(template <typename Halo> void, end_bc_exchange)
+(MpiBufferPtr mpibuf, Halo& halo)
 {
 #pragma omp critical
   {

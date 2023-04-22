@@ -13,11 +13,11 @@ NIX_NAMESPACE_BEGIN
 ///
 /// @brief Boundary Halo3D class for field
 ///
-template <class T_chunk>
-class XtensorHaloField3D : public Halo3D<xt::xtensor<float64, 4>, T_chunk>
+template <typename Chunk>
+class XtensorHaloField3D : public Halo3D<xt::xtensor<float64, 4>, Chunk>
 {
 public:
-  using Base = Halo3D<xt::xtensor<float64, 4>, T_chunk>;
+  using Base = Halo3D<xt::xtensor<float64, 4>, Chunk>;
   using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
@@ -26,8 +26,8 @@ public:
   using Base::send_count;
   using Base::recv_count;
 
-  template <class T_buffer>
-  bool pack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
+  template <typename BufferPtr>
+  bool pack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
     if (iz == 1 && iy == 1 && ix == 1)
@@ -55,8 +55,8 @@ public:
     return true;
   }
 
-  template <class T_buffer>
-  bool unpack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
+  template <typename BufferPtr>
+  bool unpack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
     if (iz == 1 && iy == 1 && ix == 1)
@@ -78,11 +78,11 @@ public:
 ///
 /// @brief Boundary Halo3D class for current
 ///
-template <class T_chunk>
-class XtensorHaloCurrent3D : public Halo3D<xt::xtensor<float64, 4>, T_chunk>
+template <typename Chunk>
+class XtensorHaloCurrent3D : public Halo3D<xt::xtensor<float64, 4>, Chunk>
 {
 public:
-  using Base = Halo3D<xt::xtensor<float64, 4>, T_chunk>;
+  using Base = Halo3D<xt::xtensor<float64, 4>, Chunk>;
   using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
@@ -91,8 +91,8 @@ public:
   using Base::send_count;
   using Base::recv_count;
 
-  template <class T_buffer>
-  bool pack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
+  template <typename BufferPtr>
+  bool pack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
     if (iz == 1 && iy == 1 && ix == 1)
@@ -120,8 +120,8 @@ public:
     return true;
   }
 
-  template <class T_buffer>
-  bool unpack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
+  template <typename BufferPtr>
+  bool unpack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
     if (iz == 1 && iy == 1 && ix == 1) {
@@ -144,11 +144,11 @@ public:
 ///
 /// @brief Boundary Halo3D class for moment
 ///
-template <class T_chunk>
-class XtensorHaloMoment3D : public Halo3D<xt::xtensor<float64, 5>, T_chunk>
+template <typename Chunk>
+class XtensorHaloMoment3D : public Halo3D<xt::xtensor<float64, 5>, Chunk>
 {
 public:
-  using Base = Halo3D<xt::xtensor<float64, 5>, T_chunk>;
+  using Base = Halo3D<xt::xtensor<float64, 5>, Chunk>;
   using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
@@ -157,8 +157,8 @@ public:
   using Base::send_count;
   using Base::recv_count;
 
-  template <class T_buffer>
-  bool pack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
+  template <typename BufferPtr>
+  bool pack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
     if (iz == 1 && iy == 1 && ix == 1)
@@ -186,8 +186,8 @@ public:
     return true;
   }
 
-  template <class T_buffer>
-  bool unpack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
+  template <typename BufferPtr>
+  bool unpack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
     if (iz == 1 && iy == 1 && ix == 1)
@@ -209,11 +209,11 @@ public:
 ///
 /// @brief Boundary Halo3D class for particle
 ///
-template <class T_chunk>
-class XtensorHaloParticle3D : public Halo3D<ParticleVec, T_chunk>
+template <typename Chunk>
+class XtensorHaloParticle3D : public Halo3D<ParticleVec, Chunk>
 {
 public:
-  using Base = Halo3D<ParticleVec, T_chunk>;
+  using Base = Halo3D<ParticleVec, Chunk>;
   using Base::data;
   using Base::chunk;
   using Base::send_buffer;
@@ -232,8 +232,7 @@ public:
   xt::xtensor<int32_t, 4> snd_count;
   std::vector<int32_t>    num_particle;
 
-  XtensorHaloParticle3D(ParticleVec& data, T_chunk& chunk)
-      : Halo3D<ParticleVec, T_chunk>(data, chunk)
+  XtensorHaloParticle3D(ParticleVec& data, Chunk& chunk) : Halo3D<ParticleVec, Chunk>(data, chunk)
   {
     Ns       = data.size();
     particle = data;
@@ -242,8 +241,8 @@ public:
     num_particle.resize(Ns);
   }
 
-  template <class T_buffer>
-  void pre_pack(T_buffer& mpibuf)
+  template <typename BufferPtr>
+  void pre_pack(BufferPtr& mpibuf)
   {
     const float64 xmin = chunk->get_xmin();
     const float64 xmax = chunk->get_xmax();
@@ -301,8 +300,8 @@ public:
     }
   }
 
-  template <class T_buffer>
-  bool pack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
+  template <typename BufferPtr>
+  bool pack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
     if (iz == 1 && iy == 1 && ix == 1)
@@ -329,14 +328,14 @@ public:
     return true;
   }
 
-  template <class T_buffer>
-  void post_pack(T_buffer& mpibuf)
+  template <typename BufferPtr>
+  void post_pack(BufferPtr& mpibuf)
   {
     // do nothing
   }
 
-  template <class T_buffer>
-  void pre_unpack(T_buffer& mpibuf)
+  template <typename BufferPtr>
+  void pre_unpack(BufferPtr& mpibuf)
   {
     for (int iz = 0; iz < 3; iz++) {
       for (int iy = 0; iy < 3; iy++) {
@@ -351,8 +350,8 @@ public:
     }
   }
 
-  template <class T_buffer>
-  bool unpack(T_buffer& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
+  template <typename BufferPtr>
+  bool unpack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
     if (iz == 1 && iy == 1 && ix == 1)
@@ -401,8 +400,8 @@ public:
     return true;
   }
 
-  template <class T_buffer>
-  void post_unpack(T_buffer& mpibuf)
+  template <typename BufferPtr>
+  void post_unpack(BufferPtr& mpibuf)
   {
     //
     // set boundary condition and append count for received particles

@@ -18,7 +18,7 @@ NIX_NAMESPACE_BEGIN
 /// @tparam Chunk Chunk type
 /// @tparam ChunkMap ChunkMap type
 ///
-template <class Chunk, class ChunkMap>
+template <typename Chunk, typename ChunkMap>
 class Application
 {
 protected:
@@ -320,7 +320,7 @@ protected:
 //
 
 #define DEFINE_MEMBER(type, name)                                                                  \
-  template <class Chunk, class ChunkMap>                                                           \
+  template <typename Chunk, typename ChunkMap>                                                     \
   type Application<Chunk, ChunkMap>::name
 
 DEFINE_MEMBER(int, main)(std::ostream& out)

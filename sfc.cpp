@@ -157,7 +157,7 @@ void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d& index, array2d& coord)
   }
 }
 
-template <class T>
+template <typename T>
 bool check_index(T& index)
 {
   bool status = true;

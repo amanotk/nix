@@ -13,8 +13,8 @@ NIX_NAMESPACE_BEGIN
 class XtensorPacker3D
 {
 public:
-  template <typename Vector>
-  int pack_load(Vector& load, uint8_t* buffer, int address)
+  template <typename Array>
+  int pack_load(Array& load, uint8_t* buffer, int address)
   {
     int count = sizeof(float64) * load.size() + address;
 

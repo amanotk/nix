@@ -13,7 +13,7 @@ static constexpr char stderr_format[] = "%s_PE%06d.stderr";
 /// @brief singleton class
 /// @tparam T typename
 ///
-template <class T>
+template <typename T>
 class Singleton
 {
 private:
