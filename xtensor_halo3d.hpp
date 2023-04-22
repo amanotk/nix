@@ -7,11 +7,9 @@
 #include "xtensorall.hpp"
 
 #include "halo3d.hpp"
+#include "xtensor_particle.hpp"
 
 NIX_NAMESPACE_BEGIN
-
-using ParticlePtr = std::shared_ptr<XtensorParticle<7>>;
-using ParticleVec = std::vector<ParticlePtr>;
 
 ///
 /// @brief Boundary Halo3D class for field
@@ -264,11 +262,11 @@ public:
     //
     for (int is = 0; is < Ns; is++) {
       // loop over particles
-      auto &xu = particle[is]->xu;
+      auto& xu = particle[is]->xu;
       for (int ip = 0; ip < particle[is]->Np; ip++) {
-        int      dirz = (xu(ip,2) > zmax) - (xu(ip,2) < zmin);
-        int      diry = (xu(ip,1) > ymax) - (xu(ip,1) < ymin);
-        int      dirx = (xu(ip,0) > xmax) - (xu(ip,0) < xmin);
+        int dirz = (xu(ip, 2) > zmax) - (xu(ip, 2) < zmin);
+        int diry = (xu(ip, 1) > ymax) - (xu(ip, 1) < ymin);
+        int dirx = (xu(ip, 0) > xmax) - (xu(ip, 0) < xmin);
 
         // skip
         if (dirx == 0 && diry == 0 && dirz == 0)
@@ -286,7 +284,7 @@ public:
         }
 
         // pack
-        std::memcpy(mpibuf->sendbuf.get(pos), &xu(ip,0), elem_byte);
+        std::memcpy(mpibuf->sendbuf.get(pos), &xu(ip, 0), elem_byte);
         snd_count(is, iz, iy, ix)++;
         snd_count(Ns, iz, iy, ix)++; // total number of send particles
       }
