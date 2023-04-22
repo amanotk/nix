@@ -38,111 +38,6 @@ void calculate_global_offset(size_t lsize, size_t* offset, size_t* gsize)
   }
 }
 
-// collective read/write with hindexed type
-void readwrite_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t offset,
-                          const size_t size, const int32_t elembyte, const int32_t packbyte,
-                          const int mode)
-{
-  MPI_Status   status;
-  MPI_Datatype ptype, ftype;
-  MPI_Aint     packed_offset[1];
-  int32_t      packed_size[1];
-
-  packed_offset[0] = elembyte * offset;
-  packed_size[0]   = static_cast<int32_t>(size * elembyte / packbyte);
-
-  MPI_Type_contiguous(packbyte, MPI_BYTE, &ptype);
-  MPI_Type_commit(&ptype);
-
-  MPI_Type_create_hindexed(1, packed_size, packed_offset, ptype, &ftype);
-  MPI_Type_commit(&ftype);
-
-  MPI_File_set_view(*fh, *disp, ptype, ftype, "native", MPI_INFO_NULL);
-
-  switch (mode) {
-  case +1:
-    // read
-    MPI_File_read_all(*fh, data, packed_size[0], ptype, &status);
-    break;
-  case -1:
-    // write
-    MPI_File_write_all(*fh, data, packed_size[0], ptype, &status);
-    break;
-  default:
-    ERROR << tfm::format("No such mode available");
-  }
-
-  MPI_Type_free(&ptype);
-  MPI_Type_free(&ftype);
-}
-
-// non-collective read/write
-void readwrite_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                             const int32_t elembyte, const int32_t packbyte, MPI_Request* req,
-                             const int mode)
-{
-  MPI_Offset   pos;
-  MPI_Datatype ptype;
-  int32_t      psize;
-
-  // seek to given position
-  MPI_File_seek(*fh, *disp, MPI_SEEK_SET);
-  MPI_File_get_position(*fh, &pos);
-
-  psize = static_cast<int32_t>(size * elembyte / packbyte);
-  MPI_Type_contiguous(packbyte, MPI_BYTE, &ptype);
-  MPI_Type_commit(&ptype);
-
-  switch (mode) {
-  case +1:
-    // read
-    MPI_File_iread_at(*fh, pos, data, psize, ptype, req);
-    break;
-  case -1:
-    // write
-    MPI_File_iwrite_at(*fh, pos, data, psize, ptype, req);
-    break;
-  default:
-    ERROR << tfm::format("No such mode available");
-  }
-
-  MPI_Type_free(&ptype);
-}
-
-// collective read/write with subarray type
-void readwrite_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
-                        const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
-                        const int32_t elembyte, const int mode, const int order)
-{
-  MPI_Datatype ptype, ftype;
-  MPI_Status   status;
-  int          count = get_size(ndim, lshape);
-
-  MPI_Type_contiguous(elembyte, MPI_BYTE, &ptype);
-  MPI_Type_commit(&ptype);
-
-  MPI_Type_create_subarray(ndim, gshape, lshape, offset, order, ptype, &ftype);
-  MPI_Type_commit(&ftype);
-
-  MPI_File_set_view(*fh, *disp, ptype, ftype, "native", MPI_INFO_NULL);
-
-  switch (mode) {
-  case +1:
-    // read
-    MPI_File_read_all(*fh, data, count, ptype, &status);
-    break;
-  case -1:
-    // write
-    MPI_File_write_all(*fh, data, count, ptype, &status);
-    break;
-  default:
-    ERROR << tfm::format("No such mode available");
-  }
-
-  MPI_Type_free(&ptype);
-  MPI_Type_free(&ftype);
-}
-
 void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mode)
 {
   int status;
@@ -204,29 +99,133 @@ void close_file(MPI_File* fh)
   MPI_File_close(fh);
 }
 
-void read_single(MPI_File* fh, size_t* disp, void* data, const size_t size)
+// collective read/write with hindexed type
+void readwrite_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t offset,
+                          const size_t size, const int32_t elembyte, const int32_t packbyte,
+                          MPI_Request* req, const int mode)
 {
-  MPI_Status status;
-  MPI_File_read_at(*fh, *disp, data, size, MPI_BYTE, &status);
+  MPI_Datatype ptype, ftype;
+  MPI_Aint     packed_offset[1];
+  int32_t      packed_size[1];
+
+  packed_offset[0] = elembyte * offset;
+  packed_size[0]   = static_cast<int32_t>(size * elembyte / packbyte);
+
+  MPI_Type_contiguous(packbyte, MPI_BYTE, &ptype);
+  MPI_Type_commit(&ptype);
+
+  MPI_Type_create_hindexed(1, packed_size, packed_offset, ptype, &ftype);
+  MPI_Type_commit(&ftype);
+
+  MPI_File_set_view(*fh, *disp, ptype, ftype, "native", MPI_INFO_NULL);
+
+  switch (mode) {
+  case +1:
+    // read
+    MPI_File_iread_all(*fh, data, packed_size[0], ptype, req);
+    break;
+  case -1:
+    // write
+    MPI_File_iwrite_all(*fh, data, packed_size[0], ptype, req);
+    break;
+  default:
+    ERROR << tfm::format("No such mode available");
+  }
+
+  MPI_Type_free(&ptype);
+  MPI_Type_free(&ftype);
+}
+
+// non-collective read/write
+void readwrite_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
+                             const int32_t elembyte, const int32_t packbyte, MPI_Request* req,
+                             const int mode)
+{
+  MPI_Offset   pos;
+  MPI_Datatype ptype;
+  int32_t      psize;
+
+  // seek to given position
+  MPI_File_seek(*fh, *disp, MPI_SEEK_SET);
+  MPI_File_get_position(*fh, &pos);
+
+  psize = static_cast<int32_t>(size * elembyte / packbyte);
+  MPI_Type_contiguous(packbyte, MPI_BYTE, &ptype);
+  MPI_Type_commit(&ptype);
+
+  switch (mode) {
+  case +1:
+    // read
+    MPI_File_iread_at(*fh, pos, data, psize, ptype, req);
+    break;
+  case -1:
+    // write
+    MPI_File_iwrite_at(*fh, pos, data, psize, ptype, req);
+    break;
+  default:
+    ERROR << tfm::format("No such mode available");
+  }
+
+  MPI_Type_free(&ptype);
+}
+
+// collective read/write with subarray type
+void readwrite_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
+                        const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
+                        const int32_t elembyte, MPI_Request* req, const int mode, const int order)
+{
+  MPI_Datatype ptype, ftype;
+  int          count = get_size(ndim, lshape);
+
+  MPI_Type_contiguous(elembyte, MPI_BYTE, &ptype);
+  MPI_Type_commit(&ptype);
+
+  MPI_Type_create_subarray(ndim, gshape, lshape, offset, order, ptype, &ftype);
+  MPI_Type_commit(&ftype);
+
+  MPI_File_set_view(*fh, *disp, ptype, ftype, "native", MPI_INFO_NULL);
+
+  switch (mode) {
+  case +1:
+    // read
+    MPI_File_iread_all(*fh, data, count, ptype, req);
+    break;
+  case -1:
+    // write
+    MPI_File_iwrite_all(*fh, data, count, ptype, req);
+    break;
+  default:
+    ERROR << tfm::format("No such mode available");
+  }
+
+  MPI_Type_free(&ptype);
+  MPI_Type_free(&ftype);
+}
+
+void read_single(MPI_File* fh, size_t* disp, void* data, const size_t size, MPI_Request* req)
+{
+  MPI_File_iread_at(*fh, *disp, data, size, MPI_BYTE, req);
 
   *disp += size;
 }
 
-void write_single(MPI_File* fh, size_t* disp, void* data, const size_t size)
+void write_single(MPI_File* fh, size_t* disp, void* data, const size_t size, MPI_Request* req)
 {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   if (rank == 0) {
     MPI_Status status;
-    MPI_File_write_at(*fh, *disp, data, size, MPI_BYTE, &status);
+    MPI_File_iwrite_at(*fh, *disp, data, size, MPI_BYTE, req);
+  } else {
+    *req = MPI_REQUEST_NULL;
   }
 
   *disp += size;
 }
 
 void read_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                     const int32_t elembyte, const int32_t packbyte)
+                     const int32_t elembyte, const int32_t packbyte, MPI_Request* req)
 {
   size_t  gsize, offset;
   int32_t pbyte;
@@ -241,13 +240,13 @@ void read_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
   calculate_global_offset(size, &offset, &gsize);
 
   // read from disk
-  readwrite_contiguous(fh, disp, data, offset, size, elembyte, pbyte, +1);
+  readwrite_contiguous(fh, disp, data, offset, size, elembyte, pbyte, req, +1);
 
   *disp += gsize * elembyte;
 }
 
 void write_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                      const int32_t elembyte, const int32_t packbyte)
+                      const int32_t elembyte, const int32_t packbyte, MPI_Request* req)
 {
   size_t  gsize, offset;
   int32_t pbyte;
@@ -262,7 +261,7 @@ void write_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
   calculate_global_offset(size, &offset, &gsize);
 
   // write to disk
-  readwrite_contiguous(fh, disp, data, offset, size, elembyte, pbyte, -1);
+  readwrite_contiguous(fh, disp, data, offset, size, elembyte, pbyte, req, -1);
 
   *disp += gsize * elembyte;
 }
@@ -281,7 +280,8 @@ void write_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t si
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
 void read_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
-                   const T3 lshape[], const T4 offset[], const T5 elembyte, const int order)
+                   const T3 lshape[], const T4 offset[], const T5 elembyte, MPI_Request* req,
+                   const int order)
 {
   if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
     ERROR << tfm::format(" No such order available");
@@ -300,13 +300,14 @@ void read_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const 
     size *= gshape[i];
   }
 
-  readwrite_subarray(fh, disp, data, nd, gs, ls, os, eb, +1, order);
+  readwrite_subarray(fh, disp, data, nd, gs, ls, os, eb, req, +1, order);
   *disp += size * elembyte;
 }
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
 void write_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
-                    const T3 lshape[], const T4 offset[], const T5 elembyte, const int order)
+                    const T3 lshape[], const T4 offset[], const T5 elembyte, MPI_Request* req,
+                    const int order)
 {
   if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
     ERROR << tfm::format("No such order available");
@@ -325,7 +326,7 @@ void write_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const
     size *= gshape[i];
   }
 
-  readwrite_subarray(fh, disp, data, nd, gs, ls, os, eb, -1, order);
+  readwrite_subarray(fh, disp, data, nd, gs, ls, os, eb, req, -1, order);
   *disp += size * elembyte;
 }
 
@@ -456,16 +457,16 @@ void put_attribute(json& obj, string name, const size_t disp, const int32_t leng
 
 template void read_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
                             const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
-                            const int32_t elembyte, const int order);
+                            const int32_t elembyte, MPI_Request* req, const int order);
 template void read_subarray(MPI_File* fh, size_t* disp, void* data, const size_t ndim,
                             const size_t gshape[], const size_t lshape[], const size_t offset[],
-                            const size_t elembyte, const int order);
+                            const size_t elembyte, MPI_Request* req, const int order);
 template void write_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
                              const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
-                             const int32_t elembyte, const int order);
+                             const int32_t elembyte, MPI_Request* req, const int order);
 template void write_subarray(MPI_File* fh, size_t* disp, void* data, const size_t ndim,
                              const size_t gshape[], const size_t lshape[], const size_t offset[],
-                             const size_t elembyte, const int order);
+                             const size_t elembyte, MPI_Request* req, const int order);
 template void get_attribute(json& obj, string name, size_t& disp, int32_t& data);
 template void get_attribute(json& obj, string name, size_t& disp, int64_t& data);
 template void get_attribute(json& obj, string name, size_t& disp, float32& data);

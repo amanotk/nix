@@ -132,18 +132,22 @@ TEST_CASE("ReadSingle")
 
   // read and check results
   {
-    MPI_File fh;
-    size_t   disp;
-    int32_t  in_i32a[N];
-    int64_t  in_i64a[N];
-    float32  in_f32a[N];
-    float64  in_f64a[N];
+    MPI_File    fh;
+    MPI_Request req[4];
+    size_t      disp;
+    int32_t     in_i32a[N];
+    int64_t     in_i64a[N];
+    float32     in_f32a[N];
+    float64     in_f64a[N];
 
     jsonio::open_file(filename, &fh, &disp, "r");
-    jsonio::read_single(&fh, &disp, in_i32a, sizeof(int32_t) * N);
-    jsonio::read_single(&fh, &disp, in_i64a, sizeof(int64_t) * N);
-    jsonio::read_single(&fh, &disp, in_f32a, sizeof(float32) * N);
-    jsonio::read_single(&fh, &disp, in_f64a, sizeof(float64) * N);
+
+    jsonio::read_single(&fh, &disp, in_i32a, sizeof(int32_t) * N, &req[0]);
+    jsonio::read_single(&fh, &disp, in_i64a, sizeof(int64_t) * N, &req[1]);
+    jsonio::read_single(&fh, &disp, in_f32a, sizeof(float32) * N, &req[2]);
+    jsonio::read_single(&fh, &disp, in_f64a, sizeof(float64) * N, &req[3]);
+
+    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     jsonio::close_file(&fh);
 
     REQUIRE(is_array_equal(N, i32a, in_i32a));
@@ -171,14 +175,18 @@ TEST_CASE("WriteSingle")
 
   // write to file
   {
-    MPI_File fh;
-    size_t   disp;
+    MPI_File    fh;
+    MPI_Request req[4];
+    size_t      disp;
 
     jsonio::open_file(filename, &fh, &disp, "w");
-    jsonio::write_single(&fh, &disp, i32a, sizeof(int32_t) * N);
-    jsonio::write_single(&fh, &disp, i64a, sizeof(int64_t) * N);
-    jsonio::write_single(&fh, &disp, f32a, sizeof(float32) * N);
-    jsonio::write_single(&fh, &disp, f64a, sizeof(float64) * N);
+
+    jsonio::write_single(&fh, &disp, i32a, sizeof(int32_t) * N, &req[0]);
+    jsonio::write_single(&fh, &disp, i64a, sizeof(int64_t) * N, &req[1]);
+    jsonio::write_single(&fh, &disp, f32a, sizeof(float32) * N, &req[2]);
+    jsonio::write_single(&fh, &disp, f64a, sizeof(float64) * N, &req[3]);
+
+    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     jsonio::close_file(&fh);
   }
 
@@ -235,12 +243,13 @@ TEST_CASE("ReadContiguous")
 
   // read and check results
   {
-    MPI_File fh;
-    size_t   disp;
-    int32_t  in_i32a[N];
-    int64_t  in_i64a[N];
-    float32  in_f32a[N];
-    float64  in_f64a[N];
+    MPI_File    fh;
+    MPI_Request req[4];
+    size_t      disp;
+    int32_t     in_i32a[N];
+    int64_t     in_i64a[N];
+    float32     in_f32a[N];
+    float64     in_f64a[N];
 
     int              thisrank = get_thisrank();
     int              nprocess = get_nprocess();
@@ -253,10 +262,13 @@ TEST_CASE("ReadContiguous")
     int s = boundary[thisrank + 1] - boundary[thisrank];
 
     jsonio::open_file(filename, &fh, &disp, "r");
-    jsonio::read_contiguous(&fh, &disp, &in_i32a[p], s, sizeof(int32_t));
-    jsonio::read_contiguous(&fh, &disp, &in_i64a[p], s, sizeof(int64_t));
-    jsonio::read_contiguous(&fh, &disp, &in_f32a[p], s, sizeof(float32));
-    jsonio::read_contiguous(&fh, &disp, &in_f64a[p], s, sizeof(float64));
+
+    jsonio::read_contiguous(&fh, &disp, &in_i32a[p], s, sizeof(int32_t), 1, &req[0]);
+    jsonio::read_contiguous(&fh, &disp, &in_i64a[p], s, sizeof(int64_t), 1, &req[1]);
+    jsonio::read_contiguous(&fh, &disp, &in_f32a[p], s, sizeof(float32), 1, &req[2]);
+    jsonio::read_contiguous(&fh, &disp, &in_f64a[p], s, sizeof(float64), 1, &req[3]);
+
+    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     jsonio::close_file(&fh);
 
     REQUIRE(is_array_equal(s, &i32a[p], &in_i32a[p]));
@@ -284,8 +296,9 @@ TEST_CASE("WriteContiguous")
 
   // write to file
   {
-    MPI_File fh;
-    size_t   disp;
+    MPI_File    fh;
+    MPI_Request req[4];
+    size_t      disp;
 
     int thisrank = get_thisrank();
     int nprocess = get_nprocess();
@@ -299,10 +312,13 @@ TEST_CASE("WriteContiguous")
     int s = boundary[thisrank + 1] - boundary[thisrank];
 
     jsonio::open_file(filename, &fh, &disp, "w");
-    jsonio::write_contiguous(&fh, &disp, &i32a[p], s, sizeof(int32_t));
-    jsonio::write_contiguous(&fh, &disp, &i64a[p], s, sizeof(int64_t));
-    jsonio::write_contiguous(&fh, &disp, &f32a[p], s, sizeof(float32));
-    jsonio::write_contiguous(&fh, &disp, &f64a[p], s, sizeof(float64));
+
+    jsonio::write_contiguous(&fh, &disp, &i32a[p], s, sizeof(int32_t), 1, &req[0]);
+    jsonio::write_contiguous(&fh, &disp, &i64a[p], s, sizeof(int64_t), 1, &req[1]);
+    jsonio::write_contiguous(&fh, &disp, &f32a[p], s, sizeof(float32), 1, &req[2]);
+    jsonio::write_contiguous(&fh, &disp, &f64a[p], s, sizeof(float64), 1, &req[3]);
+
+    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     jsonio::close_file(&fh);
   }
 
@@ -394,7 +410,7 @@ TEST_CASE("ReadContiguousAt")
     disp  = disp0 + p * sizeof(float64);
     jsonio::read_contiguous_at(&fh, &disp, &in_f64a[p], s, sizeof(float64), &req[3]);
 
-    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
+    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     jsonio::close_file(&fh);
 
     REQUIRE(is_array_equal(s, &i32a[p], &in_i32a[p]));
@@ -454,7 +470,7 @@ TEST_CASE("WriteContiguousAt")
     disp  = disp0 + p * sizeof(float64);
     jsonio::write_contiguous_at(&fh, &disp, &f64a[p], s, sizeof(float64), &req[3]);
 
-    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
+    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     jsonio::close_file(&fh);
   }
 
@@ -522,12 +538,13 @@ TEST_CASE("ReadSubarray")
 
   // read and check results
   {
-    MPI_File fh;
-    size_t   disp;
-    size_t   nd = ndim;
-    size_t*  gs = gshape.data();
-    size_t*  ls = lshape.data();
-    size_t*  os = offset.data();
+    MPI_File    fh;
+    MPI_Request req[4];
+    size_t      disp;
+    size_t      nd = ndim;
+    size_t*     gs = gshape.data();
+    size_t*     ls = lshape.data();
+    size_t*     os = offset.data();
 
     // local array
     xt::xarray<int32_t> in_i32a(lshape);
@@ -536,10 +553,13 @@ TEST_CASE("ReadSubarray")
     xt::xarray<float64> in_f64a(lshape);
 
     jsonio::open_file(filename, &fh, &disp, "r");
-    jsonio::read_subarray(&fh, &disp, in_i32a.data(), nd, gs, ls, os, sizeof(int32_t));
-    jsonio::read_subarray(&fh, &disp, in_i64a.data(), nd, gs, ls, os, sizeof(int64_t));
-    jsonio::read_subarray(&fh, &disp, in_f32a.data(), nd, gs, ls, os, sizeof(float32));
-    jsonio::read_subarray(&fh, &disp, in_f64a.data(), nd, gs, ls, os, sizeof(float64));
+
+    jsonio::read_subarray(&fh, &disp, in_i32a.data(), nd, gs, ls, os, sizeof(int32_t), &req[0]);
+    jsonio::read_subarray(&fh, &disp, in_i64a.data(), nd, gs, ls, os, sizeof(int64_t), &req[1]);
+    jsonio::read_subarray(&fh, &disp, in_f32a.data(), nd, gs, ls, os, sizeof(float32), &req[2]);
+    jsonio::read_subarray(&fh, &disp, in_f64a.data(), nd, gs, ls, os, sizeof(float64), &req[3]);
+
+    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     jsonio::close_file(&fh);
 
     xt::xarray<int32_t> local_i32a(lshape);
@@ -591,12 +611,13 @@ TEST_CASE("WriteSubarray")
 
   // write to file
   {
-    MPI_File fh;
-    size_t   disp;
-    size_t   nd = ndim;
-    size_t*  gs = gshape.data();
-    size_t*  ls = lshape.data();
-    size_t*  os = offset.data();
+    MPI_File    fh;
+    MPI_Request req[4];
+    size_t      disp;
+    size_t      nd = ndim;
+    size_t*     gs = gshape.data();
+    size_t*     ls = lshape.data();
+    size_t*     os = offset.data();
 
     // local array
     xt::xarray<int32_t> local_i32a(lshape);
@@ -612,10 +633,13 @@ TEST_CASE("WriteSubarray")
     local_f64a                 = xt::strided_view(xt_f64a, {zrange, yrange, xrange});
 
     jsonio::open_file(filename, &fh, &disp, "w");
-    jsonio::write_subarray(&fh, &disp, local_i32a.data(), nd, gs, ls, os, sizeof(int32_t));
-    jsonio::write_subarray(&fh, &disp, local_i64a.data(), nd, gs, ls, os, sizeof(int64_t));
-    jsonio::write_subarray(&fh, &disp, local_f32a.data(), nd, gs, ls, os, sizeof(float32));
-    jsonio::write_subarray(&fh, &disp, local_f64a.data(), nd, gs, ls, os, sizeof(float64));
+
+    jsonio::write_subarray(&fh, &disp, local_i32a.data(), nd, gs, ls, os, sizeof(int32_t), &req[0]);
+    jsonio::write_subarray(&fh, &disp, local_i64a.data(), nd, gs, ls, os, sizeof(int64_t), &req[1]);
+    jsonio::write_subarray(&fh, &disp, local_f32a.data(), nd, gs, ls, os, sizeof(float32), &req[2]);
+    jsonio::write_subarray(&fh, &disp, local_f64a.data(), nd, gs, ls, os, sizeof(float64), &req[3]);
+
+    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     jsonio::close_file(&fh);
   }
 

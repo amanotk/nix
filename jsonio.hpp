@@ -16,7 +16,22 @@ using float64 = double;
 using std::string;
 
 ///
-/// @brief primitive collective contiguous read/write with MPI-IO
+/// @brief collective open file with MPI-IO
+/// @param filename
+/// @param fh
+/// @param disp
+/// @param mode
+///
+void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mode);
+
+///
+/// @brief collective close file with MPI-IO
+/// @param fh
+///
+void close_file(MPI_File* fh);
+
+///
+/// @brief primitive collective contiguous read/write
 /// @param fh
 /// @param disp
 /// @param data
@@ -28,10 +43,10 @@ using std::string;
 ///
 void readwrite_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t offset,
                           const size_t size, const int32_t elembyte, const int32_t packbyte,
-                          const int mode);
+                          MPI_Request* req, const int mode);
 
 ///
-/// @brief primitive non-collective contiguous read/write with MPI-IO
+/// @brief primitive collective contiguous read/write with explicit offset
 /// @param fh
 /// @param disp
 /// @param data
@@ -60,22 +75,7 @@ void readwrite_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_
 ///
 void readwrite_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
                         const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
-                        const int32_t elembyte, const int mode, const int order);
-
-///
-/// @brief collective open file with MPI-IO
-/// @param filename
-/// @param fh
-/// @param disp
-/// @param mode
-///
-void open_file(const char* filename, MPI_File* fh, size_t* disp, const char* mode);
-
-///
-/// @brief collective close file with MPI-IO
-/// @param fh
-///
-void close_file(MPI_File* fh);
+                        const int32_t elembyte, MPI_Request* req, const int mode, const int order);
 
 ///
 /// @brief non-collective read
@@ -84,7 +84,7 @@ void close_file(MPI_File* fh);
 /// @param data
 /// @param size
 ///
-void read_single(MPI_File* fh, size_t* disp, void* data, const size_t size);
+void read_single(MPI_File* fh, size_t* disp, void* data, const size_t size, MPI_Request* req);
 
 ///
 /// @brief non-collective write
@@ -93,10 +93,10 @@ void read_single(MPI_File* fh, size_t* disp, void* data, const size_t size);
 /// @param data
 /// @param size
 ///
-void write_single(MPI_File* fh, size_t* disp, void* data, const size_t size);
+void write_single(MPI_File* fh, size_t* disp, void* data, const size_t size, MPI_Request* req);
 
 ///
-/// @brief collective contiguous read
+/// @brief collective and contiguous read
 /// @param fh
 /// @param disp
 /// @param data
@@ -105,10 +105,10 @@ void write_single(MPI_File* fh, size_t* disp, void* data, const size_t size);
 /// @param packbyte
 ///
 void read_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                     const int32_t elembyte, const int32_t packbyte = -1);
+                     const int32_t elembyte, const int32_t packbyte, MPI_Request* req);
 
 ///
-/// @brief collective contiguous write
+/// @brief collective and contiguous write
 /// @param fh
 /// @param disp
 /// @param data
@@ -117,10 +117,10 @@ void read_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
 /// @param packbyte
 ///
 void write_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                      const int32_t elembyte, const int32_t packbyte = -1);
+                      const int32_t elembyte, const int32_t packbyte, MPI_Request* req);
 
 ///
-/// @brief non-blocking contiguous read
+/// @brief collective and contiguous read with explicit offset
 /// @param fh
 /// @param disp
 /// @param data
@@ -132,7 +132,7 @@ void read_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t siz
                         const int32_t elembyte, MPI_Request* req);
 
 ///
-/// @brief non-blocking contiguous write
+/// @brief collective and contiguous write with explicit offset
 /// @param fh
 /// @param disp
 /// @param data
@@ -162,7 +162,7 @@ void write_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t si
 ///
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
 void read_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
-                   const T3 lshape[], const T4 offset[], const T5 elembyte,
+                   const T3 lshape[], const T4 offset[], const T5 elembyte, MPI_Request* req,
                    const int order = MPI_ORDER_C);
 
 ///
@@ -184,7 +184,7 @@ void read_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const 
 ///
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
 void write_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
-                    const T3 lshape[], const T4 offset[], const T5 elembyte,
+                    const T3 lshape[], const T4 offset[], const T5 elembyte, MPI_Request* req,
                     const int order = MPI_ORDER_C);
 
 ///
