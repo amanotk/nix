@@ -15,14 +15,15 @@ NIX_NAMESPACE_BEGIN
 /// @brief Base class for 3D Chunk
 /// @tparam Nb number of boundary margins
 ///
-template <int Nb>
+template <int Nb, typename ParticlePtr>
 class Chunk3D : public Chunk<3>
 {
 public:
-  using IntArray = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
-  using Comm     = xt::xtensor_fixed<MPI_Comm, xt::xshape<3, 3, 3>>;
-  using Request  = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
-  using Datatype = xt::xtensor_fixed<MPI_Datatype, xt::xshape<3, 3, 3>>;
+  using IntArray    = xt::xtensor_fixed<int, xt::xshape<3, 3, 3>>;
+  using Comm        = xt::xtensor_fixed<MPI_Comm, xt::xshape<3, 3, 3>>;
+  using Request     = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
+  using Datatype    = xt::xtensor_fixed<MPI_Datatype, xt::xshape<3, 3, 3>>;
+  using ParticleVec = std::vector<ParticlePtr>;
 
   ///
   /// @brief MPI buffer
@@ -218,7 +219,7 @@ public:
   /// @param Ubp last index of particle array to be counted (inclusive)
   /// @param reset reset the count array before counting
   ///
-  virtual void count_particle(PtrParticle particle, int Lbp, int Ubp, bool reset = true);
+  virtual void count_particle(ParticlePtr particle, int Lbp, int Ubp, bool reset = true);
 
   ///
   /// @brief perform particle sorting
@@ -251,7 +252,7 @@ public:
   /// @param Lbp first index of particle array
   /// @param Ubp last index of particle array (inclusive)
   ///
-  virtual void set_boundary_particle(PtrParticle particle, int Lbp, int Ubp);
+  virtual void set_boundary_particle(ParticlePtr particle, int Lbp, int Ubp);
 
   ///
   /// @brief setup MPI Buffer
@@ -353,8 +354,8 @@ protected:
 // implementation follows
 //
 #define DEFINE_MEMBER(type, name)                                                                  \
-  template <int Nb>                                                                                \
-  type Chunk3D<Nb>::name
+  template <int Nb, typename ParticlePtr>                                                          \
+  type Chunk3D<Nb, ParticlePtr>::name
 
 DEFINE_MEMBER(, Chunk3D)
 (const int dims[3], int id)
@@ -526,7 +527,7 @@ DEFINE_MEMBER(void, set_mpi_communicator)(int mode, int iz, int iy, int ix, MPI_
   }
 }
 
-DEFINE_MEMBER(void, count_particle)(PtrParticle particle, int Lbp, int Ubp, bool reset)
+DEFINE_MEMBER(void, count_particle)(ParticlePtr particle, int Lbp, int Ubp, bool reset)
 {
   int     stride[3] = {0};
   int     xrange[2] = {0};
@@ -577,13 +578,13 @@ DEFINE_MEMBER(void, count_particle)(PtrParticle particle, int Lbp, int Ubp, bool
   // count particles
   //
   const int out_of_bounds = particle->Ng;
-  float64*  xu            = particle->xu.data();
 
   // loop over particles
+  auto& xu = particle->xu;
   for (int ip = Lbp; ip <= Ubp; ip++) {
-    int iz = digitize(xu[Particle::Nc * ip + 2], zlim[0], rdh[0]);
-    int iy = digitize(xu[Particle::Nc * ip + 1], ylim[0], rdh[1]);
-    int ix = digitize(xu[Particle::Nc * ip + 0], xlim[0], rdh[2]);
+    int iz = digitize(xu(ip, 2), zlim[0], rdh[0]);
+    int iy = digitize(xu(ip, 1), ylim[0], rdh[1]);
+    int ix = digitize(xu(ip, 0), xlim[0], rdh[2]);
     int ii = iz * stride[0] + iy * stride[1] + ix * stride[2];
 
     // take care out-of-bounds particles
@@ -670,21 +671,19 @@ DEFINE_MEMBER(void, set_boundary_field)(int mode)
   }
 }
 
-DEFINE_MEMBER(void, set_boundary_particle)(PtrParticle particle, int Lbp, int Ubp)
+DEFINE_MEMBER(void, set_boundary_particle)(ParticlePtr particle, int Lbp, int Ubp)
 {
   // NOTE: trick to take care of round-off error
   float64 xlength = gxlim[2] - std::numeric_limits<float64>::epsilon();
   float64 ylength = gylim[2] - std::numeric_limits<float64>::epsilon();
   float64 zlength = gzlim[2] - std::numeric_limits<float64>::epsilon();
 
-  // push particle position
+  // apply periodic boundary condition
+  auto& xu = particle->xu;
   for (int ip = Lbp; ip <= Ubp; ip++) {
-    float64* xu = &particle->xu(ip, 0);
-
-    // apply periodic boundary condition
-    xu[0] += (xu[0] < gxlim[0]) * xlength - (xu[0] >= gxlim[1]) * xlength;
-    xu[1] += (xu[1] < gylim[0]) * ylength - (xu[1] >= gylim[1]) * ylength;
-    xu[2] += (xu[2] < gzlim[0]) * zlength - (xu[2] >= gzlim[1]) * zlength;
+    xu(ip, 0) += (xu(ip, 0) < gxlim[0]) * xlength - (xu(ip, 0) >= gxlim[1]) * xlength;
+    xu(ip, 1) += (xu(ip, 1) < gylim[0]) * ylength - (xu(ip, 1) >= gylim[1]) * ylength;
+    xu(ip, 2) += (xu(ip, 2) < gzlim[0]) * zlength - (xu(ip, 2) >= gzlim[1]) * zlength;
   }
 }
 

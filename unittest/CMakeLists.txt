@@ -23,7 +23,7 @@ set(SERIAL_EXECS
 	test_nixio
 	test_chunk
 	test_chunkmap
-	test_particle
+	test_xtensor_particle
 	)
 
 add_library(obj_serial OBJECT test_serial.cpp)

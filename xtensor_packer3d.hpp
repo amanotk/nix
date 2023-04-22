@@ -82,7 +82,10 @@ public:
   {
     int count = address;
 
-    count += memcpy_count(buffer, p->xu.data(), p->Np * Particle::Nc * sizeof(float64), count, 0);
+    auto& xu   = p->xu;
+    int   np   = p->get_Np_active();
+    int   size = ParticlePtr::element_type::get_particle_size();
+    count += memcpy_count(buffer, xu.data(), np * size, count, 0);
 
     return count;
   }

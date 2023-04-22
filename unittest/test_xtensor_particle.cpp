@@ -1,11 +1,12 @@
 // -*- C++ -*-
 
-#include "particle.hpp"
+#include "xtensor_particle.hpp"
 #include <iostream>
 
 #include "catch.hpp"
 
 using namespace nix;
+using Particle     = XtensorParticle<7>;
 using uniform_rand = std::uniform_real_distribution<float64>;
 
 // set random particle position

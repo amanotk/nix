@@ -10,6 +10,9 @@
 
 NIX_NAMESPACE_BEGIN
 
+using ParticlePtr = std::shared_ptr<XtensorParticle<7>>;
+using ParticleVec = std::vector<ParticlePtr>;
+
 ///
 /// @brief Boundary Halo3D class for field
 ///
@@ -222,7 +225,7 @@ public:
   using Base::recv_count;
 
   static constexpr int32_t head_byte         = sizeof(int32_t);
-  static constexpr int32_t elem_byte         = sizeof(float64) * Particle::Nc;
+  static constexpr int32_t elem_byte         = ParticlePtr::element_type::get_particle_size();
   static constexpr float64 increase_fraction = 0.80;
   static constexpr float64 decrease_fraction = 0.20;
 
@@ -260,14 +263,12 @@ public:
     // pack out-of-bounds particles
     //
     for (int is = 0; is < Ns; is++) {
-      float64* xu = particle[is]->xu.data();
-
       // loop over particles
+      auto &xu = particle[is]->xu;
       for (int ip = 0; ip < particle[is]->Np; ip++) {
-        float64* ptcl = &xu[Particle::Nc * ip];
-        int      dirz = (ptcl[2] > zmax) - (ptcl[2] < zmin);
-        int      diry = (ptcl[1] > ymax) - (ptcl[1] < ymin);
-        int      dirx = (ptcl[0] > xmax) - (ptcl[0] < xmin);
+        int      dirz = (xu(ip,2) > zmax) - (xu(ip,2) < zmin);
+        int      diry = (xu(ip,1) > ymax) - (xu(ip,1) < ymin);
+        int      dirx = (xu(ip,0) > xmax) - (xu(ip,0) < xmin);
 
         // skip
         if (dirx == 0 && diry == 0 && dirz == 0)
@@ -285,7 +286,7 @@ public:
         }
 
         // pack
-        std::memcpy(mpibuf->sendbuf.get(pos), ptcl, elem_byte);
+        std::memcpy(mpibuf->sendbuf.get(pos), &xu(ip,0), elem_byte);
         snd_count(is, iz, iy, ix)++;
         snd_count(Ns, iz, iy, ix)++; // total number of send particles
       }

@@ -7,10 +7,6 @@
 
 NIX_NAMESPACE_BEGIN
 
-class Particle;
-using PtrParticle = std::shared_ptr<Particle>;
-using ParticleVec = std::vector<PtrParticle>;
-
 ///
 /// @brief digitize for calculating grid index for particles
 ///
@@ -243,277 +239,73 @@ static void esirkepov3d1(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2]
 /// This class is a container for particles of single species. Member variables are intentionally
 /// made public for enabling access from everywhere else.
 ///
-/// It also provides some general routines as static inline member functions, including
-/// Buneman-Boris pusher, shape functions, counting sort, interpolation, and Esirkepov's scheme.
-///
-class Particle
+template <int N_component>
+class ParticleContainer
 {
 public:
-  static constexpr int simd_width = nix_simd_width;
+  static constexpr int Nc = N_component; ///< # component for each particle (including ID)
 
-  static constexpr int Nc = 7; ///< # component for each particle (including ID)
+  int     Np_total; ///< # total particles
+  int     Np;       ///< # particles in active
+  int     Ng;       ///< # grid points (product in x, y, z dirs)
+  float64 q;        ///< charge
+  float64 m;        ///< mass
 
-  int Np_total; ///< # total particles
-  int Np;       ///< # particles in active
-  int Ng;       ///< # grid points (product in x, y, z dirs)
+  /// get single particle data size in bytes
+  static constexpr int get_particle_size()
+  {
+    return Nc * sizeof(float64);
+  }
 
-  float64                 q;      ///< charge
-  float64                 m;      ///< mass
-  xt::xtensor<float64, 2> xu;     ///< particle array
-  xt::xtensor<float64, 2> xv;     ///< temporary particle array
-  xt::xtensor<int32, 1>   gindex; ///< index to grid for each particle
-  xt::xtensor<int32, 1>   pindex; ///< index to first particle for each cell
-  xt::xtensor<int32, 2>   pcount; ///< particle count for each cell
+  /// get number of total particles
+  int get_Np_total() const
+  {
+    return Np_total;
+  }
 
-  ///
+  /// get number of active particles
+  int get_Np_active() const
+  {
+    return Np;
+  }
+
+  /// set number of active particles
+  void set_Np_active(int Np)
+  {
+    this->Np = Np;
+  }
+
   /// @brief Default constructor
-  ///
-  Particle()
+  ParticleContainer() : Np_total(0), Ng(0)
   {
-    Np_total = 0;
-    Ng       = 0;
   }
 
-  ///
   /// @brief Constructor
-  ///
-  /// @param[in] Np_total Total number of particle for memory allocation
-  /// @param[in] Ng       Number of grid
-  ///
-  Particle(int Np_total, int Ng)
-  {
-    this->Np_total = Np_total;
-    this->Ng       = Ng;
-    Np             = 0;
+  ParticleContainer(int Np_total, int Ng);
 
-    // allocate and initialize arrays
-    allocate(Np_total, Ng);
-  }
-
-  ///
-  /// @brief Destructor
-  ///
-  virtual ~Particle()
-  {
-  }
-
-  ///
   /// @brief initial memory allocation
-  ///
-  void allocate(int Np_total, int Ng)
-  {
-    const size_t np = Np_total;
-    const size_t ng = Ng;
-    const size_t nc = Nc;
-    const size_t ns = simd_width;
+  void allocate(int Np_total, int Ng);
 
-    xu.resize({np, nc});
-    xv.resize({np, nc});
-    gindex.resize({np});
-    pindex.resize({ng + 1});
-    pcount.resize({ng + 1, ns});
-
-    xu.fill(0);
-    xv.fill(0);
-    gindex.fill(0);
-    pindex.fill(0);
-    pcount.fill(0);
-  }
-
-  ///
   /// @brief resize particle array
-  ///
-  void resize(int newsize)
-  {
-    const int    np_min = 2 * Ng;
-    const size_t np     = newsize;
-    const size_t nc     = Nc;
+  void resize(int newsize);
 
-    //
-    // Resize should not be performed either of the following conditions are met:
-    //
-    // (1) newsize is equal to the original (no need to resize)
-    // (2) newsize is smaller than minimum buffer size
-    // (3) newsize is smaller than the current active particle number
-    //
-    if (newsize == Np_total || newsize < np_min || newsize <= Np) {
-      return;
-    }
-
-    //
-    // The following implementation of resize is not ideal as it requires copy of buffer twice, one
-    // from the original to the temporary and another from the temporary to the resized buffer.
-    //
-
-    {
-      auto tmp(xu);
-
-      xu.resize({np, nc});
-      std::memcpy(xu.data(), tmp.data(), sizeof(float64) * Np * Nc);
-    }
-
-    {
-      auto tmp(xv);
-
-      xv.resize({np, nc});
-      std::memcpy(xv.data(), tmp.data(), sizeof(float64) * Np * Nc);
-    }
-
-    {
-      auto tmp(gindex);
-
-      gindex.resize({np});
-      std::memcpy(gindex.data(), tmp.data(), sizeof(int32) * Np);
-    }
-
-    // set new total number of particles
-    Np_total = newsize;
-  }
-
-  ///
   /// @brief swap pointer of particle array with temporary array
-  ///
-  void swap()
-  {
-    xu.storage().swap(xv.storage());
-  }
+  void swap();
 
-  ///
   /// @brief pack data into buffer
-  ///
-  int pack(void* buffer, int address)
-  {
-    int count = address;
+  int pack(void* buffer, int address);
 
-    count += memcpy_count(buffer, &Np_total, sizeof(int), count, 0);
-    count += memcpy_count(buffer, &Np, sizeof(int), count, 0);
-    count += memcpy_count(buffer, &Ng, sizeof(int), count, 0);
-    count += memcpy_count(buffer, &q, sizeof(float64), count, 0);
-    count += memcpy_count(buffer, &m, sizeof(float64), count, 0);
-    count += memcpy_count(buffer, xu.data(), xu.size() * sizeof(float64), count, 0);
-    count += memcpy_count(buffer, xv.data(), xv.size() * sizeof(float64), count, 0);
-    count += memcpy_count(buffer, gindex.data(), gindex.size() * sizeof(int), count, 0);
-    count += memcpy_count(buffer, pindex.data(), pindex.size() * sizeof(int), count, 0);
-    count += memcpy_count(buffer, pcount.data(), pcount.size() * sizeof(int), count, 0);
-
-    return count;
-  }
-
-  ///
   /// @brief unpack data from buffer
-  ///
-  int unpack(void* buffer, int address)
-  {
-    int count = address;
+  int unpack(void* buffer, int address);
 
-    count += memcpy_count(&Np_total, buffer, sizeof(int), 0, count);
-    count += memcpy_count(&Np, buffer, sizeof(int), 0, count);
-    count += memcpy_count(&Ng, buffer, sizeof(int), 0, count);
-    count += memcpy_count(&q, buffer, sizeof(float64), 0, count);
-    count += memcpy_count(&m, buffer, sizeof(float64), 0, count);
-
-    // memory allocation before reading arrays
-    allocate(Np_total, Ng);
-
-    count += memcpy_count(xu.data(), buffer, xu.size() * sizeof(float64), 0, count);
-    count += memcpy_count(xv.data(), buffer, xv.size() * sizeof(float64), 0, count);
-    count += memcpy_count(gindex.data(), buffer, gindex.size() * sizeof(int), 0, count);
-    count += memcpy_count(pindex.data(), buffer, pindex.size() * sizeof(int), 0, count);
-    count += memcpy_count(pcount.data(), buffer, pcount.size() * sizeof(int), 0, count);
-
-    return count;
-  }
-
-  ///
   /// reset particle count
-  ///
-  void reset_count()
-  {
-    pcount.fill(0);
-  }
+  void reset_count();
 
-  ///
   /// @brief increment particle count
-  ///
-  /// @param[in] ip particle index
-  /// @param[in] ii grid index (where the particle resides)
-  ///
-  void increment(int ip, int ii)
-  {
-    int jj = ip % simd_width;
+  void increment(int ip, int ii);
 
-    gindex(ip) = ii;
-    pcount(ii, jj)++;
-  }
-
-  ///
   /// @brief sort particle array
-  ///
-  /// This routine performs counting sort of particles using pre-computed pcount and gindex.
-  /// Out-of-bounds particles are eliminated.
-  ///
-  void sort()
-  {
-    //
-    // cumulative sum of particle count
-    //
-    for (int ii = 0; ii < Ng + 1; ii++) {
-      for (int jj = 0; jj < simd_width - 1; jj++) {
-        pcount(ii, jj + 1) += pcount(ii, jj);
-      }
-    }
-    for (int ii = 0; ii < Ng; ii++) {
-      for (int jj = 0; jj < simd_width; jj++) {
-        pcount(ii + 1, jj) += pcount(ii, simd_width - 1);
-      }
-    }
-
-    //
-    // first particle index for each cell
-    //
-    pindex(0) = 0;
-    for (int ii = 0; ii < Ng; ii++) {
-      pindex(ii + 1) = pcount(ii, simd_width - 1);
-    }
-
-    //
-    // particle address for rearrangement
-    //
-    for (int ii = 0; ii < Ng + 1; ii++) {
-      for (int jj = simd_width - 1; jj > 0; jj--) {
-        pcount(ii, jj) = pcount(ii, jj - 1);
-      }
-    }
-    for (int ii = 0; ii < Ng + 1; ii++) {
-      pcount(ii, 0) = pindex(ii);
-    }
-
-    //
-    // rearrange particles
-    //
-    {
-      float64* v = xv.data();
-      float64* u = xu.data();
-
-      for (int ip = 0; ip < Np; ip++) {
-        int ii = gindex(ip);
-        int jj = ip % simd_width;
-        int jp = pcount(ii, jj);
-
-        // copy particle to new address
-        std::memcpy(&v[Nc * jp], &u[Nc * ip], Nc * sizeof(float64));
-
-        // increment address
-        pcount(ii, jj)++;
-      }
-    }
-
-    // swap two particle arrays
-    swap();
-
-    // particles contained in the last index are discarded
-    Np = pindex(Ng);
-  }
+  void sort();
 };
 
 NIX_NAMESPACE_END
