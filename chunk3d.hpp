@@ -5,7 +5,6 @@
 #include "buffer.hpp"
 #include "chunk.hpp"
 #include "debug.hpp"
-#include "jsonio.hpp"
 #include "nix.hpp"
 #include "particle.hpp"
 #include "xtensorall.hpp"

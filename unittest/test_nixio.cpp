@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-#include "jsonio.hpp"
+#include "nixio.hpp"
 #include <iostream>
 
 #include "catch.hpp"
@@ -133,9 +133,9 @@ bool is_array_equal(const int N, T x[], T y[])
 //
 TEST_CASE("Attribute")
 {
-  using json = jsonio::json;
-  using jsonio::float32;
-  using jsonio::float64;
+  using json = nixio::json;
+  using nixio::float32;
+  using nixio::float64;
 
   const int N       = 5;
   int32_t   i32s    = 32;
@@ -155,28 +155,28 @@ TEST_CASE("Attribute")
     json   writer, diff;
 
     disp = 0;
-    jsonio::put_attribute(writer, "scalar_int32", disp, i32s);
+    nixio::put_attribute(writer, "scalar_int32", disp, i32s);
     disp += sizeof(int32_t);
 
-    jsonio::put_attribute(writer, "scalar_int64", disp, i64s);
+    nixio::put_attribute(writer, "scalar_int64", disp, i64s);
     disp += sizeof(int64_t);
 
-    jsonio::put_attribute(writer, "array_int32", disp, N, i32a);
+    nixio::put_attribute(writer, "array_int32", disp, N, i32a);
     disp += sizeof(int32_t) * N;
 
-    jsonio::put_attribute(writer, "array_int64", disp, N, i64a);
+    nixio::put_attribute(writer, "array_int64", disp, N, i64a);
     disp += sizeof(int64_t) * N;
 
-    jsonio::put_attribute(writer, "scalar_float32", disp, f32s);
+    nixio::put_attribute(writer, "scalar_float32", disp, f32s);
     disp += sizeof(float32);
 
-    jsonio::put_attribute(writer, "scalar_float64", disp, f64s);
+    nixio::put_attribute(writer, "scalar_float64", disp, f64s);
     disp += sizeof(float64);
 
-    jsonio::put_attribute(writer, "array_float32", disp, N, f32a);
+    nixio::put_attribute(writer, "array_float32", disp, N, f32a);
     disp += sizeof(float32) * N;
 
-    jsonio::put_attribute(writer, "array_float64", disp, N, f64a);
+    nixio::put_attribute(writer, "array_float64", disp, N, f64a);
     disp += sizeof(float64) * N;
 
     diff = json::diff(writer, json_to_check);
@@ -201,42 +201,42 @@ TEST_CASE("Attribute")
     float64 in_f64a[N];
 
     disp1 = 0;
-    jsonio::get_attribute(reader, "scalar_int32", disp2, in_i32s);
+    nixio::get_attribute(reader, "scalar_int32", disp2, in_i32s);
     REQUIRE(disp1 == disp2);
     REQUIRE(i32s == in_i32s);
     disp1 += sizeof(int32_t);
 
-    jsonio::get_attribute(reader, "scalar_int64", disp2, in_i64s);
+    nixio::get_attribute(reader, "scalar_int64", disp2, in_i64s);
     REQUIRE(disp1 == disp2);
     REQUIRE(i64s == in_i64s);
     disp1 += sizeof(int64_t);
 
-    jsonio::get_attribute(reader, "array_int32", disp2, N, in_i32a);
+    nixio::get_attribute(reader, "array_int32", disp2, N, in_i32a);
     REQUIRE(disp1 == disp2);
     REQUIRE(is_array_equal(N, i32a, in_i32a));
     disp1 += sizeof(int32_t) * N;
 
-    jsonio::get_attribute(reader, "array_int64", disp2, N, in_i64a);
+    nixio::get_attribute(reader, "array_int64", disp2, N, in_i64a);
     REQUIRE(disp1 == disp2);
     REQUIRE(is_array_equal(N, i64a, in_i64a));
     disp1 += sizeof(int64_t) * N;
 
-    jsonio::get_attribute(reader, "scalar_float32", disp2, in_f32s);
+    nixio::get_attribute(reader, "scalar_float32", disp2, in_f32s);
     REQUIRE(disp1 == disp2);
     REQUIRE(f32s == in_f32s);
     disp1 += sizeof(float32);
 
-    jsonio::get_attribute(reader, "scalar_float64", disp2, in_f64s);
+    nixio::get_attribute(reader, "scalar_float64", disp2, in_f64s);
     REQUIRE(disp1 == disp2);
     REQUIRE(f64s == in_f64s);
     disp1 += sizeof(float64);
 
-    jsonio::get_attribute(reader, "array_float32", disp2, N, in_f32a);
+    nixio::get_attribute(reader, "array_float32", disp2, N, in_f32a);
     REQUIRE(disp1 == disp2);
     REQUIRE(is_array_equal(N, f32a, in_f32a));
     disp1 += sizeof(float32) * N;
 
-    jsonio::get_attribute(reader, "array_float64", disp2, N, in_f64a);
+    nixio::get_attribute(reader, "array_float64", disp2, N, in_f64a);
     REQUIRE(disp1 == disp2);
     REQUIRE(is_array_equal(N, f64a, in_f64a));
     disp1 += sizeof(float64) * N;

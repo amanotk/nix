@@ -5,7 +5,6 @@
 #include "balancer.hpp"
 #include "buffer.hpp"
 #include "cmdline.hpp"
-#include "jsonio.hpp"
 #include "logger.hpp"
 #include "mpistream.hpp"
 #include "nix.hpp"

@@ -2,7 +2,6 @@
 #ifndef _CHUNKMAP_HPP_
 #define _CHUNKMAP_HPP_
 
-#include "jsonio.hpp"
 #include "nix.hpp"
 #include "sfc.hpp"
 #include "xtensorall.hpp"

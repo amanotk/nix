@@ -6,9 +6,9 @@
 #include <nlohmann/json.hpp>
 
 ///
-/// @brief JSON and MPI-IO utility module
+/// @brief NIX-IO utility module
 ///
-namespace jsonio
+namespace nixio
 {
 using json    = nlohmann::ordered_json;
 using float32 = float;
@@ -341,7 +341,7 @@ void put_attribute(json& obj, string name, const size_t disp, const int32_t leng
 void put_attribute(json& obj, string name, const size_t disp, const int32_t length,
                    const float64* data);
 
-} // namespace jsonio
+} // namespace nixio
 
 // Local Variables:
 // c-file-style   : "gnu"

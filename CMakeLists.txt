@@ -6,7 +6,7 @@ include(common.cmake OPTIONAL)
 project(nix CXX)
 
 # build static library
-add_library(nix STATIC balancer.cpp jsonio.cpp sfc.cpp)
+add_library(nix STATIC balancer.cpp nixio.cpp sfc.cpp)
 
 # include directory
 target_include_directories(nix PUBLIC ${PROJECT_SOURCE_DIR})

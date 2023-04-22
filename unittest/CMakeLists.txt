@@ -20,7 +20,7 @@ set(LIBRARY_DIRS
 set(SERIAL_EXECS
 	test_balancer
 	test_sfc
-	test_jsonio1
+	test_nixio
 	test_chunk
 	test_chunkmap
 	test_particle
@@ -44,7 +44,7 @@ endforeach()
 # parallel testing
 #
 set(PARALLEL_EXECS
-	test_jsonio2
+	test_nixio_parallel
 	)
 
 add_library(obj_parallel OBJECT test_parallel.cpp)
@@ -61,5 +61,5 @@ foreach(target IN ITEMS ${PARALLEL_EXECS})
 endforeach()
 
 add_test(NAME test_jsonio2
-	COMMAND mpiexec -n 8 ./test_jsonio2 -X 2 -Y 2 -Z 2
+	COMMAND mpiexec -n 8 ./test_nixio_parallel -X 2 -Y 2 -Z 2
 	)

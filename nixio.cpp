@@ -1,9 +1,9 @@
 // -*- C++ -*-
 
-#include "jsonio.hpp"
+#include "nixio.hpp"
 #include "debug.hpp"
 
-namespace jsonio
+namespace nixio
 {
 template <typename T_int>
 T_int get_size(const int32_t ndim, const T_int shape[])
@@ -476,7 +476,7 @@ template void get_attribute(json& obj, string name, size_t& disp, int32_t length
 template void get_attribute(json& obj, string name, size_t& disp, int32_t length, float32* data);
 template void get_attribute(json& obj, string name, size_t& disp, int32_t length, float64* data);
 
-} // namespace jsonio
+} // namespace nixio
 
 // Local Variables:
 // c-file-style   : "gnu"
