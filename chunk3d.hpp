@@ -15,7 +15,7 @@ NIX_NAMESPACE_BEGIN
 /// @brief Base class for 3D Chunk
 /// @tparam Nb number of boundary margins
 ///
-template <int Nb, typename ParticlePtr>
+template <int Nb, typename Particle>
 class Chunk3D : public Chunk<3>
 {
 public:
@@ -23,6 +23,7 @@ public:
   using Comm        = xt::xtensor_fixed<MPI_Comm, xt::xshape<3, 3, 3>>;
   using Request     = xt::xtensor_fixed<MPI_Request, xt::xshape<3, 3, 3>>;
   using Datatype    = xt::xtensor_fixed<MPI_Datatype, xt::xshape<3, 3, 3>>;
+  using ParticlePtr = std::shared_ptr<Particle>;
   using ParticleVec = std::vector<ParticlePtr>;
 
   ///
