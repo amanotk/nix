@@ -302,6 +302,10 @@ protected:
   ///
   virtual void logging()
   {
+    // timestamp
+    json log = {{"unixtime", nix::wall_clock()}};
+    logger->append(curstep, "timestamp", log);
+
     logger->log(curstep);
   }
 
@@ -518,8 +522,10 @@ DEFINE_MEMBER(void, save_profile)()
     chunkmap->save_json(cmap_json);
 
     // content
-    json content = {
-        {"timestamp", timestamp_json}, {"configuration", cfg_json}, {"chunkmap", cmap_json}};
+    json content = {{"timestamp", timestamp_json},
+                    {"nprocess", nprocess},
+                    {"configuration", cfg_json},
+                    {"chunkmap", cmap_json}};
 
     // serialize and output
     std::vector<std::uint8_t> buffer = json::to_msgpack(content);
@@ -834,8 +840,6 @@ DEFINE_MEMBER(bool, rebalance)()
   DEBUG2 << "rebalance() end";
   float64 wclock2 = nix::wall_clock();
 
-  log["start"]   = wclock1;
-  log["end"]     = wclock2;
   log["elapsed"] = wclock2 - wclock1;
   logger->append(curstep, "rebalance", log);
 
