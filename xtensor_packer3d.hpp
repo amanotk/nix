@@ -13,22 +13,6 @@ NIX_NAMESPACE_BEGIN
 class XtensorPacker3D
 {
 public:
-  template <typename Array>
-  int pack_load(Array& load, uint8_t* buffer, int address)
-  {
-    int count = sizeof(float64) * load.size() + address;
-
-    if (buffer == nullptr) {
-      return count;
-    }
-
-    // packing
-    float64* ptr = reinterpret_cast<float64*>(buffer + address);
-    std::copy(load.begin(), load.end(), ptr);
-
-    return count;
-  }
-
   /// pack coordinate
   template <typename Array>
   int pack_coordinate(int& Lb, int& Ub, Array& x, uint8_t* buffer, int address)
