@@ -718,8 +718,9 @@ DEFINE_MEMBER(void, initialize_chunkmap)()
       rank++;
       chunkmap->set_rank(i, rank);
     } else {
+      json error = boundary;
       ERROR << tfm::format("Inconsistent boundary array detected");
-      ERROR << tfm::format("* boundary[%08d] = %08d", rank + 1, boundary[rank + 1]);
+      ERROR << error.dump(2);
       assert(false);
     }
   }

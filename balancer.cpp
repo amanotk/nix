@@ -22,28 +22,25 @@ DEFINE_MEMBER(void, assign)
   //
 
   if (init == true) {
-    doit_binary_search(load, boundary);
+    // try to find initial best assignment via binary search
+    bool status = doit_binary_search(load, boundary);
+
+    // if failed, use iterative method
+    if (status == false) {
+      // uniform load with the same size as load for initialization
+      std::vector<float64> load0(load.size(), 1.0);
+      doit_binary_search(load0, boundary);
+
+      // iteratively find best assignment
+      static constexpr int maxiter = 100;
+      for (int i = 0; i < maxiter; i++) {
+        if (doit_smilei(load, boundary) == false)
+          break;
+      }
+    }
   } else {
     doit_smilei(load, boundary);
   }
-}
-
-DEFINE_MEMBER(void, partition)
-(int Nr, std::vector<float64>& load, std::vector<int>& boundary)
-{
-  //
-  // The sizes of `load` and `rank` should be the same and correspond to the number of chunks. The
-  // size of boundary array should be larger than the number of rank by one.
-  //
-  // The chunk specified by `i_chunk` should be assigned to the rank specified by `i_rank` when the
-  // following condition is met:
-  //
-  //     boundary[i_rank] <= i_chunk < boundary[i_rank+1]
-  //
-  // Therefore, our task is to find an appropriate boundary array first and then use it to calculate
-  // `rank` array for output.
-  //
-  doit_smilei(load, boundary);
 }
 
 DEFINE_MEMBER(void, get_rank)(std::vector<int>& boundary, std::vector<int>& rank)
@@ -114,7 +111,7 @@ DEFINE_MEMBER(bool, validate_boundary)(int Nc, const std::vector<int>& boundary)
   status = status & (boundary[0] == 0);
 
   for (int i = 1; i < Nr; i++) {
-    status = status & (boundary[i + 1] >= boundary[i]);
+    status = status & (boundary[i + 1] > boundary[i]);
   }
 
   status = status & (boundary[Nr] == Nc);
@@ -122,7 +119,7 @@ DEFINE_MEMBER(bool, validate_boundary)(int Nc, const std::vector<int>& boundary)
   return status;
 }
 
-DEFINE_MEMBER(void, doit_smilei)(std::vector<float64>& load, std::vector<int>& boundary)
+DEFINE_MEMBER(bool, doit_smilei)(std::vector<float64>& load, std::vector<int>& boundary)
 {
   const int Nc = load.size();
   const int Nr = boundary.size() - 1;
@@ -182,16 +179,18 @@ DEFINE_MEMBER(void, doit_smilei)(std::vector<float64>& load, std::vector<int>& b
       }
     }
   }
+
+  // check if boundary is updated
+  return (std::equal(boundary.begin(), boundary.end(), old_boundary.begin()) == false);
 }
 
-DEFINE_MEMBER(void, doit_binary_search)(std::vector<float64>& load, std::vector<int>& boundary)
+DEFINE_MEMBER(bool, doit_binary_search)(std::vector<float64>& load, std::vector<int>& boundary)
 {
   const int Nc = load.size();
   const int Nr = boundary.size() - 1;
 
   float64              mean_load = 0;
   std::vector<float64> cumload(Nc + 1);
-  std::vector<int>     old_boundary(Nr + 1);
 
   // calculate cumulative load
   cumload[0] = 0;
@@ -208,6 +207,8 @@ DEFINE_MEMBER(void, doit_binary_search)(std::vector<float64>& load, std::vector<
     int  index  = std::distance(cumload.begin(), it);
     boundary[i] = index;
   }
+
+  return validate_boundary(Nc, boundary);
 }
 
 NIX_NAMESPACE_END

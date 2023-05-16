@@ -22,15 +22,6 @@ public:
   virtual void assign(std::vector<float64>& load, std::vector<int>& boundary, bool init = false);
 
   ///
-  /// @brief perform partition of chunks into ranks
-  ///
-  /// @param[in] Nr number of ranks
-  /// @param[in] load load for each chunk
-  /// @param[out] rank rank for each chunk (as a result of assignment)
-  ///
-  virtual void partition(int Nr, std::vector<float64>& load, std::vector<int>& rank);
-
-  ///
   /// @brief calculate rank from boundary
   ///
   /// @param[in] boundary boundary between ranks
@@ -91,16 +82,18 @@ protected:
   ///
   /// @param[in] load load of chunks
   /// @param[out] boundary boundary between ranks
+  /// @return true if the assignment is changed and false otherwise
   ///
-  void doit_smilei(std::vector<float64>& load, std::vector<int>& boundary);
+  bool doit_smilei(std::vector<float64>& load, std::vector<int>& boundary);
 
   ///
   /// @brief perform assignment of chunks via binary search for the best
   ///
   /// @param[in] load load of chunks
   /// @param[out] boundary boundary between ranks
+  /// @return true if the assignment is successful and false otherwise
   ///
-  void doit_binary_search(std::vector<float64>& load, std::vector<int>& boundary);
+  bool doit_binary_search(std::vector<float64>& load, std::vector<int>& boundary);
 };
 
 ///
