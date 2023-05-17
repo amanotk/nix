@@ -48,6 +48,25 @@ public:
     }
 
     ///
+    /// @brief get size of buffer in bytes
+    /// @return size in bytes
+    ///
+    int64_t get_size_byte() const
+    {
+      int64_t size = 0;
+      size += sendbuf.size;
+      size += recvbuf.size;
+      size += bufsize.size() * sizeof(int);
+      size += bufaddr.size() * sizeof(int);
+      size += comm.size() * sizeof(MPI_Comm);
+      size += sendreq.size() * sizeof(MPI_Request);
+      size += recvreq.size() * sizeof(MPI_Request);
+      size += sendtype.size() * sizeof(MPI_Datatype);
+      size += recvtype.size() * sizeof(MPI_Datatype);
+      return size;
+    }
+
+    ///
     /// @brief return send buffer for given direction
     /// @param iz z direction index
     /// @param iy y direction index
@@ -174,6 +193,12 @@ public:
   /// @param mode mode of boundary exchange
   ///
   virtual void set_boundary_end(int mode) override = 0;
+
+  ///
+  /// @brief return (approximate) size of Chunk in byte
+  /// @return size of Chunk in byte
+  ///
+  virtual int64_t get_size_byte() = 0;
 
   ///
   /// @brief pack the content of Chunk into given `buffer`

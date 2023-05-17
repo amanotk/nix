@@ -283,6 +283,9 @@ public:
   /// @brief Constructor
   ParticleContainer(int Np_total, int Ng);
 
+  /// @brief return size in byte
+  int64_t get_size_byte();
+
   /// @brief initial memory allocation
   void allocate(int Np_total, int Ng);
 

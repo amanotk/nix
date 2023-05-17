@@ -363,13 +363,6 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
     DEBUG1 << tfm::format("step[%s] push", format_step(curstep));
 
     //
-    // exit if elapsed time exceeds a limit
-    //
-    if (get_available_etime() < 0) {
-      break;
-    }
-
-    //
     // perform rebalance
     //
     rebalance();
@@ -385,6 +378,14 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
     // increment step and time
     //
     increment_time();
+
+    //
+    // exit if elapsed time exceeds the limit
+    //
+    if (get_available_etime() < 0) {
+      DEBUG1 << tfm::format("step[%s] run out of time", format_step(curstep));
+      break;
+    }
   }
 
   //

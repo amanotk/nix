@@ -45,6 +45,21 @@ public:
   }
 
   ///
+  /// @brief return size in byte
+  /// @return size in byte
+  ///
+  int64_t get_size_byte()
+  {
+    int64_t size = 0;
+    size += xu.size() * sizeof(float64);
+    size += xv.size() * sizeof(float64);
+    size += gindex.size() * sizeof(int32);
+    size += pindex.size() * sizeof(int32);
+    size += pcount.size() * sizeof(int32);
+    return size;
+  }
+
+  ///
   /// @brief initial memory allocation
   ///
   void allocate(int Np_total, int Ng)
