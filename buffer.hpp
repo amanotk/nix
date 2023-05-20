@@ -42,15 +42,14 @@ struct Buffer {
   {
     const int copysize = std::min(size, s);
 
-    if (s > size) {
-      // allocate new memory and copy contents
-      Pointer p = std::make_unique<uint8_t[]>(s);
-      std::memcpy(p.get(), data.get(), copysize);
+    // allocate new memory and copy contents
+    Pointer p = std::make_unique<uint8_t[]>(s);
+    std::memcpy(p.get(), data.get(), copysize);
 
-      // move
-      data = std::move(p);
-      size = s;
-    }
+    // move
+    data.reset(nullptr);
+    data = std::move(p);
+    size = s;
   }
 };
 
