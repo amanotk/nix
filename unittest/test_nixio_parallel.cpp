@@ -13,7 +13,7 @@ using nixio::float64;
 // MPI option from command line
 extern int options_mpi_decomposition[];
 
-static const char          filename[] = "test_nixio2_data.dat";
+static const char          filename[] = "test_nixio_parallel_data.dat";
 static const size_t        Nx         = 4;
 static const size_t        Ny         = 4;
 static const size_t        Nz         = 4;
@@ -264,11 +264,14 @@ TEST_CASE("ReadContiguous")
     nixio::open_file(filename, &fh, &disp, "r");
 
     nixio::read_contiguous(&fh, &disp, &in_i32a[p], s, sizeof(int32_t), 1, &req[0]);
+    MPI_Wait(&req[0], MPI_STATUS_IGNORE);
     nixio::read_contiguous(&fh, &disp, &in_i64a[p], s, sizeof(int64_t), 1, &req[1]);
+    MPI_Wait(&req[1], MPI_STATUS_IGNORE);
     nixio::read_contiguous(&fh, &disp, &in_f32a[p], s, sizeof(float32), 1, &req[2]);
+    MPI_Wait(&req[2], MPI_STATUS_IGNORE);
     nixio::read_contiguous(&fh, &disp, &in_f64a[p], s, sizeof(float64), 1, &req[3]);
+    MPI_Wait(&req[3], MPI_STATUS_IGNORE);
 
-    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     nixio::close_file(&fh);
 
     REQUIRE(is_array_equal(s, &i32a[p], &in_i32a[p]));
@@ -314,11 +317,14 @@ TEST_CASE("WriteContiguous")
     nixio::open_file(filename, &fh, &disp, "w");
 
     nixio::write_contiguous(&fh, &disp, &i32a[p], s, sizeof(int32_t), 1, &req[0]);
+    MPI_Wait(&req[0], MPI_STATUS_IGNORE);
     nixio::write_contiguous(&fh, &disp, &i64a[p], s, sizeof(int64_t), 1, &req[1]);
+    MPI_Wait(&req[1], MPI_STATUS_IGNORE);
     nixio::write_contiguous(&fh, &disp, &f32a[p], s, sizeof(float32), 1, &req[2]);
+    MPI_Wait(&req[2], MPI_STATUS_IGNORE);
     nixio::write_contiguous(&fh, &disp, &f64a[p], s, sizeof(float64), 1, &req[3]);
+    MPI_Wait(&req[3], MPI_STATUS_IGNORE);
 
-    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     nixio::close_file(&fh);
   }
 
@@ -555,11 +561,14 @@ TEST_CASE("ReadSubarray")
     nixio::open_file(filename, &fh, &disp, "r");
 
     nixio::read_subarray(&fh, &disp, in_i32a.data(), nd, gs, ls, os, sizeof(int32_t), &req[0]);
+    MPI_Wait(&req[0], MPI_STATUS_IGNORE);
     nixio::read_subarray(&fh, &disp, in_i64a.data(), nd, gs, ls, os, sizeof(int64_t), &req[1]);
+    MPI_Wait(&req[1], MPI_STATUS_IGNORE);
     nixio::read_subarray(&fh, &disp, in_f32a.data(), nd, gs, ls, os, sizeof(float32), &req[2]);
+    MPI_Wait(&req[2], MPI_STATUS_IGNORE);
     nixio::read_subarray(&fh, &disp, in_f64a.data(), nd, gs, ls, os, sizeof(float64), &req[3]);
+    MPI_Wait(&req[3], MPI_STATUS_IGNORE);
 
-    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     nixio::close_file(&fh);
 
     xt::xarray<int32_t> local_i32a(lshape);
@@ -635,11 +644,14 @@ TEST_CASE("WriteSubarray")
     nixio::open_file(filename, &fh, &disp, "w");
 
     nixio::write_subarray(&fh, &disp, local_i32a.data(), nd, gs, ls, os, sizeof(int32_t), &req[0]);
+    MPI_Wait(&req[0], MPI_STATUS_IGNORE);
     nixio::write_subarray(&fh, &disp, local_i64a.data(), nd, gs, ls, os, sizeof(int64_t), &req[1]);
+    MPI_Wait(&req[1], MPI_STATUS_IGNORE);
     nixio::write_subarray(&fh, &disp, local_f32a.data(), nd, gs, ls, os, sizeof(float32), &req[2]);
+    MPI_Wait(&req[2], MPI_STATUS_IGNORE);
     nixio::write_subarray(&fh, &disp, local_f64a.data(), nd, gs, ls, os, sizeof(float64), &req[3]);
+    MPI_Wait(&req[3], MPI_STATUS_IGNORE);
 
-    MPI_Waitall(4, req, MPI_STATUSES_IGNORE);
     nixio::close_file(&fh);
   }
 

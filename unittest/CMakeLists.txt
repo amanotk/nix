@@ -60,6 +60,6 @@ foreach(target IN ITEMS ${PARALLEL_EXECS})
 	target_link_libraries(${target} nix)
 endforeach()
 
-add_test(NAME test_jsonio2
+add_test(NAME test_nixio_parallel
 	COMMAND mpiexec -n 8 ./test_nixio_parallel -X 2 -Y 2 -Z 2
 	)
