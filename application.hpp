@@ -567,7 +567,7 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
   MPI_Bcast(&wclock, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   // redirect stdout/stderr
-  mpistream::initialize(argv[0][0]);
+  MpiStream::initialize(nullptr, thisrank, nprocess, 1024);
 }
 
 DEFINE_MEMBER(void, initialize_debugprinting)(int level)
@@ -579,7 +579,7 @@ DEFINE_MEMBER(void, initialize_debugprinting)(int level)
 DEFINE_MEMBER(void, finalize_mpi)(int cleanup)
 {
   // release stdout/stderr
-  mpistream::finalize(cleanup);
+  MpiStream::finalize(cleanup);
 
   MPI_Finalize();
 }
