@@ -407,8 +407,8 @@ public:
     if (buf.length()>0)
       args.push_back(buf);
 
-    for (size_t i=0; i<args.size(); i++)
-      std::cout<<"\""<<args[i]<<"\""<<std::endl;
+    //for (size_t i=0; i<args.size(); i++)
+    //  std::cout<<"\""<<args[i]<<"\""<<std::endl;
 
     return parse(args);
   }

@@ -26,6 +26,7 @@ set(SERIAL_EXECS
 	test_chunkvec
 	test_xtensor_particle
 	test_mpistream
+	test_argparser
 	)
 
 add_library(obj_serial OBJECT test_serial.cpp)
