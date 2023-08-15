@@ -27,6 +27,7 @@ set(SERIAL_EXECS
 	test_xtensor_particle
 	test_mpistream
 	test_argparser
+	test_cfgparser
 	)
 
 add_library(obj_serial OBJECT test_serial.cpp)
