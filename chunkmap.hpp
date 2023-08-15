@@ -10,25 +10,25 @@ NIX_NAMESPACE_BEGIN
 
 ///
 /// @brief ChunkMap class
-/// @tparam Ndim number of dimensions
 ///
 /// The chunk ID is defined with row-major ordering of chunks in cartesian
 /// coordinate. Mapping between chunk ID and cartesian coordinate may be
 /// calculated via get_chunk() and get_coordinate() methods.
 ///
-template <int Ndim>
+template <int Dimension>
 class ChunkMap
 {
 protected:
   using IntArray1D = xt::xtensor<int, 1>;
   using IntArray2D = xt::xtensor<int, 2>;
-  using IntArrayND = xt::xtensor<int, Ndim>;
+  using IntArrayND = xt::xtensor<int, Dimension>;
 
-  int        size;    ///< number of total chunks
-  int        dims[3]; ///< chunk dimension
-  IntArray1D rank;    ///< chunk ID to MPI rank map
-  IntArray2D coord;   ///< chunk ID to coordinate map
-  IntArrayND chunkid; ///< coordinate to chunk ID map
+  int        size;           ///< number of total chunks
+  int        dims[3];        ///< chunk dimension
+  int        periodicity[3]; ///< periodicity in each direction
+  IntArray1D rank;           ///< chunk ID to MPI rank map
+  IntArray2D coord;          ///< chunk ID to coordinate map
+  IntArrayND chunkid;        ///< coordinate to chunk ID map
 
 public:
   ///
@@ -56,7 +56,7 @@ public:
   /// @brief constructor
   /// @param dims number of chunk in each direction
   ///
-  ChunkMap(const int dims[Ndim]);
+  ChunkMap(const int dims[Dimension]);
 
   ///
   /// @brief check the validity of map
@@ -75,6 +75,40 @@ public:
   /// @param obj json object from which map information will be loaded
   ///
   virtual void load_json(json& obj);
+
+  ///
+  /// @brief set periodicity in each direction
+  /// @param pz periodicity in z direction
+  /// @param py periodicity in y direction
+  /// @param px periodicity in x direction
+  ///
+  virtual void set_periodicity(int pz, int py, int px)
+  {
+    periodicity[0] = pz;
+    periodicity[1] = py;
+    periodicity[2] = px;
+  }
+
+  ///
+  /// @brief return neighbor coordinate for a specific direction `dir`
+  /// @param coord index of coordinate
+  /// @param delta difference of index of coordinate from `coord`
+  /// @param dir direction of coordinate
+  /// @return `coord + delta` if not at boundary, otherwise boundary condition dependent
+  ///
+  virtual int get_neighbor_coord(int coord, int delta, int dir)
+  {
+    int cdir = coord + delta;
+
+    if (periodicity[dir] == 1) {
+      cdir = cdir >= 0 ? cdir : dims[dir] - 1;
+      cdir = cdir < dims[dir] ? cdir : 0;
+    } else {
+      cdir = (cdir >= 0 && cdir < dims[dir]) ? cdir : MPI_PROC_NULL;
+    }
+
+    return cdir;
+  }
 
   ///
   /// @brief set process rank for given chunk ID
@@ -163,7 +197,7 @@ public:
   template <>                                                                                      \
   inline type ChunkMap<3>::name
 
-DEFINE_MEMBER1(, ChunkMap)(int Cx)
+DEFINE_MEMBER1(, ChunkMap)(int Cx) : periodicity{1, 1, 1}
 {
   size    = Cx;
   dims[0] = Cx;
@@ -189,7 +223,7 @@ DEFINE_MEMBER1(, ChunkMap)(int Cx)
   sfc::get_map1d(Cx, chunkid, coord);
 }
 
-DEFINE_MEMBER2(, ChunkMap)(int Cy, int Cx)
+DEFINE_MEMBER2(, ChunkMap)(int Cy, int Cx) : periodicity{1, 1, 1}
 {
   size    = Cy * Cx;
   dims[0] = Cy;
@@ -215,7 +249,7 @@ DEFINE_MEMBER2(, ChunkMap)(int Cy, int Cx)
   sfc::get_map2d(Cy, Cx, chunkid, coord);
 }
 
-DEFINE_MEMBER3(, ChunkMap)(int Cz, int Cy, int Cx)
+DEFINE_MEMBER3(, ChunkMap)(int Cz, int Cy, int Cx) : periodicity{1, 1, 1}
 {
   size    = Cz * Cy * Cx;
   dims[0] = Cz;

@@ -23,6 +23,7 @@ set(SERIAL_EXECS
 	test_nixio
 	test_chunk
 	test_chunkmap
+	test_chunkvec
 	test_xtensor_particle
 	)
 
