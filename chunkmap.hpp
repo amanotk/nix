@@ -121,6 +121,26 @@ public:
   }
 
   ///
+  /// @brief set rank based on given boundary
+  /// @param boundary boundary of rank
+  ///
+  virtual void set_rank(std::vector<int>& boundary)
+  {
+    for (int i = 0, rank = 0; i < size; i++) {
+      if (i < boundary[rank + 1]) {
+        this->set_rank(i, rank);
+      } else if (i == boundary[rank + 1]) {
+        rank++;
+        this->set_rank(i, rank);
+      } else {
+        ERROR << tfm::format("Inconsistent boundary array detected");
+        ERROR << tfm::format("* boundary[%08d] = %08d", rank + 1, boundary[rank + 1]);
+        assert(false);
+      }
+    }
+  }
+
+  ///
   /// @brief get process rank associated with chunk ID
   /// @param id chunk ID
   /// @return rank
@@ -132,6 +152,29 @@ public:
     } else {
       return MPI_PROC_NULL;
     }
+  }
+
+  ///
+  /// @brief get process rank boundary
+  /// @return boundary array
+  ///
+  std::vector<int> get_rank_boundary()
+  {
+    const int nprocess = rank[size - 1] + 1;
+
+    std::vector<int> boundary(nprocess + 1);
+
+    for (int i = 0, rank = 0; i < size; i++) {
+      if (rank == this->get_rank(i))
+        continue;
+      // found a boundary
+      boundary[rank + 1] = i;
+      rank++;
+    }
+    boundary[0]        = 0;
+    boundary[nprocess] = size;
+
+    return boundary;
   }
 
   ///

@@ -61,6 +61,28 @@ public:
 
     REQUIRE(nb_coord == coord + delta);
   }
+
+  void test_set_rank_from_boundary(std::vector<int>& boundary)
+  {
+    this->set_rank(boundary);
+
+    for (int i = 0; i < this->size; i++) {
+      int rank = this->get_rank(i);
+      REQUIRE(boundary[rank] <= i);
+      REQUIRE(boundary[rank + 1] > i);
+    }
+  }
+
+  void test_get_rank_boundary()
+  {
+    std::vector<int> boundary = this->get_rank_boundary();
+
+    for (int i = 0; i < this->size; i++) {
+      int rank = this->get_rank(i);
+      REQUIRE(boundary[rank] <= i);
+      REQUIRE(boundary[rank + 1] > i);
+    }
+  }
 };
 
 TEST_CASE("Initialization")
@@ -144,6 +166,84 @@ TEST_CASE("Periodicity")
 
     chunkmap.set_periodicity(1, 1, 0);
     chunkmap.test_periodicity(1, 1, 0);
+  }
+}
+
+TEST_CASE("set_rank from boundary array")
+{
+  SECTION("1D")
+  {
+    int Cx = 16;
+    int Nc = Cx;
+
+    std::vector<int> boundary{0, 4, 9, 14, Nc};
+    ChunkMapTest<1>  chunkmap(Cx);
+
+    chunkmap.test_set_rank_from_boundary(boundary);
+  }
+
+  SECTION("2D")
+  {
+    int Cx = 8;
+    int Cy = 2;
+    int Nc = Cy * Cx;
+
+    std::vector<int> boundary{0, 4, 9, 14, Nc};
+    ChunkMapTest<2>  chunkmap(Cy, Cx);
+
+    chunkmap.test_set_rank_from_boundary(boundary);
+  }
+
+  SECTION("3D")
+  {
+    int Cx = 4;
+    int Cy = 2;
+    int Cz = 2;
+    int Nc = Cz * Cy * Cx;
+
+    std::vector<int> boundary{0, 4, 9, 14, Nc};
+    ChunkMapTest<3>  chunkmap(Cz, Cy, Cx);
+
+    chunkmap.test_set_rank_from_boundary(boundary);
+  }
+}
+
+
+TEST_CASE("get_rank_boundary")
+{
+  std::vector<int> rank{0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3};
+
+  SECTION("1D")
+  {
+    ChunkMapTest<1>  chunkmap(rank.size());
+
+    for(int i=0; i < rank.size() ;i++) {
+      chunkmap.set_rank(i, rank[i]);
+    }
+
+    chunkmap.test_get_rank_boundary();
+  }
+
+  SECTION("2D")
+  {
+    ChunkMapTest<2>  chunkmap(1, rank.size());
+
+    for(int i=0; i < rank.size() ;i++) {
+      chunkmap.set_rank(i, rank[i]);
+    }
+
+    chunkmap.test_get_rank_boundary();
+  }
+
+  SECTION("3D")
+  {
+    ChunkMapTest<3>  chunkmap(1, 1, rank.size());
+
+    for(int i=0; i < rank.size() ;i++) {
+      chunkmap.set_rank(i, rank[i]);
+    }
+
+    chunkmap.test_get_rank_boundary();
   }
 }
 
