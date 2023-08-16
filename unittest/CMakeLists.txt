@@ -28,6 +28,7 @@ set(SERIAL_EXECS
 	test_mpistream
 	test_argparser
 	test_cfgparser
+	test_application
 	)
 
 add_library(obj_serial OBJECT test_serial.cpp)

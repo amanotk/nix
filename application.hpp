@@ -2,9 +2,10 @@
 #ifndef _APPLICATION_HPP_
 #define _APPLICATION_HPP_
 
+#include "argparser.hpp"
 #include "balancer.hpp"
 #include "buffer.hpp"
-#include "cmdline.hpp"
+#include "cfgparser.hpp"
 #include "logger.hpp"
 #include "mpistream.hpp"
 #include "nix.hpp"
@@ -29,14 +30,14 @@ protected:
   using PtrLogger   = std::unique_ptr<Logger>;
   using FloatVec    = std::vector<float64>;
   using ChunkVec    = std::vector<PtrChunk>;
-  using cmdparser   = cmdline::parser;
 
-  int         debug;    ///< debug level
+  using PtrArgParser = std::unique_ptr<ArgParser>;
+  using PtrCfgParser = std::unique_ptr<CfgParser>;
+  PtrArgParser argparser;
+  PtrCfgParser cfgparser;
+
   int         cl_argc;  ///< command-line argc
   char**      cl_argv;  ///< command-line argv
-  std::string cfg_file; ///< configuration file name
-  json        cfg_json; ///< configuration json object
-  cmdparser   parser;   ///< command line parser
   float64     wclock;   ///< wall clock time at initialization
   PtrBalancer balancer; ///< load balancer
   int         numchunk; ///< number of chunkes in current process
@@ -44,10 +45,6 @@ protected:
   PtrChunkMap chunkmap; ///< global chunkmap
   PtrLogger   logger;   ///< logger
   FloatVec    workload; ///< global load array
-  float64     tmax;     ///< maximum physical time
-  float64     emax;     ///< maximum elapsed time
-  std::string loadfile; ///< snapshot to be loaded
-  std::string savefile; ///< snapshot to be saved
   int         ndims[4]; ///< global grid dimensions
   int         cdims[4]; ///< chunk dimensions
   int         curstep;  ///< current iteration step
@@ -115,6 +112,43 @@ public:
   virtual int main(std::ostream& out);
 
   ///
+  /// @brief factory to create argument parser
+  /// @return parser object
+  ///
+  virtual std::unique_ptr<ArgParser> create_argparser()
+  {
+    return std::make_unique<ArgParser>();
+  }
+
+  ///
+  /// @brief factory to create config parser
+  /// @return parser object
+  ///
+  virtual std::unique_ptr<CfgParser> create_cfgparser()
+  {
+    return std::make_unique<CfgParser>();
+  }
+
+  ///
+  /// @brief factory to create balancer
+  /// @return balancer object
+  ///
+  virtual std::unique_ptr<Balancer> create_balancer()
+  {
+    return std::make_unique<Balancer>();
+  }
+
+  ///
+  /// @brief factory to create logger
+  /// @return logger object
+  ///
+  virtual std::unique_ptr<Logger> create_logger()
+  {
+    auto log = cfgparser->get_application()["log"];
+    return std::make_unique<Logger>(log);
+  }
+
+  ///
   /// @brief factory to create chunk object
   /// @param dims local number of grids in each direction
   /// @param id chunk ID
@@ -127,21 +161,14 @@ public:
 
 protected:
   ///
-  /// @brief setup command-line options
+  /// @brief initialize dimensions
   ///
-  virtual void setup_cmd();
+  virtual void initialize_dimensions();
 
   ///
-  /// @brief parse command line options
-  /// @param argc number of arguments
-  /// @param argv array of arguments
+  /// @brief initialize domain
   ///
-  virtual void parse_cmd(int argc, char** argv);
-
-  ///
-  /// @brief parse configuration file
-  ///
-  virtual void parse_cfg();
+  virtual void initialize_domain();
 
   ///
   /// @brief save profile of run
@@ -204,9 +231,9 @@ protected:
   virtual void initialize_workload();
 
   ///
-  /// @brief initialize chunkmap object
+  /// @brief initialize chunks
   ///
-  virtual void initialize_chunkmap();
+  virtual void initialize_chunks();
 
   ///
   /// @brief performing load balancing
@@ -251,8 +278,6 @@ protected:
   ///
   virtual void setup()
   {
-    // load snapshot
-    this->load_snapshot();
   }
 
   ///
@@ -275,7 +300,7 @@ protected:
   ///
   virtual bool is_push_needed()
   {
-    if (curtime < tmax + delt) {
+    if (curtime < argparser->get_physical_time_max() + delt) {
       return true;
     }
     return false;
@@ -294,7 +319,7 @@ protected:
     }
     MPI_Bcast(&etime, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    return emax - etime;
+    return argparser->get_elapsed_time_max() - etime;
   }
 
   ///
@@ -393,101 +418,23 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
   //
   DEBUG1 << tfm::format("finalize");
   {
-    int cleanup = debug == 0 ? 0 : -1;
+    int cleanup = argparser->get_debug_level() == 0 ? 0 : -1;
     finalize(cleanup);
   }
 
   return 0;
 }
 
-DEFINE_MEMBER(void, setup_cmd)()
+DEFINE_MEMBER(void, initialize_dimensions)()
 {
-  const float64     etmax = 60 * 60;
-  const float64     ptmax = std::numeric_limits<float64>::max();
-  const std::string fn    = "default.json";
+  json parameter = cfgparser->get_parameter();
 
-  parser.add<std::string>("config", 'c', "configuration file", false, fn);
-  parser.add<std::string>("load", 'l', "load file for restart", false, "");
-  parser.add<std::string>("save", 's', "save file for restart", false, "");
-  parser.add<float64>("tmax", 't', "maximum physical time", false, ptmax);
-  parser.add<float64>("emax", 'e', "maximum elased time [sec]", false, etmax);
-  parser.add<int>("debug", 'd', "debug level", false, 0);
-}
-
-DEFINE_MEMBER(void, parse_cmd)(int argc, char** argv)
-{
-  // setup command-line parser
-  setup_cmd();
-
-  // parse
-  parser.parse_check(argc, argv);
-
-  cfg_file = parser.get<std::string>("config");
-  loadfile = parser.get<std::string>("load");
-  savefile = parser.get<std::string>("save");
-  tmax     = parser.get<float64>("tmax");
-  emax     = parser.get<float64>("emax");
-  debug    = parser.get<int>("debug");
-}
-
-DEFINE_MEMBER(void, parse_cfg)()
-{
-  // read configuration file
-  {
-    std::ifstream f(cfg_file.c_str());
-    cfg_json = json::parse(f, nullptr, true, true);
-  }
-
-  // check sections: application, diagnostic, parameter
-  {
-    bool status = true;
-
-    if (cfg_json["application"].is_null()) {
-      ERROR << tfm::format("Configuration file misses `application` section");
-      status = false;
-    }
-
-    if (cfg_json["diagnostic"].is_null()) {
-      ERROR << tfm::format("Configuration file misses `diagnostic` section");
-      status = false;
-    }
-
-    if (cfg_json["parameter"].is_null()) {
-      ERROR << tfm::format("Configuration file misses `parameter` section");
-      status = false;
-    }
-
-    if (status == false) {
-      finalize(-1);
-      exit(-1);
-    }
-  }
-
-  // time step and grid size
-  json    parameter = cfg_json["parameter"];
-  float64 delh      = parameter.value("delh", 1.0);
-
-  delt = parameter.value("delt", 1.0);
-  delx = delh;
-  dely = delh;
-  delz = delh;
-
-  // get dimensions
   int nx = parameter.value("Nx", 1);
   int ny = parameter.value("Ny", 1);
   int nz = parameter.value("Nz", 1);
   int cx = parameter.value("Cx", 1);
   int cy = parameter.value("Cy", 1);
   int cz = parameter.value("Cz", 1);
-
-  // check dimensions
-  if (!(nz % cz == 0 && ny % cy == 0 && nx % cx == 0)) {
-    ERROR << tfm::format("Number of grid must be divisible by number of chunk");
-    ERROR << tfm::format("Nx, Ny, Nz = [%4d, %4d, %4d]", nx, ny, nz);
-    ERROR << tfm::format("Cx, Cy, Cz = [%4d, %4d, %4d]", cx, cy, cz);
-    finalize(-1);
-    exit(-1);
-  }
 
   ndims[0] = nz;
   ndims[1] = ny;
@@ -497,16 +444,29 @@ DEFINE_MEMBER(void, parse_cfg)()
   cdims[1] = cy;
   cdims[2] = cx;
   cdims[3] = cdims[0] * cdims[1] * cdims[2];
+}
 
-  // set global domain size
+DEFINE_MEMBER(void, initialize_domain)()
+{
+  json parameter = cfgparser->get_parameter();
+
+  delt = parameter.value("delt", 1.0);
+  delx = parameter.value("delh", 1.0);
+  dely = parameter.value("delh", 1.0);
+  delz = parameter.value("delh", 1.0);
+
+  int nx = parameter.value("Nx", 1);
+  int ny = parameter.value("Ny", 1);
+  int nz = parameter.value("Nz", 1);
+
   xlim[0] = 0;
-  xlim[1] = delx * ndims[2];
+  xlim[1] = delx * nx;
   xlim[2] = xlim[1] - xlim[0];
   ylim[0] = 0;
-  ylim[1] = dely * ndims[1];
+  ylim[1] = dely * ny;
   ylim[2] = ylim[1] - ylim[0];
   zlim[0] = 0;
-  zlim[1] = delz * ndims[0];
+  zlim[1] = delz * nz;
   zlim[2] = zlim[1] - zlim[0];
 }
 
@@ -525,7 +485,7 @@ DEFINE_MEMBER(void, save_profile)()
     // content
     json content = {{"timestamp", timestamp_json},
                     {"nprocess", nprocess},
-                    {"configuration", cfg_json},
+                    {"configuration", cfgparser->get_root()},
                     {"chunkmap", cmap_json}};
 
     // serialize and output
@@ -630,20 +590,25 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 {
   initialize_mpi(&argc, &argv);
 
-  // parse command line arguments
-  parse_cmd(argc, argv);
+  // parse coommand line arguments
+  argparser = create_argparser();
+  argparser->parse(argc, argv);
 
   // parse configuration file
-  parse_cfg();
+  cfgparser = create_cfgparser();
+  cfgparser->parse_file(argparser->get_config());
 
-  // initialize current physical time and time step
-  curstep  = 0;
-  curtime  = 0.0;
-  balancer = std::make_unique<Balancer>();
-  logger   = std::make_unique<Logger>(cfg_json["application"]["log"]);
+  // logger and balancer
+  logger   = create_logger();
+  balancer = create_balancer();
 
-  initialize_debugprinting(debug);
-  initialize_chunkmap();
+  // misc initialization
+  curstep = 0;
+  curtime = 0.0;
+  initialize_dimensions();
+  initialize_domain();
+  initialize_debugprinting(argparser->get_debug_level());
+  initialize_chunks();
 }
 
 DEFINE_MEMBER(void, accumulate_workload)()
@@ -685,7 +650,7 @@ DEFINE_MEMBER(void, initialize_workload)()
   std::fill(workload.begin(), workload.end(), 1.0);
 }
 
-DEFINE_MEMBER(void, initialize_chunkmap)()
+DEFINE_MEMBER(void, initialize_chunks)()
 {
   const int Nc      = cdims[3];
   int       dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
@@ -751,7 +716,7 @@ DEFINE_MEMBER(bool, rebalance)()
   std::vector<int> newrank(Nc);
 
   bool status   = false;
-  json config   = cfg_json["application"]["rebalance"];
+  json config   = cfgparser->get_application()["rebalance"];
   json log      = {};
   int  interval = config.value("interval", 10);
   int  loglevel = config.value("loglevel", 1);

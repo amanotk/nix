@@ -37,7 +37,7 @@ TEST_CASE("Basic")
 
     parser.parse_check(args);
 
-    REQUIRE(parser.get_debug_flag() == 1);
+    REQUIRE(parser.get_debug_level() == 1);
   }
 
   SECTION("C-style command line arguments")

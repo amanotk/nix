@@ -1,85 +1,108 @@
 // -*- C++ -*-
 
-#include "../application.hpp"
-#include "../chunk.hpp"
-#include "../chunkmap.hpp"
+#include "application.hpp"
+#include "chunk.hpp"
+#include "chunkmap.hpp"
 
-#include "../thirdparty/catch.hpp"
-
-class TestChunk;
+#include "catch.hpp"
 
 using namespace nix;
-using BaseApp = Application<TestChunk, ChunkMap<3>>;
 
-class TestChunk : public Chunk<3>
+const std::string config_filename = "config.json";
+const std::string config_content  = R"(
+{
+	"application": {
+		"log": {
+			"prefix": "log",
+			"path": ".",
+			"interval": 100
+		},
+		"rebalance": {
+			"loglevel": 1,
+			"interval": 100
+		}
+	},
+	"diagnostic": [
+		{
+			"name": "foo",
+			"prefix": "foo",
+			"path": ".",
+			"interval": 100
+		},
+		{
+			"name": "bar",
+			"prefix": "bar",
+			"path": ".",
+			"interval": 100
+		}
+	],
+	"parameter": {
+		"Nx": 16,
+		"Ny": 16,
+		"Nz": 16,
+		"Cx": 2,
+		"Cy": 2,
+		"Cz": 2
+	}
+}
+)";
+
+class MockChunk : public Chunk<3>
 {
 public:
   using Chunk<3>::Chunk;
 
-  virtual float64 get_total_load() override
+  virtual bool set_boundary_query(int mode) override
   {
-    static std::random_device                      rd;
-    static std::mt19937                            mt(rd());
-    static std::uniform_real_distribution<float64> rand(0.75, +1.25);
+    return true;
+  }
 
-    for(int i=0; i < load.size() ;i++) {
-      load[i] = rand(mt);
-    }
+  virtual void set_boundary_begin(int mode) override
+  {
+  }
 
-    return Chunk<3>::get_total_load();
+  virtual void set_boundary_end(int mode) override
+  {
   }
 };
 
-// class for testing Application
-class TestApp : public BaseApp
+class MockChunkMap : public ChunkMap<3>
 {
 public:
-  TestApp()
+  using ChunkMap<3>::ChunkMap;
+};
+
+class TestApplication : public Application<MockChunk, MockChunkMap>
+{
+public:
+  TestApplication() : Application<MockChunk, MockChunkMap>()
   {
     mpi_init_with_nullptr = true;
+
+    std::ofstream ofs(config_filename);
+    ofs << config_content;
   }
 
-  virtual void diagnostic(std::ostream &out) override
+  ~TestApplication()
   {
-    // do nothing
+    std::filesystem::remove(config_filename);
   }
 
-  virtual bool rebuild_chunkmap() override
+  void test_main()
   {
-    bool status = BaseApp::rebuild_chunkmap();
+    std::vector<std::string> args = {"./a.out", "-c", "config.json", "--emax", "1"};
+    std::vector<const char*> argv = ArgParser::convert_to_clargs(args);
 
-    // check validity
-    REQUIRE(validate_chunkmap() == true);
+    cl_argc = argv.size();
+    cl_argv = const_cast<char**>(&argv[0]);
 
-    return status;
-  }
-
-  int run_main()
-  {
-    // command-line arguments
-    std::vector<std::string> args = {"TestApp", "-e", "1", "-c", "default.json"};
-
-    cl_argc = args.size();
-    cl_argv = new char *[args.size()];
-    for (int i = 0; i < args.size(); i++) {
-      cl_argv[i] = const_cast<char *>(args[i].c_str());
-    }
-
-    // main application loop
     REQUIRE(main(std::cout) == 0);
-
-    delete[] cl_argv;
-
-    return 0;
   }
 };
 
-//
-// test validity of rebuild_chunkmap()
-//
-TEST_CASE_METHOD(TestApp, "TestApp")
+TEST_CASE_METHOD(TestApplication, "test_main")
 {
-  run_main();
+  test_main();
 }
 
 // Local Variables:

@@ -54,7 +54,7 @@ public:
     return this->get<float64>("emax");
   }
 
-  int get_debug_flag() const
+  int get_debug_level() const
   {
     return this->get<int>("debug");
   }
