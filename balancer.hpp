@@ -12,7 +12,52 @@ NIX_NAMESPACE_BEGIN
 ///
 class Balancer
 {
+protected:
+  int                  nchunk;  ///< number of chunks
+  std::vector<float64> chunkload; ///< array of chunk load
+
 public:
+  // default constructor
+  Balancer() : Balancer(0)
+  {
+  }
+
+  // constructor with size
+  Balancer(int n) : nchunk(n), chunkload(n, 0.0)
+  {
+  }
+
+  // accessor to chunkload
+  double& load(int i)
+  {
+    return chunkload[i];
+  }
+
+  // const accessor to chunkload
+  const double& load(int i) const
+  {
+    return chunkload[i];
+  }
+
+  // fill chunkload with given value
+  void fill_load(float64 value)
+  {
+    std::fill(chunkload.begin(), chunkload.end(), value);
+  }
+
+  ///
+  /// @brief assignment for the first time (without given boundary)
+  /// @return array of boundary as a result of assignment
+  ///
+  virtual std::vector<int> assign_initial(int nprocess);
+
+  ///
+  /// @brief assignment with current assignment boundary
+  /// @param[in] boundary array of current boundary
+  /// @return array of boundary as a result of assignment
+  ///
+  virtual std::vector<int> assign(std::vector<int> &boundary);
+
   ///
   /// @brief perform chunk assignment to processes
   /// @param[in] load array for chunk load
@@ -54,6 +99,22 @@ public:
   /// @param[in] load load for each chunk
   ///
   void print_assignment(std::ostream& out, std::vector<int>& boundary, std::vector<float64>& load);
+
+  ///
+  /// @brief check if the boundary is in ascending order
+  ///
+  /// @param[in] boundary array of boundary
+  /// @return true if the boundary is in ascending order
+  ///
+  bool is_boundary_ascending(const std::vector<int>& boundary);
+
+  ///
+  /// @brief check if the boundary is optimum
+  ///
+  /// @param[in] boundary array of boundary
+  /// @return true if the boundary is optimum
+  ///
+  bool is_boundary_optimum(const std::vector<int>& boundary);
 
   ///
   /// @brief return if the boundary array gives appropriate assignment of chunks
@@ -174,7 +235,7 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
     }
 
     auto it    = std::find_if(data.chunkvec.begin(), data.chunkvec.end(),
-                           [&](auto& p) { return p->get_id() == chunkid; });
+                              [&](auto& p) { return p->get_id() == chunkid; });
     int  index = std::distance(data.chunkvec.begin(), it);
 
     while (newrank[chunkid] == rank) {

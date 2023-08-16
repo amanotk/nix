@@ -7,104 +7,102 @@
 
 using namespace nix;
 
-//
-// for assignment with binary search
-//
-TEST_CASE("AssignBinarySearch")
+TEST_CASE("access to chunkload")
 {
-  const int            Nr = 10;
-  const int            Nc = 20;
-  std::vector<float64> load(Nr * Nc);
-  std::vector<int>     boundary(Nr + 1);
+  Balancer balancer(10);
 
-  std::unique_ptr<Balancer> balancer = std::make_unique<Balancer>();
+  balancer.load(0) = 0.5;
+  REQUIRE(balancer.load(0) == 0.5);
 
-  SECTION("HomogeneousLoad")
+  balancer.load(1) = 1.5;
+  REQUIRE(balancer.load(1) == 1.5);
+
+  balancer.fill_load(-1.0);
+  REQUIRE(balancer.load(2) == -1.0);
+  REQUIRE(balancer.load(3) == -1.0);
+}
+
+TEST_CASE("assign_initial")
+{
+  const int nchunk_per_proc = 20;
+  const int nprocess        = 10;
+  const int nchunk          = nprocess * nchunk_per_proc;
+
+  Balancer balancer(nchunk);
+
+  SECTION("homogeneous load")
   {
-    // initialize
-    std::fill(load.begin(), load.end(), 1.0);
+    balancer.fill_load(1.0);
 
-    // test
-    balancer->assign(load, boundary, true);
+    auto boundary = balancer.assign_initial(nprocess);
 
-    // check
-    REQUIRE(balancer->validate_boundary(Nr * Nc, boundary) == true);
-    for (int i = 0; i < Nr; i++) {
-      REQUIRE(boundary[i] == i * Nc);
+    REQUIRE(balancer.is_boundary_ascending(boundary) == true);
+    REQUIRE(balancer.is_boundary_optimum(boundary) == true);
+
+    // also check deterministically
+    for (int i = 0; i < nprocess; i++) {
+      REQUIRE(boundary[i] == i * nchunk_per_proc);
     }
   }
 
-  SECTION("InhomogeneousLoad")
+  SECTION("inhomogeneous load")
   {
     std::random_device                      seed;
     std::mt19937                            engine(seed());
     std::uniform_real_distribution<float64> dist(0.5, 1.5);
 
-    std::vector<float64> cumload(Nr * Nc + 1);
-
-    // initialize
-    for (int i = 0; i < Nr * Nc; i++) {
-      load[i] = dist(engine);
+    for (int i = 0; i < nchunk; i++) {
+      balancer.load(i) = dist(engine);
     }
 
-    // calculate cumulative sum of load
-    cumload[0] = 0;
-    for (int i = 0; i < Nr * Nc; i++) {
-      cumload[i + 1] = cumload[i] + load[i];
-    }
+    auto boundary = balancer.assign_initial(nprocess);
 
-    // test
-    balancer->assign(load, boundary, true);
-
-    // check
-    REQUIRE(balancer->validate_boundary(Nr * Nc, boundary) == true);
-    for (int i = 1; i < Nr; i++) {
-      int     index1   = boundary[i] - 1;
-      int     index2   = boundary[i];
-      float64 bestload = i * cumload[Nr * Nc] / Nr;
-
-      REQUIRE((cumload[index1] <= i * bestload && cumload[index2] > i * cumload[Nr * Nc] / Nr));
-    }
+    REQUIRE(balancer.is_boundary_ascending(boundary) == true);
+    REQUIRE(balancer.is_boundary_optimum(boundary) == true);
   }
 }
 
-//
-// for assignment with default algorithm
-//
-TEST_CASE("Assign")
+TEST_CASE("assign")
 {
-  const int            Nr = 10;
-  const int            Nc = 20;
-  std::vector<float64> load(Nr * Nc);
-  std::vector<int>     boundary(Nr + 1);
-  std::vector<float64> cumload(Nr * Nc + 1);
+  const int nchunk_per_proc = 20;
+  const int nprocess        = 10;
+  const int nchunk          = nprocess * nchunk_per_proc;
 
-  std::random_device                      seed;
-  std::mt19937                            engine(seed());
-  std::uniform_real_distribution<float64> dist(0.5, 1.5);
+  Balancer balancer(nchunk);
 
-  std::unique_ptr<Balancer> balancer = std::make_unique<Balancer>();
-
-  // initialize
-  for (int i = 0; i < Nr * Nc; i++) {
-    load[i] = dist(engine);
+  std::vector<int> boundary(nprocess + 1);
+  for (int i = 0; i < nprocess + 1; i++) {
+    boundary[i] = i * nchunk_per_proc;
   }
 
-  for (int i = 0; i < Nr + 1; i++) {
-    boundary[i] = Nc * i;
+  SECTION("homogeneous load")
+  {
+    balancer.fill_load(1.0);
+
+    boundary = balancer.assign(boundary);
+
+    REQUIRE(balancer.is_boundary_ascending(boundary) == true);
+
+    // also check deterministically
+    for (int i = 0; i < nprocess; i++) {
+      REQUIRE(boundary[i] == i * nchunk_per_proc);
+    }
   }
 
-  // calculate cumulative sum
-  cumload[0] = 0;
-  for (int i = 0; i < Nr * Nc; i++) {
-    cumload[i + 1] = cumload[i] + load[i];
+  SECTION("inhomogeneous load")
+  {
+    std::random_device                      seed;
+    std::mt19937                            engine(seed());
+    std::uniform_real_distribution<float64> dist(0.5, 1.5);
+
+    for (int i = 0; i < nchunk; i++) {
+      balancer.load(i) = dist(engine);
+    }
+
+    boundary = balancer.assign(boundary);
+
+    REQUIRE(balancer.is_boundary_ascending(boundary) == true);
   }
-
-  // test
-  balancer->assign(load, boundary);
-
-  // check
-  REQUIRE(balancer->validate_boundary(Nr * Nc, boundary) == true);
 }
 
 // Local Variables:

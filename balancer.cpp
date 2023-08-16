@@ -5,6 +5,39 @@
 
 NIX_NAMESPACE_BEGIN
 
+DEFINE_MEMBER(std::vector<int>, assign_initial)
+(int nprocess)
+{
+  std::vector<int> boundary(nprocess + 1);
+
+  // try to find initial best assignment via binary search
+  bool status = doit_binary_search(chunkload, boundary);
+
+  // if failed, use iterative method
+  if (status == false) {
+    // uniform load with the same size as load for initialization
+    std::vector<float64> uniform_load(nchunk, 1.0);
+    doit_binary_search(uniform_load, boundary);
+
+    // iteratively find best assignment
+    static constexpr int maxiter = 100;
+    for (int i = 0; i < maxiter; i++) {
+      if (doit_smilei(chunkload, boundary) == false)
+        break;
+    }
+  }
+
+  return boundary;
+}
+
+DEFINE_MEMBER(std::vector<int>, assign)
+(std::vector<int>& boundary)
+{
+  doit_smilei(chunkload, boundary);
+
+  return boundary;
+}
+
 DEFINE_MEMBER(void, assign)
 (std::vector<float64>& load, std::vector<int>& boundary, bool init)
 {
@@ -102,6 +135,43 @@ DEFINE_MEMBER(void, print_assignment)
   }
 }
 
+DEFINE_MEMBER(bool, is_boundary_ascending)(const std::vector<int>& boundary)
+{
+  const int nprocess = boundary.size() - 1;
+
+  bool status = true;
+
+  status = status & (boundary[0] == 0);
+  status = status & (boundary[nprocess] == nchunk);
+
+  for (int i = 1; i < nprocess; i++) {
+    status = status & (boundary[i + 1] > boundary[i]);
+  }
+
+  return status;
+}
+
+DEFINE_MEMBER(bool, is_boundary_optimum)(const std::vector<int>& boundary)
+{
+  const int nprocess = boundary.size() - 1;
+
+  bool status = true;
+
+  std::vector<float64> cumulative_load(nchunk + 1, 0.0);
+  std::partial_sum(chunkload.begin(), chunkload.end(), cumulative_load.begin() + 1);
+
+  for (int i = 1; i < nprocess; i++) {
+    int     index1   = boundary[i];
+    int     index2   = boundary[i] + 1;
+    float64 bestload = i * cumulative_load[nchunk] / nprocess;
+
+    status = status & (cumulative_load[index1] <= bestload);
+    status = status & (cumulative_load[index2] > bestload);
+  }
+
+  return status;
+}
+
 DEFINE_MEMBER(bool, validate_boundary)(int Nc, const std::vector<int>& boundary)
 {
   const int Nr = boundary.size() - 1;
@@ -192,7 +262,7 @@ DEFINE_MEMBER(bool, doit_binary_search)(std::vector<float64>& load, std::vector<
   float64              mean_load = 0;
   std::vector<float64> cumload(Nc + 1);
 
-  // calculate cumulative load
+  // calculate cumulative sum
   cumload[0] = 0;
   for (int i = 0; i < Nc; i++) {
     cumload[i + 1] = cumload[i] + load[i];
@@ -203,8 +273,8 @@ DEFINE_MEMBER(bool, doit_binary_search)(std::vector<float64>& load, std::vector<
   boundary[Nr] = Nc;
 
   for (int i = 1; i < Nr; i++) {
-    auto it     = std::lower_bound(cumload.begin(), cumload.end(), mean_load * i);
-    int  index  = std::distance(cumload.begin(), it);
+    auto it     = std::upper_bound(cumload.begin(), cumload.end(), mean_load * i);
+    int  index  = std::distance(cumload.begin(), it) - 1;
     boundary[i] = index;
   }
 

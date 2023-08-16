@@ -74,6 +74,53 @@ public:
       }
     }
   }
+
+  template <typename ChunkMap>
+  bool validate(std::unique_ptr<ChunkMap>& chunkmap)
+  {
+    bool status = true;
+
+    // check local number of chunks
+    if (size() > MAX_CHUNK_PER_RANK) {
+      ERROR << tfm::format("Number of chunk per rank should not exceed %8d", MAX_CHUNK_PER_RANK);
+      status = status & false;
+    } else {
+      status = status & true;
+    }
+
+    // check neighbor rank and ID
+    for (int i = 0; i < size(); i++) {
+      int ix = 0;
+      int iy = 0;
+      int iz = 0;
+      int id = (*this)[i]->get_id();
+      chunkmap->get_coordinate(id, iz, iy, ix);
+
+      // check neighbor ID and rank
+      for (int dirz = -1; dirz <= +1; dirz++) {
+        for (int diry = -1; diry <= +1; diry++) {
+          for (int dirx = -1; dirx <= +1; dirx++) {
+            // neighbor coordinate
+            int cz = chunkmap->get_neighbor_coord(iz, dirz, 0);
+            int cy = chunkmap->get_neighbor_coord(iy, diry, 1);
+            int cx = chunkmap->get_neighbor_coord(ix, dirx, 2);
+
+            int nbid   = (*this)[i]->get_nb_id(dirz, diry, dirx);
+            int nbrank = (*this)[i]->get_nb_rank(dirz, diry, dirx);
+            int id     = chunkmap->get_chunkid(cz, cy, cx);
+            int rank   = chunkmap->get_rank(id);
+
+            status = status & (id == nbid);
+            status = status & (rank == nbrank);
+          }
+        }
+      }
+    }
+
+    MPI_Allreduce(MPI_IN_PLACE, &status, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
+
+    return status;
+  }
 };
 
 NIX_NAMESPACE_END
