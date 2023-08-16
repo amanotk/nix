@@ -121,10 +121,24 @@ public:
   }
 
   ///
-  /// @brief set rank based on given boundary
-  /// @param boundary boundary of rank
+  /// @brief get process rank associated with chunk ID
+  /// @param id chunk ID
+  /// @return rank
   ///
-  virtual void set_rank(std::vector<int>& boundary)
+  int get_rank(int id)
+  {
+    if (id >= 0 && id < size) {
+      return rank(id);
+    } else {
+      return MPI_PROC_NULL;
+    }
+  }
+
+  ///
+  /// @brief set process rank boundary
+  /// @param boundary array of rank boundary to set
+  ///
+  virtual void set_rank_boundary(std::vector<int>& boundary)
   {
     for (int i = 0, rank = 0; i < size; i++) {
       if (i < boundary[rank + 1]) {
@@ -141,22 +155,8 @@ public:
   }
 
   ///
-  /// @brief get process rank associated with chunk ID
-  /// @param id chunk ID
-  /// @return rank
-  ///
-  int get_rank(int id)
-  {
-    if (id >= 0 && id < size) {
-      return rank(id);
-    } else {
-      return MPI_PROC_NULL;
-    }
-  }
-
-  ///
   /// @brief get process rank boundary
-  /// @return boundary array
+  /// @return array of rank boundary
   ///
   std::vector<int> get_rank_boundary()
   {

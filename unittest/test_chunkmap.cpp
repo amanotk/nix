@@ -62,9 +62,9 @@ public:
     REQUIRE(nb_coord == coord + delta);
   }
 
-  void test_set_rank_from_boundary(std::vector<int>& boundary)
+  void test_set_rank_boundary(std::vector<int>& boundary)
   {
-    this->set_rank(boundary);
+    this->set_rank_boundary(boundary);
 
     for (int i = 0; i < this->size; i++) {
       int rank = this->get_rank(i);
@@ -179,7 +179,7 @@ TEST_CASE("set_rank from boundary array")
     std::vector<int> boundary{0, 4, 9, 14, Nc};
     ChunkMapTest<1>  chunkmap(Cx);
 
-    chunkmap.test_set_rank_from_boundary(boundary);
+    chunkmap.test_set_rank_boundary(boundary);
   }
 
   SECTION("2D")
@@ -191,7 +191,7 @@ TEST_CASE("set_rank from boundary array")
     std::vector<int> boundary{0, 4, 9, 14, Nc};
     ChunkMapTest<2>  chunkmap(Cy, Cx);
 
-    chunkmap.test_set_rank_from_boundary(boundary);
+    chunkmap.test_set_rank_boundary(boundary);
   }
 
   SECTION("3D")
@@ -204,7 +204,7 @@ TEST_CASE("set_rank from boundary array")
     std::vector<int> boundary{0, 4, 9, 14, Nc};
     ChunkMapTest<3>  chunkmap(Cz, Cy, Cx);
 
-    chunkmap.test_set_rank_from_boundary(boundary);
+    chunkmap.test_set_rank_boundary(boundary);
   }
 }
 
