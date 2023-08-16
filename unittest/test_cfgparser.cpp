@@ -17,28 +17,28 @@ TEST_CASE("check_mandatory_sections")
 
   SECTION("successful")
   {
-    json root = {{"application", {}}, {"diagnostic", {}}, {"parameter", {}}};
+    json root = {{"application", 0}, {"diagnostic", 0}, {"parameter", 0}};
 
     REQUIRE(parser.check_mandatory_sections(root) == true);
   }
 
   SECTION("application is missing")
   {
-    json root = {{"diagnostic", {}}, {"parameter", {}}};
+    json root = {{"diagnostic", 0}, {"parameter", 0}};
 
     REQUIRE(parser.check_mandatory_sections(root) == false);
   }
 
   SECTION("diagnostic is missing")
   {
-    json root = {{"application", {}}, {"parameter", {}}};
+    json root = {{"application", 0}, {"parameter", 0}};
 
     REQUIRE(parser.check_mandatory_sections(root) == false);
   }
 
   SECTION("parameter is missing")
   {
-    json root = {{"application", {}}, {"diagnostic", {}}};
+    json root = {{"application", 0}, {"diagnostic", 0}};
 
     REQUIRE(parser.check_mandatory_sections(root) == false);
   }
