@@ -25,6 +25,95 @@ public:
     this->last_flushed = last_flushed;
     REQUIRE(is_flush_required() == expected);
   }
+
+  void test_log()
+  {
+    config["path"]   = ".";
+    config["prefix"] = "test_logger";
+    config["interval"] = 10;
+    config["flush"] = 0.0;
+
+    // step is satisfied, but flush is not satisfied
+    std::filesystem::remove(get_filename());
+    last_flushed = wall_clock() + 10;
+    log(10);
+    REQUIRE(std::filesystem::is_regular_file(get_filename()) == true);
+
+    // step is not satisfied, but flush is satisfied
+    std::filesystem::remove(get_filename());
+    last_flushed = wall_clock() - 10;
+    log(1);
+    REQUIRE(std::filesystem::is_regular_file(get_filename()) == true);
+
+    // both step and flush are not satisfied
+    std::filesystem::remove(get_filename());
+    last_flushed = wall_clock() + 10;
+    log(1);
+    REQUIRE(std::filesystem::is_regular_file(get_filename()) == false);
+  }
+
+  void test_append()
+  {
+    json object = {{"foo", "bar"}};
+    json result = {};
+
+    initialize_content();
+
+    // initial record
+    append(0, "test1", object);
+    result = {{"rank", thisrank}, {"step", 0}, {"test1", object}};
+    REQUIRE(content.back() == result);
+
+    // append record
+    append(1, "test1", object);
+    result = {{"rank", thisrank}, {"step", 1}, {"test1", object}};
+    REQUIRE(content.back() == result);
+
+    // another record with the same step
+    append(1, "test2", object);
+    result = {{"rank", thisrank}, {"step", 1}, {"test1", object}, {"test2", object}};
+    REQUIRE(content.back() == result);
+
+    // append yet another record to the next step
+    append(2, "test3", object);
+    result = {{"rank", thisrank}, {"step", 2}, {"test3", object}};
+    REQUIRE(content.back() == result);
+  }
+
+  void test_flush()
+  {
+    json object = {{"foo", "bar"}};
+    json result = {};
+
+    initialize_content();
+
+    // added some record
+    append(0, "test1", object);
+    append(1, "test2", object);
+    append(2, "test3", object);
+    result = content;
+
+    config["path"]   = ".";
+    config["prefix"] = "test_logger";
+    std::filesystem::remove(get_filename());
+    flush();
+
+    // check the binary file content
+    {
+      std::ifstream                  ifs(get_filename(), std::ios::binary);
+      std::istream_iterator<uint8_t> begin(ifs);
+      std::istream_iterator<uint8_t> end;
+      std::vector<uint8_t>           restored_buffer(begin, end);
+
+      int restored_index = 0;
+      for (auto it = result.begin(); it != result.end(); ++it) {
+        std::vector<uint8_t> buffer = json::to_msgpack(*it);
+        for (int i = 0; i < buffer.size(); i++, restored_index++) {
+          REQUIRE(buffer[i] == restored_buffer[restored_index]);
+        }
+      }
+    }
+  }
 };
 
 TEST_CASE("test_config")
@@ -70,6 +159,27 @@ TEST_CASE("test_is_flush_required")
   {
     logger.test_is_flush_required(wall_clock() + 10, 100, false);
   }
+}
+
+TEST_CASE("test_log")
+{
+  TestLogger logger(0, {});
+
+  logger.test_log();
+}
+
+TEST_CASE("test_append")
+{
+  TestLogger logger(0, {});
+
+  logger.test_append();
+}
+
+TEST_CASE("test_flush")
+{
+  TestLogger logger(0, {}, true);
+
+  logger.test_flush();
 }
 
 // Local Variables:

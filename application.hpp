@@ -445,7 +445,7 @@ DEFINE_MEMBER(void, finalize)(int cleanup)
   this->save_snapshot();
 
   // save log
-  logger->save(curstep, true);
+  logger->flush();
 
   // MPI
   finalize_mpi(cleanup);

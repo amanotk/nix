@@ -31,7 +31,7 @@ protected:
   std::vector<json> content;      ///< log content
 
 public:
-  Logger(int rank, const json& object, bool append = false) : thisrank(rank)
+  Logger(int rank, const json& object, bool overwrite = true) : thisrank(rank)
   {
     initialize_content();
 
@@ -44,7 +44,7 @@ public:
       }
     }
 
-    if (append == false) {
+    if (overwrite == true) {
       std::filesystem::remove(get_filename());
     }
 
@@ -77,18 +77,14 @@ public:
 
   virtual void log(int curstep)
   {
-    int  interval      = get_interval();
-    bool is_final_step = (curstep + 1) % interval == 0;
+    bool is_interval_step = curstep % get_interval() == 0;
 
-    // save file
-    bool status = this->save(curstep, is_final_step);
-
-    // clear
-    if (status)
-      initialize_content();
+    if (is_interval_step || is_flush_required()) {
+      flush();
+    }
   }
 
-  virtual void append(int curstep, const char* name, json& obj)
+  virtual void append(int curstep, std::string name, json& obj)
   {
     json& last = content.back();
 
@@ -108,28 +104,20 @@ public:
     }
   }
 
-  virtual bool save(int curstep, bool force = false)
+  virtual void flush()
   {
-    std::string filename = get_filename();
-    int         interval = get_interval();
-    int         step     = interval * (curstep / interval);
-
-    bool status = (force == true) || is_flush_required();
-
-    if (thisrank == 0 && status) {
-      // output
-      std::ofstream ofs(filename, std::ios::binary | std::ios::app);
+    if (thisrank == 0) {
+      std::ofstream ofs(get_filename(), std::ios::binary | std::ios::app);
 
       for (auto it = content.begin(); it != content.end(); ++it) {
         std::vector<std::uint8_t> buffer = json::to_msgpack(*it);
         ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
       }
       ofs.close();
-
-      last_flushed = wall_clock();
     }
 
-    return status;
+    initialize_content();
+    last_flushed = wall_clock();
   }
 };
 
