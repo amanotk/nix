@@ -6,6 +6,7 @@
 #include "balancer.hpp"
 #include "buffer.hpp"
 #include "cfgparser.hpp"
+#include "chunkvector.hpp"
 #include "logger.hpp"
 #include "mpistream.hpp"
 #include "nix.hpp"
@@ -29,7 +30,7 @@ protected:
   using PtrChunkMap = std::unique_ptr<ChunkMap>;
   using PtrLogger   = std::unique_ptr<Logger>;
   using FloatVec    = std::vector<float64>;
-  using ChunkVec    = std::vector<PtrChunk>;
+  using ChunkVec    = ChunkVector<PtrChunk>;
 
   using PtrArgParser = std::unique_ptr<ArgParser>;
   using PtrCfgParser = std::unique_ptr<CfgParser>;
@@ -135,7 +136,12 @@ public:
   ///
   virtual std::unique_ptr<Balancer> create_balancer()
   {
-    return std::make_unique<Balancer>();
+    auto parameter = cfgparser->get_parameter();
+
+    int Cx = parameter.value("Cx", 1);
+    int Cy = parameter.value("Cy", 1);
+    int Cz = parameter.value("Cz", 1);
+    return std::make_unique<Balancer>(Cz * Cy * Cx);
   }
 
   ///
@@ -144,8 +150,23 @@ public:
   ///
   virtual std::unique_ptr<Logger> create_logger()
   {
-    auto log = cfgparser->get_application()["log"];
-    return std::make_unique<Logger>(log);
+    auto application = cfgparser->get_application();
+
+    return std::make_unique<Logger>(thisrank, application["log"]);
+  }
+
+  ///
+  /// @brief factory to create chunkmap
+  /// @return chunkmap object
+  ///
+  virtual std::unique_ptr<ChunkMap> create_chunkmap()
+  {
+    auto parameter = cfgparser->get_parameter();
+
+    int Cx = parameter.value("Cx", 1);
+    int Cy = parameter.value("Cy", 1);
+    int Cz = parameter.value("Cz", 1);
+    return std::make_unique<ChunkMap>(Cz, Cy, Cx);
   }
 
   ///
@@ -161,6 +182,26 @@ public:
 
 protected:
   ///
+  /// @brief initialize application
+  /// @param argc number of arguments
+  /// @param argv array of arguments
+  ///
+  virtual void initialize(int argc, char** argv);
+
+  ///
+  /// @brief initialize MPI
+  /// @param argc number of arguments
+  /// @param argv array of arguments
+  ///
+  void initialize_mpi(int* argc, char*** argv);
+
+  ///
+  /// @brief finalize MPI
+  /// @param cleanup return code
+  ///
+  void finalize_mpi(int cleanup);
+
+  ///
   /// @brief initialize dimensions
   ///
   virtual void initialize_dimensions();
@@ -171,49 +212,14 @@ protected:
   virtual void initialize_domain();
 
   ///
+  /// @brief initialize debug printing
+  ///
+  void initialize_debugprinting();
+
+  ///
   /// @brief save profile of run
   ///
   virtual void save_profile();
-
-  ///
-  /// @brief initialize MPI
-  /// @param argc number of arguments
-  /// @param argv array of arguments
-  ///
-  void initialize_mpi(int* argc, char*** argv);
-
-  ///
-  /// @brief initialize debug printing
-  /// @param level debug printing level
-  ///
-  void initialize_debugprinting(int level);
-
-  ///
-  /// @brief finalize MPI
-  /// @param cleanup return code
-  ///
-  void finalize_mpi(int cleanup);
-
-  ///
-  /// @brief return neighbor coordinate for a specific direction `dir`
-  /// @param coord index of coordinate
-  /// @param delta difference of index of coordinate from `coord`
-  /// @param dir direction of coordinate
-  /// @return `coord + delta` if not at boundary, otherwise boundary condition dependent
-  ///
-  int get_nb_coord(int coord, int delta, int dir);
-
-  ///
-  /// @brief set neighbors of chunks
-  ///
-  virtual void set_chunk_neighbors();
-
-  ///
-  /// @brief initialize application
-  /// @param argc number of arguments
-  /// @param argv array of arguments
-  ///
-  virtual void initialize(int argc, char** argv);
 
   ///
   /// @brief accumulate work load of local chunks
@@ -236,22 +242,16 @@ protected:
   virtual void initialize_chunks();
 
   ///
+  /// @brief check the validity of chunks
+  /// @return true if the chunks are appropriate
+  ///
+  virtual bool validate_chunks();
+
+  ///
   /// @brief performing load balancing
   /// @return return true if rebalancing is performed and false otherwise
   ///
   virtual bool rebalance();
-
-  ///
-  /// @brief check the validity of chunkmap object
-  /// @return true if the chunkmap is valid and false otherwise
-  ///
-  virtual bool validate_chunkmap();
-
-  ///
-  /// @brief check if the number of chunks per rank does not exceed MAX_CHUNK_PER_RANK
-  /// @return true if it is okay and false otherwise
-  ///
-  virtual bool validate_numchunk();
 
   ///
   /// @brief finalize application
@@ -323,9 +323,9 @@ protected:
   }
 
   ///
-  /// @brief logging
+  /// @brief take log
   ///
-  virtual void logging()
+  virtual void take_log()
   {
     // timestamp
     json log = {{"unixtime", nix::wall_clock()}};
@@ -394,9 +394,9 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
     DEBUG1 << tfm::format("step[%s] rebalance", format_step(curstep));
 
     //
-    // logging
+    // take log
     //
-    logging();
+    take_log();
     DEBUG1 << tfm::format("step[%s] logging", format_step(curstep));
 
     //
@@ -530,10 +530,10 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
   MpiStream::initialize(nullptr, thisrank, nprocess, 1024);
 }
 
-DEFINE_MEMBER(void, initialize_debugprinting)(int level)
+DEFINE_MEMBER(void, initialize_debugprinting)()
 {
   DebugPrinter::init();
-  DebugPrinter::set_level(level);
+  DebugPrinter::set_level(argparser->get_debug_level());
 }
 
 DEFINE_MEMBER(void, finalize_mpi)(int cleanup)
@@ -542,48 +542,6 @@ DEFINE_MEMBER(void, finalize_mpi)(int cleanup)
   MpiStream::finalize(cleanup);
 
   MPI_Finalize();
-}
-
-DEFINE_MEMBER(int, get_nb_coord)(int coord, int delta, int dir)
-{
-  int cdir = coord + delta;
-
-  if (periodic[dir] == 1) {
-    cdir = cdir >= 0 ? cdir : cdims[dir] - 1;
-    cdir = cdir < cdims[dir] ? cdir : 0;
-  } else {
-    cdir = (cdir >= 0 && cdir < cdims[dir]) ? cdir : MPI_PROC_NULL;
-  }
-
-  return cdir;
-}
-
-DEFINE_MEMBER(void, set_chunk_neighbors)()
-{
-  for (int i = 0; i < numchunk; i++) {
-    int ix, iy, iz;
-    int id = chunkvec[i]->get_id();
-    chunkmap->get_coordinate(id, iz, iy, ix);
-
-    for (int dirz = -1; dirz <= +1; dirz++) {
-      for (int diry = -1; diry <= +1; diry++) {
-        for (int dirx = -1; dirx <= +1; dirx++) {
-          // neighbor coordiante
-          int cz = get_nb_coord(iz, dirz, 0);
-          int cy = get_nb_coord(iy, diry, 1);
-          int cx = get_nb_coord(ix, dirx, 2);
-
-          // set neighbor id
-          int nbid = chunkmap->get_chunkid(cz, cy, cx);
-          chunkvec[i]->set_nb_id(dirz, diry, dirx, nbid);
-
-          // set neighbor rank
-          int nbrank = chunkmap->get_rank(nbid);
-          chunkvec[i]->set_nb_rank(dirz, diry, dirx, nbrank);
-        }
-      }
-    }
-  }
 }
 
 DEFINE_MEMBER(void, initialize)(int argc, char** argv)
@@ -598,16 +556,17 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   cfgparser = create_cfgparser();
   cfgparser->parse_file(argparser->get_config());
 
-  // logger and balancer
+  // object initialization
+  chunkmap = create_chunkmap();
   logger   = create_logger();
   balancer = create_balancer();
 
-  // misc initialization
+  // misc
   curstep = 0;
   curtime = 0.0;
   initialize_dimensions();
   initialize_domain();
-  initialize_debugprinting(argparser->get_debug_level());
+  initialize_debugprinting();
   initialize_chunks();
 }
 
@@ -666,9 +625,6 @@ DEFINE_MEMBER(void, initialize_chunks)()
     exit(-1);
   }
 
-  // create chunkmap
-  chunkmap = std::make_unique<ChunkMap>(cdims);
-
   // allocate workload and initialize
   workload.resize(Nc);
   initialize_workload();
@@ -676,20 +632,7 @@ DEFINE_MEMBER(void, initialize_chunks)()
   // initial assignment
   balancer->assign(workload, boundary, true);
 
-  // set rank in chunkmap using boundary
-  for (int i = 0, rank = 0; i < Nc; i++) {
-    if (i < boundary[rank + 1]) {
-      chunkmap->set_rank(i, rank);
-    } else if (i == boundary[rank + 1]) {
-      rank++;
-      chunkmap->set_rank(i, rank);
-    } else {
-      json error = boundary;
-      ERROR << tfm::format("Inconsistent boundary array detected");
-      ERROR << error.dump(2);
-      assert(false);
-    }
-  }
+  chunkmap->set_rank_boundary(boundary);
 
   // create local chunkvec
   numchunk = boundary[thisrank + 1] - boundary[thisrank];
@@ -699,14 +642,13 @@ DEFINE_MEMBER(void, initialize_chunks)()
   }
 
   // set neighbor
-  set_chunk_neighbors();
+  chunkvec.set_neighbors(chunkmap);
 
   // reset workload
   std::fill(workload.begin(), workload.end(), 0.0);
 
-  // check chunkmap
-  assert(validate_numchunk() == true);
-  assert(validate_chunkmap() == true);
+  // check chunks
+  assert(validate_chunks() == true);
 }
 
 DEFINE_MEMBER(bool, rebalance)()
@@ -728,16 +670,7 @@ DEFINE_MEMBER(bool, rebalance)()
   accumulate_workload();
 
   if (curstep == 0) {
-    // calculate boundary from rank in chunkamp
-    for (int i = 0, rank = 0; i < Nc; i++) {
-      if (rank == chunkmap->get_rank(i))
-        continue;
-      // found a boundary
-      boundary[rank + 1] = i;
-      rank++;
-    }
-    boundary[0]        = 0;
-    boundary[nprocess] = Nc;
+    boundary = chunkmap->get_rank_boundary();
 
     // log
     if (loglevel >= 1) {
@@ -751,16 +684,7 @@ DEFINE_MEMBER(bool, rebalance)()
     // calculate workload
     get_global_workload();
 
-    // calculate boundary from rank in chunkamp
-    for (int i = 0, rank = 0; i < Nc; i++) {
-      if (rank == chunkmap->get_rank(i))
-        continue;
-      // found a boundary
-      boundary[rank + 1] = i;
-      rank++;
-    }
-    boundary[0]        = 0;
-    boundary[nprocess] = Nc;
+    boundary = chunkmap->get_rank_boundary();
 
     //
     // rebalance
@@ -769,28 +693,13 @@ DEFINE_MEMBER(bool, rebalance)()
     balancer->get_rank(boundary, newrank);
     balancer->sendrecv_chunk(*this, get_internal_data(), newrank);
 
-    // reset rank in chunkmap using boundary
-    for (int i = 0, rank = 0; i < Nc; i++) {
-      if (i < boundary[rank + 1]) {
-        chunkmap->set_rank(i, rank);
-      } else if (i == boundary[rank + 1]) {
-        rank++;
-        chunkmap->set_rank(i, rank);
-      } else {
-        ERROR << tfm::format("Inconsistent boundary array detected");
-        ERROR << tfm::format("* boundary[%08d] = %08d", rank + 1, boundary[rank + 1]);
-        assert(false);
-      }
-    }
-
-    // reset neighbor
-    set_chunk_neighbors();
+    chunkmap->set_rank_boundary(boundary);
+    chunkvec.set_neighbors(chunkmap);
 
     // reset workload
     std::fill(workload.begin(), workload.end(), 0.0);
 
-    // check number of chunks
-    assert(validate_numchunk() == true);
+    assert(validate_chunks() == true);
 
     // log
     if (loglevel >= 1) {
@@ -813,46 +722,13 @@ DEFINE_MEMBER(bool, rebalance)()
   return status;
 }
 
-DEFINE_MEMBER(bool, validate_chunkmap)()
+DEFINE_MEMBER(bool, validate_chunks)()
 {
-  bool status = true;
-
-  // for each chunk
-  for (int i = 0; i < numchunk; i++) {
-    int ix, iy, iz;
-    chunkmap->get_coordinate(chunkvec[i]->get_id(), iz, iy, ix);
-
-    // check neighbor ID and rank
-    for (int dirz = -1; dirz <= +1; dirz++) {
-      for (int diry = -1; diry <= +1; diry++) {
-        for (int dirx = -1; dirx <= +1; dirx++) {
-          int cz     = get_nb_coord(iz, dirz, 0);
-          int cy     = get_nb_coord(iy, diry, 1);
-          int cx     = get_nb_coord(ix, dirx, 2);
-          int nbid   = chunkvec[i]->get_nb_id(dirz, diry, dirx);
-          int nbrank = chunkvec[i]->get_nb_rank(dirz, diry, dirx);
-          int id     = chunkmap->get_chunkid(cz, cy, cx);
-          int rank   = chunkmap->get_rank(id);
-
-          status = status & (id == nbid);
-          status = status & (rank == nbrank);
-        }
-      }
-    }
-  }
+  bool status = chunkvec.validate(chunkmap);
 
   MPI_Allreduce(MPI_IN_PLACE, &status, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
+
   return status;
-}
-
-DEFINE_MEMBER(bool, validate_numchunk)()
-{
-  if (numchunk > MAX_CHUNK_PER_RANK) {
-    ERROR << tfm::format("Number of chunk per rank should not exceed %8d", MAX_CHUNK_PER_RANK);
-    return false;
-  }
-
-  return true;
 }
 
 DEFINE_MEMBER(void, finalize)(int cleanup)
