@@ -38,44 +38,6 @@ DEFINE_MEMBER(std::vector<int>, assign)
   return boundary;
 }
 
-DEFINE_MEMBER(void, assign)
-(std::vector<float64>& load, std::vector<int>& boundary, bool init)
-{
-  //
-  // The size of `load` array should be the number of chunks.
-  // The size of `boundary` array should be the number of rank plus one.
-  //
-  // The chunk specified by `i_chunk` should be assigned to the rank specified by `i_rank` when the
-  // following condition is met:
-  //
-  //     boundary[i_rank] <= i_chunk < boundary[i_rank+1]
-  //
-  // Therefore, our task is to find an appropriate boundary array first and then use it to calculate
-  // `rank` array for output.
-  //
-
-  if (init == true) {
-    // try to find initial best assignment via binary search
-    bool status = doit_binary_search(load, boundary);
-
-    // if failed, use iterative method
-    if (status == false) {
-      // uniform load with the same size as load for initialization
-      std::vector<float64> load0(load.size(), 1.0);
-      doit_binary_search(load0, boundary);
-
-      // iteratively find best assignment
-      static constexpr int maxiter = 100;
-      for (int i = 0; i < maxiter; i++) {
-        if (doit_smilei(load, boundary) == false)
-          break;
-      }
-    }
-  } else {
-    doit_smilei(load, boundary);
-  }
-}
-
 DEFINE_MEMBER(void, get_rank)(std::vector<int>& boundary, std::vector<int>& rank)
 {
   const int Nr = boundary.size() - 1;

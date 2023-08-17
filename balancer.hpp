@@ -13,7 +13,7 @@ NIX_NAMESPACE_BEGIN
 class Balancer
 {
 protected:
-  int                  nchunk;  ///< number of chunks
+  int                  nchunk;    ///< number of chunks
   std::vector<float64> chunkload; ///< array of chunk load
 
 public:
@@ -56,15 +56,7 @@ public:
   /// @param[in] boundary array of current boundary
   /// @return array of boundary as a result of assignment
   ///
-  virtual std::vector<int> assign(std::vector<int> &boundary);
-
-  ///
-  /// @brief perform chunk assignment to processes
-  /// @param[in] load array for chunk load
-  /// @param[out] boundary array for assignment boundary
-  /// @param[in] init true for initial assignment
-  ///
-  virtual void assign(std::vector<float64>& load, std::vector<int>& boundary, bool init = false);
+  virtual std::vector<int> assign(std::vector<int>& boundary);
 
   ///
   /// @brief calculate rank from boundary
@@ -126,6 +118,14 @@ public:
   bool validate_boundary(int Nc, const std::vector<int>& boundary);
 
   ///
+  /// @brief update global chunk load
+  ///
+  /// @tparam Data Application internal data struct
+  ///
+  template <typename Data>
+  void update_global_load(Data&& data);
+
+  ///
   /// @brief send/recv chunks for load balancing
   ///
   /// @tparam App Application class
@@ -161,21 +161,65 @@ protected:
 /// implementation for template methods follows
 ///
 
+template <typename Data>
+void Balancer::update_global_load(Data&& data)
+{
+  // clear
+  fill_load(0.0);
+
+  // calculate local workload
+  {
+    for (int i = 0; i < data.chunkvec.size(); i++) {
+      int id = data.chunkvec[i]->get_id();
+
+      chunkload[id] = data.chunkvec[i]->get_total_load();
+    }
+  }
+
+  // synchronize globally
+  {
+    const int thisrank = data.thisrank;
+    const int nprocess = data.nprocess;
+
+    std::vector<int> rcnt(nprocess);
+    std::vector<int> disp(nprocess);
+
+    // recv count
+    std::fill(rcnt.begin(), rcnt.end(), 0);
+    for (int i = 0; i < chunkload.size(); i++) {
+      int rank = data.chunkmap->get_rank(i);
+      rcnt[rank]++;
+    }
+
+    // displacement
+    disp[0] = 0;
+    for (int r = 0; r < nprocess - 1; r++) {
+      disp[r + 1] = disp[r] + rcnt[r];
+    }
+
+    MPI_Allgatherv(MPI_IN_PLACE, rcnt[thisrank], MPI_FLOAT64_T, chunkload.data(), rcnt.data(),
+                   disp.data(), MPI_FLOAT64_T, MPI_COMM_WORLD);
+  }
+}
+
 template <typename App, typename Data>
 void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
 {
-  const int dims[3] = {data.ndims[0] / data.cdims[0], data.ndims[1] / data.cdims[1],
-                       data.ndims[2] / data.cdims[2]};
-  const int Nc      = newrank.size();
-  const int Ncmax   = Nc + 1;
+  const int nchunk_global = newrank.size();
 
-  int numchunk = data.numchunk;
+  int dims[3];
+  int numchunk = data.chunkvec.size();
   int thisrank = data.thisrank;
   int nprocess = data.nprocess;
   int rankmin  = 0;
   int rankmax  = nprocess - 1;
   int rank_l   = thisrank > rankmin ? thisrank - 1 : MPI_PROC_NULL;
   int rank_r   = thisrank < rankmax ? thisrank + 1 : MPI_PROC_NULL;
+
+  // chunk dimensions
+  dims[0] = data.ndims[0] / data.cdims[0];
+  dims[1] = data.ndims[1] / data.cdims[1];
+  dims[2] = data.ndims[2] / data.cdims[2];
 
   Buffer sendbuf;
   Buffer recvbuf;
@@ -235,13 +279,13 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
     }
 
     auto it    = std::find_if(data.chunkvec.begin(), data.chunkvec.end(),
-                              [&](auto& p) { return p->get_id() == chunkid; });
+                           [&](auto& p) { return p->get_id() == chunkid; });
     int  index = std::distance(data.chunkvec.begin(), it);
 
     while (newrank[chunkid] == rank) {
       // pack
       size = data.chunkvec[index]->pack(buf, 0);
-      data.chunkvec[index]->set_id(Ncmax); // to be removed
+      data.chunkvec[index]->set_id(nchunk_global + 1); // to be removed
 
       MPI_Isend(buf, size, MPI_BYTE, rank, tag, MPI_COMM_WORLD, &request);
       MPI_Wait(&request, MPI_STATUS_IGNORE);
@@ -330,26 +374,7 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
     }
   }
 
-  //
-  // sort chunkvec and remove unused chunks
-  //
-  {
-    std::sort(data.chunkvec.begin(), data.chunkvec.end(),
-              [](const auto& x, const auto& y) { return x->get_id() < y->get_id(); });
-
-    // reset numchunk
-    numchunk = 0;
-    for (int i = 0; i < data.chunkvec.size(); i++) {
-      if (data.chunkvec[i]->get_id() == Ncmax)
-        break;
-      numchunk++;
-    }
-
-    // resize and discard unused chunks
-    data.chunkvec.resize(numchunk);
-    data.chunkvec.shrink_to_fit();
-    data.numchunk = numchunk;
-  }
+  data.chunkvec.sort_and_shrink(nchunk_global);
 }
 
 NIX_NAMESPACE_END

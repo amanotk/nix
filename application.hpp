@@ -24,43 +24,39 @@ template <typename Chunk, typename ChunkMap>
 class Application
 {
 protected:
-  using ThisType    = Application<Chunk, ChunkMap>;
-  using PtrBalancer = std::unique_ptr<Balancer>;
-  using PtrChunk    = std::unique_ptr<Chunk>;
-  using PtrChunkMap = std::unique_ptr<ChunkMap>;
-  using PtrLogger   = std::unique_ptr<Logger>;
-  using FloatVec    = std::vector<float64>;
-  using ChunkVec    = ChunkVector<PtrChunk>;
-
+  using ThisType     = Application<Chunk, ChunkMap>;
   using PtrArgParser = std::unique_ptr<ArgParser>;
   using PtrCfgParser = std::unique_ptr<CfgParser>;
-  PtrArgParser argparser;
-  PtrCfgParser cfgparser;
+  using PtrBalancer  = std::unique_ptr<Balancer>;
+  using PtrLogger    = std::unique_ptr<Logger>;
+  using PtrChunkMap  = std::unique_ptr<ChunkMap>;
+  using PtrChunk     = std::unique_ptr<Chunk>;
+  using ChunkVec     = ChunkVector<PtrChunk>;
 
-  int         cl_argc;  ///< command-line argc
-  char**      cl_argv;  ///< command-line argv
-  float64     wclock;   ///< wall clock time at initialization
-  PtrBalancer balancer; ///< load balancer
-  int         numchunk; ///< number of chunkes in current process
-  ChunkVec    chunkvec; ///< chunk array
-  PtrChunkMap chunkmap; ///< global chunkmap
-  PtrLogger   logger;   ///< logger
-  FloatVec    workload; ///< global load array
-  int         ndims[4]; ///< global grid dimensions
-  int         cdims[4]; ///< chunk dimensions
-  int         curstep;  ///< current iteration step
-  float64     curtime;  ///< current time
-  float64     delt;     ///< time step
-  float64     delx;     ///< grid size in x
-  float64     dely;     ///< grid size in y
-  float64     delz;     ///< grid size in z
-  float64     cc;       ///< speed of light
-  float64     xlim[3];  ///< physical domain in x
-  float64     ylim[3];  ///< physical domain in y
-  float64     zlim[3];  ///< physical domain in z
+  PtrArgParser argparser; ///< argument parser
+  PtrCfgParser cfgparser; ///< configuration parser
+  PtrBalancer  balancer;  ///< load balancer
+  PtrLogger    logger;    ///< logger
+  PtrChunkMap  chunkmap;  ///< chunkmap
+  ChunkVec     chunkvec;  ///< local chunks
+
+  int     cl_argc;  ///< command-line argc
+  char**  cl_argv;  ///< command-line argv
+  float64 wclock;   ///< wall clock time at initialization
+  int     ndims[4]; ///< global grid dimensions
+  int     cdims[4]; ///< chunk dimensions
+  int     curstep;  ///< current iteration step
+  float64 curtime;  ///< current time
+  float64 delt;     ///< time step
+  float64 delx;     ///< grid size in x
+  float64 dely;     ///< grid size in y
+  float64 delz;     ///< grid size in z
+  float64 cc;       ///< speed of light
+  float64 xlim[3];  ///< physical domain in x
+  float64 ylim[3];  ///< physical domain in y
+  float64 zlim[3];  ///< physical domain in z
 
   // MPI related
-  int  periodic[3];           ///< flag for periodic boundary
   int  nprocess;              ///< number of mpi processes
   int  thisrank;              ///< my rank
   bool mpi_init_with_nullptr; ///< for testing purpose
@@ -73,7 +69,6 @@ protected:
     int*         cdims;
     int&         nprocess;
     int&         thisrank;
-    int&         numchunk;
     int&         curstep;
     float64&     curtime;
     PtrChunkMap& chunkmap;
@@ -85,12 +80,12 @@ protected:
   ///
   InternalData get_internal_data()
   {
-    return {ndims, cdims, nprocess, thisrank, numchunk, curstep, curtime, chunkmap, chunkvec};
+    return {ndims, cdims, nprocess, thisrank, curstep, curtime, chunkmap, chunkvec};
   }
 
 public:
   /// @brief default constructor
-  Application() : mpi_init_with_nullptr(false), periodic{1, 1, 1}
+  Application() : mpi_init_with_nullptr(false)
   {
   }
 
@@ -99,7 +94,7 @@ public:
   /// @param argc number of arguments
   /// @param argv array of arguments
   ///
-  Application(int argc, char** argv) : mpi_init_with_nullptr(false), periodic{1, 1, 1}
+  Application(int argc, char** argv) : mpi_init_with_nullptr(false)
   {
     cl_argc = argc;
     cl_argv = argv;
@@ -189,6 +184,12 @@ protected:
   virtual void initialize(int argc, char** argv);
 
   ///
+  /// @brief finalize application
+  /// @param cleanup return code
+  ///
+  virtual void finalize(int cleanup = 0);
+
+  ///
   /// @brief initialize MPI
   /// @param argc number of arguments
   /// @param argv array of arguments
@@ -202,6 +203,11 @@ protected:
   void finalize_mpi(int cleanup);
 
   ///
+  /// @brief initialize debug printing
+  ///
+  void initialize_debugprinting();
+
+  ///
   /// @brief initialize dimensions
   ///
   virtual void initialize_dimensions();
@@ -210,26 +216,6 @@ protected:
   /// @brief initialize domain
   ///
   virtual void initialize_domain();
-
-  ///
-  /// @brief initialize debug printing
-  ///
-  void initialize_debugprinting();
-
-  ///
-  /// @brief save profile of run
-  ///
-  virtual void save_profile();
-
-  ///
-  /// @brief accumulate work load of local chunks
-  ///
-  virtual void accumulate_workload();
-
-  ///
-  /// @brief get work load of all chunks
-  ///
-  virtual void get_global_workload();
 
   ///
   /// @brief initialize work load array
@@ -248,16 +234,15 @@ protected:
   virtual bool validate_chunks();
 
   ///
+  /// @brief save profile of run
+  ///
+  virtual void save_profile();
+
+  ///
   /// @brief performing load balancing
   /// @return return true if rebalancing is performed and false otherwise
   ///
   virtual bool rebalance();
-
-  ///
-  /// @brief finalize application
-  /// @param cleanup return code
-  ///
-  virtual void finalize(int cleanup = 0);
 
   ///
   /// @brief load a snapshot file for restart
@@ -425,6 +410,94 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
   return 0;
 }
 
+DEFINE_MEMBER(void, initialize)(int argc, char** argv)
+{
+  initialize_mpi(&argc, &argv);
+
+  // parse command line arguments
+  argparser = create_argparser();
+  argparser->parse(argc, argv);
+
+  // parse configuration file
+  cfgparser = create_cfgparser();
+  cfgparser->parse_file(argparser->get_config());
+
+  // object initialization
+  chunkmap = create_chunkmap();
+  logger   = create_logger();
+  balancer = create_balancer();
+
+  // misc
+  curstep = 0;
+  curtime = 0.0;
+  initialize_debugprinting();
+  initialize_dimensions();
+  initialize_domain();
+  initialize_workload();
+
+  // chunks
+  initialize_chunks();
+}
+
+DEFINE_MEMBER(void, finalize)(int cleanup)
+{
+  // save snapshot
+  this->save_snapshot();
+
+  // save log
+  logger->save(curstep, true);
+
+  // MPI
+  finalize_mpi(cleanup);
+}
+
+DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
+{
+  // initialize MPI with thread support
+  {
+    int thread_required = MPI_THREAD_SERIALIZED;
+    int thread_provided = -1;
+
+    if (mpi_init_with_nullptr == true) {
+      MPI_Init_thread(nullptr, nullptr, thread_required, &thread_provided);
+    } else {
+      MPI_Init_thread(argc, argv, thread_required, &thread_provided);
+    }
+
+    if (thread_provided < thread_required) {
+      ERROR << tfm::format("Your MPI does not support thread!");
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
+
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
+  MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
+
+  // store initial clock
+  if (thisrank == 0) {
+    wclock = wall_clock();
+  }
+  MPI_Bcast(&wclock, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  // redirect stdout/stderr
+  MpiStream::initialize(nullptr, thisrank, nprocess, 1024);
+}
+
+DEFINE_MEMBER(void, finalize_mpi)(int cleanup)
+{
+  // release stdout/stderr
+  MpiStream::finalize(cleanup);
+
+  MPI_Finalize();
+}
+
+DEFINE_MEMBER(void, initialize_debugprinting)()
+{
+  DebugPrinter::init();
+  DebugPrinter::set_level(argparser->get_debug_level());
+}
+
 DEFINE_MEMBER(void, initialize_dimensions)()
 {
   json parameter = cfgparser->get_parameter();
@@ -470,6 +543,51 @@ DEFINE_MEMBER(void, initialize_domain)()
   zlim[2] = zlim[1] - zlim[0];
 }
 
+DEFINE_MEMBER(void, initialize_workload)()
+{
+  balancer->fill_load(1.0);
+}
+
+DEFINE_MEMBER(void, initialize_chunks)()
+{
+  const int global_nchunk = cdims[3];
+
+  // local dimensions
+  int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
+
+  // error check
+  if (global_nchunk < nprocess) {
+    ERROR << tfm::format("Number of processes should not exceed number of chunks");
+    ERROR << tfm::format("* number of processes = %8d", nprocess);
+    ERROR << tfm::format("* number of chunks    = %8d", global_nchunk);
+    finalize(-1);
+    exit(-1);
+  }
+
+  // initial assignment
+  auto boundary = balancer->assign_initial(nprocess);
+  chunkmap->set_rank_boundary(boundary);
+
+  // local chunks
+  int nchunk = boundary[thisrank + 1] - boundary[thisrank];
+  chunkvec.resize(nchunk);
+  for (int i = 0, id = boundary[thisrank]; id < boundary[thisrank + 1]; i++, id++) {
+    chunkvec[i] = create_chunk(dims, id);
+  }
+  chunkvec.set_neighbors(chunkmap);
+
+  assert(validate_chunks() == true);
+}
+
+DEFINE_MEMBER(bool, validate_chunks)()
+{
+  bool status = chunkvec.validate(chunkmap);
+
+  MPI_Allreduce(MPI_IN_PLACE, &status, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
+
+  return status;
+}
+
 DEFINE_MEMBER(void, save_profile)()
 {
   if (thisrank == 0) {
@@ -497,164 +615,9 @@ DEFINE_MEMBER(void, save_profile)()
   }
 }
 
-DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
-{
-  // initialize MPI with thread support
-  {
-    int thread_required = MPI_THREAD_SERIALIZED;
-    int thread_provided = -1;
-
-    if (mpi_init_with_nullptr == true) {
-      MPI_Init_thread(nullptr, nullptr, thread_required, &thread_provided);
-    } else {
-      MPI_Init_thread(argc, argv, thread_required, &thread_provided);
-    }
-
-    if (thread_provided < thread_required) {
-      ERROR << tfm::format("Your MPI does not support thread!");
-      MPI_Finalize();
-      exit(-1);
-    }
-  }
-
-  MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
-  MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
-
-  // store initial clock
-  if (thisrank == 0) {
-    wclock = wall_clock();
-  }
-  MPI_Bcast(&wclock, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-  // redirect stdout/stderr
-  MpiStream::initialize(nullptr, thisrank, nprocess, 1024);
-}
-
-DEFINE_MEMBER(void, initialize_debugprinting)()
-{
-  DebugPrinter::init();
-  DebugPrinter::set_level(argparser->get_debug_level());
-}
-
-DEFINE_MEMBER(void, finalize_mpi)(int cleanup)
-{
-  // release stdout/stderr
-  MpiStream::finalize(cleanup);
-
-  MPI_Finalize();
-}
-
-DEFINE_MEMBER(void, initialize)(int argc, char** argv)
-{
-  initialize_mpi(&argc, &argv);
-
-  // parse coommand line arguments
-  argparser = create_argparser();
-  argparser->parse(argc, argv);
-
-  // parse configuration file
-  cfgparser = create_cfgparser();
-  cfgparser->parse_file(argparser->get_config());
-
-  // object initialization
-  chunkmap = create_chunkmap();
-  logger   = create_logger();
-  balancer = create_balancer();
-
-  // misc
-  curstep = 0;
-  curtime = 0.0;
-  initialize_dimensions();
-  initialize_domain();
-  initialize_debugprinting();
-  initialize_chunks();
-}
-
-DEFINE_MEMBER(void, accumulate_workload)()
-{
-  const int Nc = cdims[3];
-
-  // local workload
-  for (int i = 0; i < numchunk; i++) {
-    int id = chunkvec[i]->get_id();
-
-    workload[id] += chunkvec[i]->get_total_load();
-  }
-}
-
-DEFINE_MEMBER(void, get_global_workload)()
-{
-  std::vector<int> rcnt(nprocess);
-  std::vector<int> disp(nprocess);
-
-  // recv count
-  std::fill(rcnt.begin(), rcnt.end(), 0);
-  for (int i = 0; i < workload.size(); i++) {
-    int rank = chunkmap->get_rank(i);
-    rcnt[rank]++;
-  }
-
-  // displacement
-  disp[0] = 0;
-  for (int r = 0; r < nprocess - 1; r++) {
-    disp[r + 1] = disp[r] + rcnt[r];
-  }
-
-  MPI_Allgatherv(MPI_IN_PLACE, rcnt[thisrank], MPI_FLOAT64_T, workload.data(), rcnt.data(),
-                 disp.data(), MPI_FLOAT64_T, MPI_COMM_WORLD);
-}
-
-DEFINE_MEMBER(void, initialize_workload)()
-{
-  std::fill(workload.begin(), workload.end(), 1.0);
-}
-
-DEFINE_MEMBER(void, initialize_chunks)()
-{
-  const int Nc      = cdims[3];
-  int       dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
-
-  std::vector<int> boundary(nprocess + 1);
-
-  // error check
-  if (Nc < nprocess) {
-    ERROR << tfm::format("Number of processes should not exceed number of chunks");
-    ERROR << tfm::format("* number of processes = %8d", nprocess);
-    ERROR << tfm::format("* number of chunks    = %8d", Nc);
-    finalize(-1);
-    exit(-1);
-  }
-
-  // allocate workload and initialize
-  workload.resize(Nc);
-  initialize_workload();
-
-  // initial assignment
-  balancer->assign(workload, boundary, true);
-
-  chunkmap->set_rank_boundary(boundary);
-
-  // create local chunkvec
-  numchunk = boundary[thisrank + 1] - boundary[thisrank];
-  chunkvec.resize(numchunk);
-  for (int i = 0, id = boundary[thisrank]; id < boundary[thisrank + 1]; i++, id++) {
-    chunkvec[i] = create_chunk(dims, id);
-  }
-
-  // set neighbor
-  chunkvec.set_neighbors(chunkmap);
-
-  // reset workload
-  std::fill(workload.begin(), workload.end(), 0.0);
-
-  // check chunks
-  assert(validate_chunks() == true);
-}
-
 DEFINE_MEMBER(bool, rebalance)()
 {
   const int        Nc = cdims[3];
-  std::vector<int> boundary(nprocess + 1);
   std::vector<int> newrank(Nc);
 
   bool status   = false;
@@ -666,48 +629,34 @@ DEFINE_MEMBER(bool, rebalance)()
   DEBUG2 << "rebalance() start";
   float64 wclock1 = nix::wall_clock();
 
-  // accumulate workload
-  accumulate_workload();
-
   if (curstep == 0) {
-    boundary = chunkmap->get_rank_boundary();
+    auto boundary = chunkmap->get_rank_boundary();
 
     // log
     if (loglevel >= 1) {
       log["boundary"] = boundary;
     }
 
-    if (loglevel >= 2) {
-      log["workload"] = workload;
-    }
   } else if (curstep % interval == 0) {
-    // calculate workload
-    get_global_workload();
-
-    boundary = chunkmap->get_rank_boundary();
+    // update global load of chunks
+    balancer->update_global_load(get_internal_data());
 
     //
     // rebalance
     //
-    balancer->assign(workload, boundary);
+    auto boundary = chunkmap->get_rank_boundary();
+    boundary      = balancer->assign(boundary);
     balancer->get_rank(boundary, newrank);
     balancer->sendrecv_chunk(*this, get_internal_data(), newrank);
 
     chunkmap->set_rank_boundary(boundary);
     chunkvec.set_neighbors(chunkmap);
 
-    // reset workload
-    std::fill(workload.begin(), workload.end(), 0.0);
-
     assert(validate_chunks() == true);
 
     // log
     if (loglevel >= 1) {
       log["boundary"] = boundary;
-    }
-
-    if (loglevel >= 2) {
-      log["workload"] = workload;
     }
 
     status = true;
@@ -720,27 +669,6 @@ DEFINE_MEMBER(bool, rebalance)()
   logger->append(curstep, "rebalance", log);
 
   return status;
-}
-
-DEFINE_MEMBER(bool, validate_chunks)()
-{
-  bool status = chunkvec.validate(chunkmap);
-
-  MPI_Allreduce(MPI_IN_PLACE, &status, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
-
-  return status;
-}
-
-DEFINE_MEMBER(void, finalize)(int cleanup)
-{
-  // save snapshot
-  this->save_snapshot();
-
-  // save log
-  logger->save(curstep, true);
-
-  // MPI
-  finalize_mpi(cleanup);
 }
 
 #undef DEFINE_MEMBER
