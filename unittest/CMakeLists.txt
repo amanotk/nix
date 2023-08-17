@@ -23,8 +23,9 @@ set(SERIAL_EXECS
 	test_nixio
 	test_chunk
 	test_chunkmap
-	test_chunkvec
+	test_chunkvector
 	test_xtensor_particle
+	test_logger
 	test_mpistream
 	test_argparser
 	test_cfgparser

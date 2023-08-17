@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-#include "chunkvec.hpp"
+#include "chunkvector.hpp"
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -66,7 +66,7 @@ public:
   }
 };
 
-class ChunkVecTest : public ChunkVec<std::unique_ptr<MockChunk>>
+class ChunkVectorTest : public ChunkVector<std::unique_ptr<MockChunk>>
 {
 public:
   bool is_sorted()
@@ -78,12 +78,12 @@ public:
 
 TEST_CASE("sort_and_shrink")
 {
-  using MockChunkVec = std::vector<std::unique_ptr<MockChunk>>;
-  const int size     = 10;
-  const int max_id   = 4;
+  using MockChunkVector = std::vector<std::unique_ptr<MockChunk>>;
+  const int size        = 10;
+  const int max_id      = 4;
 
-  ChunkVecTest chunktest;
-  MockChunkVec chunkmock;
+  ChunkVectorTest chunktest;
+  MockChunkVector chunkmock;
 
   for (int i = 0; i < size; i++) {
     chunktest.push_back(std::make_unique<MockChunk>(i));
@@ -129,7 +129,7 @@ TEST_CASE("set_neighbors")
   int Cz = GENERATE(1, 4);
 
   std::unique_ptr<MockChunkMap> chunkmap = std::make_unique<MockChunkMap>(Cz, Cy, Cx);
-  ChunkVecTest                  chunktest;
+  ChunkVectorTest               chunktest;
 
   for (int i = 0; i < Cz * Cy * Cx; i++) {
     chunktest.push_back(std::make_unique<MockChunk>(i));

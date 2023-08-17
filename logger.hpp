@@ -10,34 +10,63 @@ NIX_NAMESPACE_BEGIN
 
 static constexpr int logger_flush_interval = 10;
 
+static const json default_config = R"(
+{
+  "prefix": "log",
+  "path": ".",
+  "interval": 100,
+  "flush" : 10.0
+}
+)"_json;
+
 ///
 /// @brief Simple Logger class
 ///
 class Logger
 {
-private:
-  int               thisrank; ///< MPI rank
-  std::string       filename; ///< log filename
-  float64           flushed;  ///< last flushed time
-  json              config;   ///< configuration
-  std::vector<json> content;  ///< log content
+protected:
+  int               thisrank;     ///< MPI rank
+  float64           last_flushed; ///< last flushed time
+  json              config;       ///< configuration
+  std::vector<json> content;      ///< log content
 
 public:
-  Logger(json& cfg, bool append = false)
+  Logger(int rank, const json& object, bool append = false) : thisrank(rank)
   {
-    MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
     initialize_content();
 
-    config  = cfg;
-    flushed = wall_clock();
-
-    // log filename
-    std::string path   = config.value("path", ".");
-    std::string prefix = config.value("prefix", "log");
-    filename           = tfm::format("%s/%s.msgpack", path, prefix);
-    if (append == false) {
-      std::remove(filename.c_str());
+    // set configuration (use default if not specified)
+    if (object.is_null() == true) {
+      config = default_config;
+    } else {
+      for (auto& element : default_config.items()) {
+        config[element.key()] = object.value(element.key(), element.value());
+      }
     }
+
+    if (append == false) {
+      std::filesystem::remove(get_filename());
+    }
+
+    last_flushed = wall_clock();
+  }
+
+  virtual int get_interval()
+  {
+    return config["interval"];
+  }
+
+  virtual std::string get_filename()
+  {
+    std::string path   = config["path"];
+    std::string prefix = config["prefix"];
+
+    return tfm::format("%s/%s.msgpack", path, prefix);
+  }
+
+  virtual bool is_flush_required()
+  {
+    return (wall_clock() - last_flushed > config["flush"]);
   }
 
   virtual void initialize_content()
@@ -48,7 +77,7 @@ public:
 
   virtual void log(int curstep)
   {
-    int  interval      = config.value("interval", 1);
+    int  interval      = get_interval();
     bool is_final_step = (curstep + 1) % interval == 0;
 
     // save file
@@ -81,11 +110,11 @@ public:
 
   virtual bool save(int curstep, bool force = false)
   {
-    int         interval = config.value("interval", 1);
+    std::string filename = get_filename();
+    int         interval = get_interval();
     int         step     = interval * (curstep / interval);
-    float64     wclock   = wall_clock();
 
-    bool status = (force == true) || (wclock - flushed > logger_flush_interval);
+    bool status = (force == true) || is_flush_required();
 
     if (thisrank == 0 && status) {
       // output
@@ -97,7 +126,7 @@ public:
       }
       ofs.close();
 
-      flushed = wclock;
+      last_flushed = wall_clock();
     }
 
     return status;

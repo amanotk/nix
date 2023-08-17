@@ -7,12 +7,12 @@
 NIX_NAMESPACE_BEGIN
 
 ///
-/// @brief ChunkVec class
+/// @brief ChunkVector class
 ///
 /// A convenient wrapper of chunk array.
 ///
 template <typename PtrChunk>
-class ChunkVec : private std::vector<PtrChunk>
+class ChunkVector : private std::vector<PtrChunk>
 {
 public:
   using vector_type = std::vector<PtrChunk>;
@@ -116,8 +116,6 @@ public:
         }
       }
     }
-
-    MPI_Allreduce(MPI_IN_PLACE, &status, 1, MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
 
     return status;
   }
