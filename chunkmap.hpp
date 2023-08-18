@@ -316,8 +316,9 @@ DEFINE_MEMBER1(json, to_json)()
   obj["shape"] = {dims[0]};
 
   // map
-  obj["chunkid"] = chunkid;
-  obj["coord"]   = coord;
+  obj["chunkid"]  = chunkid;
+  obj["coord"]    = coord;
+  obj["boundary"] = boundary;
 
   return obj;
 }
@@ -332,8 +333,9 @@ DEFINE_MEMBER2(json, to_json)()
   obj["shape"] = {dims[0], dims[1]};
 
   // map
-  obj["chunkid"] = chunkid;
-  obj["coord"]   = coord;
+  obj["chunkid"]  = chunkid;
+  obj["coord"]    = coord;
+  obj["boundary"] = boundary;
 
   return obj;
 }
@@ -348,8 +350,9 @@ DEFINE_MEMBER3(json, to_json)()
   obj["shape"] = {dims[0], dims[1], dims[2]};
 
   // map
-  obj["chunkid"] = chunkid;
-  obj["coord"]   = coord;
+  obj["chunkid"]  = chunkid;
+  obj["coord"]    = coord;
+  obj["boundary"] = boundary;
 
   return obj;
 }
@@ -365,8 +368,9 @@ DEFINE_MEMBER1(void, from_json)(json& obj)
   dims[0] = obj["shape"][0].get<int>();
 
   // map
-  chunkid = obj["chunkid"];
-  coord   = obj["coord"];
+  chunkid  = obj["chunkid"];
+  coord    = obj["coord"];
+  boundary = obj["boundary"].get<std::vector<int>>();
 }
 
 DEFINE_MEMBER2(void, from_json)(json& obj)
@@ -381,8 +385,9 @@ DEFINE_MEMBER2(void, from_json)(json& obj)
   dims[1] = obj["shape"][1].get<int>();
 
   // map
-  chunkid = obj["chunkid"];
-  coord   = obj["coord"];
+  chunkid  = obj["chunkid"];
+  coord    = obj["coord"];
+  boundary = obj["boundary"].get<std::vector<int>>();
 }
 
 DEFINE_MEMBER3(void, from_json)(json& obj)
@@ -398,8 +403,9 @@ DEFINE_MEMBER3(void, from_json)(json& obj)
   dims[2] = obj["shape"][2].get<int>();
 
   // map
-  chunkid = obj["chunkid"];
-  coord   = obj["coord"];
+  chunkid  = obj["chunkid"];
+  coord    = obj["coord"];
+  boundary = obj["boundary"].get<std::vector<int>>();
 }
 
 DEFINE_MEMBER1(void, get_coordinate)(int id, int& cx)
