@@ -23,12 +23,12 @@ protected:
   using IntArray2D = xt::xtensor<int, 2>;
   using IntArrayND = xt::xtensor<int, Dimension>;
 
-  int        size;           ///< number of total chunks
-  int        dims[3];        ///< chunk dimension
-  int        periodicity[3]; ///< periodicity in each direction
-  IntArray1D rank;           ///< chunk ID to MPI rank map
-  IntArray2D coord;          ///< chunk ID to coordinate map
-  IntArrayND chunkid;        ///< coordinate to chunk ID map
+  int              size;           ///< number of total chunks
+  int              dims[3];        ///< chunk dimension
+  int              periodicity[3]; ///< periodicity in each direction
+  std::vector<int> boundary;       ///< rank boundary
+  IntArray2D       coord;          ///< chunk ID to coordinate map
+  IntArrayND       chunkid;        ///< coordinate to chunk ID map
 
 public:
   ///
@@ -65,16 +65,16 @@ public:
   virtual bool validate();
 
   ///
-  /// @brief save map information as json object
-  /// @param obj json object to which map information will be stored
+  /// @brief get map information as json object
+  /// @return obj json object
   ///
-  virtual void save_json(json& obj);
+  virtual json to_json();
 
   ///
-  /// @brief load map information from json object
-  /// @param obj json object from which map information will be loaded
+  /// @brief restore map information from json object
+  /// @param obj json object
   ///
-  virtual void load_json(json& obj);
+  virtual void from_json(json& obj);
 
   ///
   /// @brief set periodicity in each direction
@@ -111,16 +111,6 @@ public:
   }
 
   ///
-  /// @brief set process rank for given chunk ID
-  /// @param id chunk ID
-  /// @param r rank
-  ///
-  void set_rank(int id, int r)
-  {
-    rank(id) = r;
-  }
-
-  ///
   /// @brief get process rank associated with chunk ID
   /// @param id chunk ID
   /// @return rank
@@ -128,7 +118,8 @@ public:
   int get_rank(int id)
   {
     if (id >= 0 && id < size) {
-      return rank(id);
+      auto it = std::upper_bound(boundary.begin(), boundary.end(), id);
+      return std::distance(boundary.begin(), it) - 1;
     } else {
       return MPI_PROC_NULL;
     }
@@ -140,18 +131,7 @@ public:
   ///
   virtual void set_rank_boundary(std::vector<int>& boundary)
   {
-    for (int i = 0, rank = 0; i < size; i++) {
-      if (i < boundary[rank + 1]) {
-        this->set_rank(i, rank);
-      } else if (i == boundary[rank + 1]) {
-        rank++;
-        this->set_rank(i, rank);
-      } else {
-        ERROR << tfm::format("Inconsistent boundary array detected");
-        ERROR << tfm::format("* boundary[%08d] = %08d", rank + 1, boundary[rank + 1]);
-        assert(false);
-      }
-    }
+    this->boundary = boundary;
   }
 
   ///
@@ -160,20 +140,6 @@ public:
   ///
   std::vector<int> get_rank_boundary()
   {
-    const int nprocess = rank[size - 1] + 1;
-
-    std::vector<int> boundary(nprocess + 1);
-
-    for (int i = 0, rank = 0; i < size; i++) {
-      if (rank == this->get_rank(i))
-        continue;
-      // found a boundary
-      boundary[rank + 1] = i;
-      rank++;
-    }
-    boundary[0]        = 0;
-    boundary[nprocess] = size;
-
     return boundary;
   }
 
@@ -253,11 +219,9 @@ DEFINE_MEMBER1(, ChunkMap)(int Cx) : periodicity{1, 1, 1}
     std::vector<size_t> dims2 = {static_cast<size_t>(size), 1};
     std::vector<size_t> dims3 = {static_cast<size_t>(Cx)};
 
-    rank.resize(dims1);
     coord.resize(dims2);
     chunkid.resize(dims3);
 
-    rank.fill(0);
     coord.fill(0);
     chunkid.fill(0);
   }
@@ -279,11 +243,9 @@ DEFINE_MEMBER2(, ChunkMap)(int Cy, int Cx) : periodicity{1, 1, 1}
     std::vector<size_t> dims2 = {static_cast<size_t>(size), 2};
     std::vector<size_t> dims3 = {static_cast<size_t>(Cy), static_cast<size_t>(Cx)};
 
-    rank.resize(dims1);
     coord.resize(dims2);
     chunkid.resize(dims3);
 
-    rank.fill(0);
     coord.fill(0);
     chunkid.fill(0);
   }
@@ -306,11 +268,9 @@ DEFINE_MEMBER3(, ChunkMap)(int Cz, int Cy, int Cx) : periodicity{1, 1, 1}
     std::vector<size_t> dims3 = {static_cast<size_t>(Cz), static_cast<size_t>(Cy),
                                  static_cast<size_t>(Cx)};
 
-    rank.resize(dims1);
     coord.resize(dims2);
     chunkid.resize(dims3);
 
-    rank.fill(0);
     coord.fill(0);
     chunkid.fill(0);
   }
@@ -346,8 +306,10 @@ DEFINE_MEMBER3(bool, validate)()
   return sfc::check_index(chunkid) & sfc::check_locality3d(coord);
 }
 
-DEFINE_MEMBER1(void, save_json)(json& obj)
+DEFINE_MEMBER1(json, to_json)()
 {
+  json obj;
+
   // meta data
   obj["size"]  = size;
   obj["ndim"]  = 1;
@@ -356,11 +318,14 @@ DEFINE_MEMBER1(void, save_json)(json& obj)
   // map
   obj["chunkid"] = chunkid;
   obj["coord"]   = coord;
-  obj["rank"]    = rank;
+
+  return obj;
 }
 
-DEFINE_MEMBER2(void, save_json)(json& obj)
+DEFINE_MEMBER2(json, to_json)()
 {
+  json obj;
+
   // meta data
   obj["size"]  = size;
   obj["ndim"]  = 2;
@@ -369,11 +334,14 @@ DEFINE_MEMBER2(void, save_json)(json& obj)
   // map
   obj["chunkid"] = chunkid;
   obj["coord"]   = coord;
-  obj["rank"]    = rank;
+
+  return obj;
 }
 
-DEFINE_MEMBER3(void, save_json)(json& obj)
+DEFINE_MEMBER3(json, to_json)()
 {
+  json obj;
+
   // meta data
   obj["size"]  = size;
   obj["ndim"]  = 3;
@@ -382,10 +350,11 @@ DEFINE_MEMBER3(void, save_json)(json& obj)
   // map
   obj["chunkid"] = chunkid;
   obj["coord"]   = coord;
-  obj["rank"]    = rank;
+
+  return obj;
 }
 
-DEFINE_MEMBER1(void, load_json)(json& obj)
+DEFINE_MEMBER1(void, from_json)(json& obj)
 {
   if (obj["ndim"].get<int>() != 1) {
     ERROR << tfm::format("Invalid input to ChunkMap<1>::load_json");
@@ -398,10 +367,9 @@ DEFINE_MEMBER1(void, load_json)(json& obj)
   // map
   chunkid = obj["chunkid"];
   coord   = obj["coord"];
-  rank    = obj["rank"];
 }
 
-DEFINE_MEMBER2(void, load_json)(json& obj)
+DEFINE_MEMBER2(void, from_json)(json& obj)
 {
   if (obj["ndim"].get<int>() != 2) {
     ERROR << tfm::format("Invalid input to ChunkMap<2>::load_json");
@@ -415,10 +383,9 @@ DEFINE_MEMBER2(void, load_json)(json& obj)
   // map
   chunkid = obj["chunkid"];
   coord   = obj["coord"];
-  rank    = obj["rank"];
 }
 
-DEFINE_MEMBER3(void, load_json)(json& obj)
+DEFINE_MEMBER3(void, from_json)(json& obj)
 {
   if (obj["ndim"].get<int>() != 3) {
     ERROR << tfm::format("Invalid input to ChunkMap<3>::load_json");
@@ -433,7 +400,6 @@ DEFINE_MEMBER3(void, load_json)(json& obj)
   // map
   chunkid = obj["chunkid"];
   coord   = obj["coord"];
-  rank    = obj["rank"];
 }
 
 DEFINE_MEMBER1(void, get_coordinate)(int id, int& cx)

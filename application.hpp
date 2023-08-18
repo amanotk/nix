@@ -441,13 +441,10 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 
 DEFINE_MEMBER(void, finalize)(int cleanup)
 {
-  // save snapshot
   this->save_snapshot();
 
-  // save log
   logger->flush();
 
-  // MPI
   finalize_mpi(cleanup);
 }
 
@@ -550,16 +547,16 @@ DEFINE_MEMBER(void, initialize_workload)()
 
 DEFINE_MEMBER(void, initialize_chunks)()
 {
-  const int global_nchunk = cdims[3];
+  const int nchunk_global = cdims[3];
 
   // local dimensions
   int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
 
   // error check
-  if (global_nchunk < nprocess) {
+  if (nchunk_global < nprocess) {
     ERROR << tfm::format("Number of processes should not exceed number of chunks");
     ERROR << tfm::format("* number of processes = %8d", nprocess);
-    ERROR << tfm::format("* number of chunks    = %8d", global_nchunk);
+    ERROR << tfm::format("* number of chunks    = %8d", nchunk_global);
     finalize(-1);
     exit(-1);
   }
@@ -593,18 +590,11 @@ DEFINE_MEMBER(void, save_profile)()
   if (thisrank == 0) {
     std::string filename = "profile.msgpack";
 
-    // timestamp
-    json timestamp_json = wclock;
-
-    // chunkmap
-    json cmap_json;
-    chunkmap->save_json(cmap_json);
-
     // content
-    json content = {{"timestamp", timestamp_json},
+    json content = {{"timestamp", wclock},
                     {"nprocess", nprocess},
                     {"configuration", cfgparser->get_root()},
-                    {"chunkmap", cmap_json}};
+                    {"chunkmap", chunkmap->to_json()}};
 
     // serialize and output
     std::vector<std::uint8_t> buffer = json::to_msgpack(content);
@@ -617,33 +607,32 @@ DEFINE_MEMBER(void, save_profile)()
 
 DEFINE_MEMBER(bool, rebalance)()
 {
-  const int        Nc = cdims[3];
-  std::vector<int> newrank(Nc);
+  const int nchunk_global = cdims[3];
 
   bool status   = false;
-  json config   = cfgparser->get_application()["rebalance"];
   json log      = {};
-  int  interval = config.value("interval", 10);
-  int  loglevel = config.value("loglevel", 1);
+  json config   = cfgparser->get_application()["rebalance"];
+  int  interval = 10;
+  int  loglevel = 1;
+
+  if (config.is_null() == false) {
+    interval = config.value("interval", interval);
+    loglevel = config.value("loglevel", loglevel);
+  }
 
   DEBUG2 << "rebalance() start";
   float64 wclock1 = nix::wall_clock();
 
-  if (curstep == 0) {
-    auto boundary = chunkmap->get_rank_boundary();
-
-    // log
-    if (loglevel >= 1) {
-      log["boundary"] = boundary;
-    }
-
+  if (curstep == 0 && loglevel >= 1) {
+    // log initial boundary
+    log["boundary"] = chunkmap->get_rank_boundary();
   } else if (curstep % interval == 0) {
     // update global load of chunks
     balancer->update_global_load(get_internal_data());
 
-    //
     // rebalance
-    //
+    std::vector<int> newrank(nchunk_global);
+
     auto boundary = chunkmap->get_rank_boundary();
     boundary      = balancer->assign(boundary);
     balancer->get_rank(boundary, newrank);
@@ -654,7 +643,6 @@ DEFINE_MEMBER(bool, rebalance)()
 
     assert(validate_chunks() == true);
 
-    // log
     if (loglevel >= 1) {
       log["boundary"] = boundary;
     }

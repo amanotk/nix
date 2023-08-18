@@ -211,38 +211,45 @@ TEST_CASE("set_rank from boundary array")
 
 TEST_CASE("get_rank_boundary")
 {
-  std::vector<int> rank{0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3};
+  const int nproc = 4;
+  std::vector<int> boundary = {0, 4, 9, 14, 16};
 
   SECTION("1D")
   {
-    ChunkMapTest<1>  chunkmap(rank.size());
+    int Cx = 16;
+    int Nc = Cx;
 
-    for(int i=0; i < rank.size() ;i++) {
-      chunkmap.set_rank(i, rank[i]);
-    }
+    std::vector<int> boundary{0, 4, 9, 14, Nc};
+    ChunkMapTest<1>  chunkmap(Cx);
 
+    chunkmap.set_rank_boundary(boundary);
     chunkmap.test_get_rank_boundary();
   }
 
   SECTION("2D")
   {
-    ChunkMapTest<2>  chunkmap(1, rank.size());
+    int Cx = 8;
+    int Cy = 2;
+    int Nc = Cy * Cx;
 
-    for(int i=0; i < rank.size() ;i++) {
-      chunkmap.set_rank(i, rank[i]);
-    }
+    std::vector<int> boundary{0, 4, 9, 14, Nc};
+    ChunkMapTest<2>  chunkmap(Cy, Cx);
 
+    chunkmap.set_rank_boundary(boundary);
     chunkmap.test_get_rank_boundary();
   }
 
   SECTION("3D")
   {
-    ChunkMapTest<3>  chunkmap(1, 1, rank.size());
+    int Cx = 4;
+    int Cy = 2;
+    int Cz = 2;
+    int Nc = Cz * Cy * Cx;
 
-    for(int i=0; i < rank.size() ;i++) {
-      chunkmap.set_rank(i, rank[i]);
-    }
+    std::vector<int> boundary{0, 4, 9, 14, Nc};
+    ChunkMapTest<3>  chunkmap(Cz, Cy, Cx);
 
+    chunkmap.set_rank_boundary(boundary);
     chunkmap.test_get_rank_boundary();
   }
 }
@@ -309,27 +316,26 @@ TEST_CASE("Save to and load from file")
   int Cy = GENERATE(1, 4, 10);
   int Cz = GENERATE(1, 4, 10);
 
-  json obj1;
-  json obj2;
-
   SECTION("1D")
   {
     ChunkMapTest<1> chunkmap(Cx);
 
     // save
     {
-      chunkmap.save_json(obj1);
+      auto obj = chunkmap.to_json();
 
       std::ofstream ofs(filename);
-      ofs << std::setw(2) << obj1;
+      ofs << std::setw(2) << obj;
     }
 
     // load
     {
-      std::ifstream ifs(filename);
-      ifs >> obj2;
+      json obj;
 
-      chunkmap.load_json(obj2);
+      std::ifstream ifs(filename);
+      ifs >> obj;
+
+      chunkmap.from_json(obj);
     }
 
     // check for load
@@ -345,18 +351,20 @@ TEST_CASE("Save to and load from file")
 
     // save
     {
-      chunkmap.save_json(obj1);
+      auto obj = chunkmap.to_json();
 
       std::ofstream ofs(filename);
-      ofs << std::setw(2) << obj1;
+      ofs << std::setw(2) << obj;
     }
 
     // load
     {
-      std::ifstream ifs(filename);
-      ifs >> obj2;
+      json obj;
 
-      chunkmap.load_json(obj2);
+      std::ifstream ifs(filename);
+      ifs >> obj;
+
+      chunkmap.from_json(obj);
     }
 
     // check for load
@@ -372,18 +380,20 @@ TEST_CASE("Save to and load from file")
 
     // save
     {
-      chunkmap.save_json(obj1);
+      auto obj = chunkmap.to_json();
 
       std::ofstream ofs(filename);
-      ofs << std::setw(2) << obj1;
+      ofs << std::setw(2) << obj;
     }
 
     // load
     {
-      std::ifstream ifs(filename);
-      ifs >> obj2;
+      json obj;
 
-      chunkmap.load_json(obj2);
+      std::ifstream ifs(filename);
+      ifs >> obj;
+
+      chunkmap.from_json(obj);
     }
 
     // check for load
