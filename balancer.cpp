@@ -5,153 +5,7 @@
 
 NIX_NAMESPACE_BEGIN
 
-DEFINE_MEMBER(std::vector<int>, assign_initial)
-(int nprocess)
-{
-  std::vector<int> boundary(nprocess + 1);
-
-  // try to find initial best assignment via binary search
-  bool status = doit_binary_search(chunkload, boundary);
-
-  // if failed, use iterative method
-  if (status == false) {
-    // uniform load with the same size as load for initialization
-    std::vector<float64> uniform_load(nchunk, 1.0);
-    doit_binary_search(uniform_load, boundary);
-
-    // iteratively find best assignment
-    static constexpr int maxiter = 100;
-    for (int i = 0; i < maxiter; i++) {
-      if (doit_smilei(chunkload, boundary) == false)
-        break;
-    }
-  }
-
-  return boundary;
-}
-
-DEFINE_MEMBER(std::vector<int>, assign)
-(std::vector<int>& boundary)
-{
-  doit_smilei(chunkload, boundary);
-
-  return boundary;
-}
-
-DEFINE_MEMBER(void, get_rank)(std::vector<int>& boundary, std::vector<int>& rank)
-{
-  const int Nr = boundary.size() - 1;
-
-  for (int r = 0; r < Nr; r++) {
-    for (int i = boundary[r]; i < boundary[r + 1]; i++) {
-      rank[i] = r;
-    }
-  }
-}
-
-DEFINE_MEMBER(void, get_boundary)(std::vector<int>& rank, std::vector<int>& boundary)
-{
-  const int Nc = rank.size();
-  const int Nr = boundary.size() - 1;
-
-  for (int i = 0, r = 1; i < Nc - 1; i++) {
-    if (rank[i + 1] == rank[i])
-      continue;
-    // found a boundary
-    boundary[r] = i + 1;
-    r++;
-  }
-  boundary[0]  = 0;
-  boundary[Nr] = Nc;
-}
-
-DEFINE_MEMBER(std::vector<float64>, get_rankload)
-(std::vector<int>& boundary, std::vector<float64>& load)
-{
-  const int Nr = boundary.size() - 1;
-
-  std::vector<float64> rankload(Nr);
-  for (int r = 0; r < Nr; r++) {
-    rankload[r] = 0.0;
-    for (int i = boundary[r]; i < boundary[r + 1]; i++) {
-      rankload[r] += load[i];
-    }
-  }
-
-  return rankload;
-}
-
-DEFINE_MEMBER(void, print_assignment)
-(std::ostream& out, std::vector<int>& boundary, std::vector<float64>& load)
-{
-  const int Nr = boundary.size() - 1;
-
-  std::vector<float64> rankload = get_rankload(boundary, load);
-  float64              meanload = std::accumulate(load.begin(), load.end(), 0.0) / Nr;
-
-  tfm::format(out, "*** mean load = %12.5e ***\n", meanload);
-  for (int i = 0; i < Nr; i++) {
-    int     numchunk  = boundary[i + 1] - boundary[i];
-    float64 deviation = (rankload[i] - meanload) / meanload * 100;
-    tfm::format(out, "load[%4d] = %12.5e (%4d : %+7.2f %%)\n", i, rankload[i], numchunk, deviation);
-  }
-}
-
-DEFINE_MEMBER(bool, is_boundary_ascending)(const std::vector<int>& boundary)
-{
-  const int nprocess = boundary.size() - 1;
-
-  bool status = true;
-
-  status = status & (boundary[0] == 0);
-  status = status & (boundary[nprocess] == nchunk);
-
-  for (int i = 1; i < nprocess; i++) {
-    status = status & (boundary[i + 1] > boundary[i]);
-  }
-
-  return status;
-}
-
-DEFINE_MEMBER(bool, is_boundary_optimum)(const std::vector<int>& boundary)
-{
-  const int nprocess = boundary.size() - 1;
-
-  bool status = true;
-
-  std::vector<float64> cumulative_load(nchunk + 1, 0.0);
-  std::partial_sum(chunkload.begin(), chunkload.end(), cumulative_load.begin() + 1);
-
-  for (int i = 1; i < nprocess; i++) {
-    int     index1   = boundary[i];
-    int     index2   = boundary[i] + 1;
-    float64 bestload = i * cumulative_load[nchunk] / nprocess;
-
-    status = status & (cumulative_load[index1] <= bestload);
-    status = status & (cumulative_load[index2] > bestload);
-  }
-
-  return status;
-}
-
-DEFINE_MEMBER(bool, validate_boundary)(int Nc, const std::vector<int>& boundary)
-{
-  const int Nr = boundary.size() - 1;
-
-  bool status = true;
-
-  status = status & (boundary[0] == 0);
-
-  for (int i = 1; i < Nr; i++) {
-    status = status & (boundary[i + 1] > boundary[i]);
-  }
-
-  status = status & (boundary[Nr] == Nc);
-
-  return status;
-}
-
-DEFINE_MEMBER(bool, doit_smilei)(std::vector<float64>& load, std::vector<int>& boundary)
+DEFINE_MEMBER(bool, assign_smilei)(std::vector<float64>& load, std::vector<int>& boundary)
 {
   const int Nc = load.size();
   const int Nr = boundary.size() - 1;
@@ -212,11 +66,12 @@ DEFINE_MEMBER(bool, doit_smilei)(std::vector<float64>& load, std::vector<int>& b
     }
   }
 
-  // check if boundary is updated
-  return (std::equal(boundary.begin(), boundary.end(), old_boundary.begin()) == false);
+  bool is_updated = std::equal(boundary.begin(), boundary.end(), old_boundary.begin()) == false;
+
+  return is_updated;
 }
 
-DEFINE_MEMBER(bool, doit_binary_search)(std::vector<float64>& load, std::vector<int>& boundary)
+DEFINE_MEMBER(bool, assign_binarysearch)(std::vector<float64>& load, std::vector<int>& boundary)
 {
   const int Nc = load.size();
   const int Nr = boundary.size() - 1;
@@ -240,7 +95,109 @@ DEFINE_MEMBER(bool, doit_binary_search)(std::vector<float64>& load, std::vector<
     boundary[i] = index;
   }
 
-  return validate_boundary(Nc, boundary);
+  return is_boundary_ascending(boundary);
+}
+
+DEFINE_MEMBER(std::vector<int>, assign_initial)
+(int nprocess)
+{
+  std::vector<int> boundary(nprocess + 1);
+
+  // try to find initial best assignment via binary search
+  bool status = assign_binarysearch(chunkload, boundary);
+
+  // if failed, use iterative method
+  if (status == false) {
+    // uniform load with the same size as load for initialization
+    std::vector<float64> uniform_load(nchunk, 1.0);
+    assign_binarysearch(uniform_load, boundary);
+
+    // iteratively find best assignment
+    static constexpr int maxiter = 100;
+    for (int i = 0; i < maxiter; i++) {
+      if (assign_smilei(chunkload, boundary) == false)
+        break;
+    }
+  }
+
+  return boundary;
+}
+
+DEFINE_MEMBER(std::vector<int>, assign)
+(std::vector<int>& boundary)
+{
+  assign_smilei(chunkload, boundary);
+
+  return boundary;
+}
+
+DEFINE_MEMBER(std::vector<float64>, get_rankload)
+(std::vector<int>& boundary, std::vector<float64>& load)
+{
+  const int Nr = boundary.size() - 1;
+
+  std::vector<float64> rankload(Nr);
+  for (int r = 0; r < Nr; r++) {
+    rankload[r] = 0.0;
+    for (int i = boundary[r]; i < boundary[r + 1]; i++) {
+      rankload[r] += load[i];
+    }
+  }
+
+  return rankload;
+}
+
+DEFINE_MEMBER(void, print_assignment)
+(std::ostream& out, std::vector<int>& boundary)
+{
+  const int Nr = boundary.size() - 1;
+
+  std::vector<float64> rankload = get_rankload(boundary, chunkload);
+  float64              meanload = std::accumulate(chunkload.begin(), chunkload.end(), 0.0) / Nr;
+
+  tfm::format(out, "*** mean load = %12.5e ***\n", meanload);
+  for (int i = 0; i < Nr; i++) {
+    int     numchunk  = boundary[i + 1] - boundary[i];
+    float64 deviation = (rankload[i] - meanload) / meanload * 100;
+    tfm::format(out, "load[%4d] = %12.5e (%4d : %+7.2f %%)\n", i, rankload[i], numchunk, deviation);
+  }
+}
+
+DEFINE_MEMBER(bool, is_boundary_ascending)(const std::vector<int>& boundary)
+{
+  const int nprocess = boundary.size() - 1;
+
+  bool status = true;
+
+  status = status & (boundary[0] == 0);
+  status = status & (boundary[nprocess] == nchunk);
+
+  for (int i = 1; i < nprocess; i++) {
+    status = status & (boundary[i + 1] > boundary[i]);
+  }
+
+  return status;
+}
+
+DEFINE_MEMBER(bool, is_boundary_optimum)(const std::vector<int>& boundary)
+{
+  const int nprocess = boundary.size() - 1;
+
+  bool status = true;
+
+  std::vector<float64> cumulative_load(nchunk + 1, 0.0);
+  std::partial_sum(chunkload.begin(), chunkload.end(), cumulative_load.begin() + 1);
+
+  for (int i = 1; i < nprocess; i++) {
+    int     index1   = boundary[i];
+    int     index2   = boundary[i] + 1;
+    float64 bestload = i * cumulative_load[nchunk] / nprocess;
+
+    status = status & (cumulative_load[index1] <= bestload);
+    status = status & (cumulative_load[index2] > bestload);
+  }
+
+  return status;
 }
 
 NIX_NAMESPACE_END

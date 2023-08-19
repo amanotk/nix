@@ -51,6 +51,7 @@ endforeach()
 #
 set(PARALLEL_EXECS
 	test_nixio_parallel
+	test_balancer_parallel
 	)
 
 add_library(obj_parallel OBJECT test_parallel.cpp)
@@ -68,4 +69,8 @@ endforeach()
 
 add_test(NAME test_nixio_parallel
 	COMMAND mpiexec -n 8 ./test_nixio_parallel -X 2 -Y 2 -Z 2
+	)
+
+add_test(NAME test_balancer_parallel
+	COMMAND mpiexec -n 8 ./test_balancer_parallel
 	)

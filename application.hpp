@@ -630,14 +630,12 @@ DEFINE_MEMBER(bool, rebalance)()
     // update global load of chunks
     balancer->update_global_load(get_internal_data());
 
-    // rebalance
-    std::vector<int> newrank(nchunk_global);
-
+    // find new assignment
     auto boundary = chunkmap->get_rank_boundary();
     boundary      = balancer->assign(boundary);
-    balancer->get_rank(boundary, newrank);
-    balancer->sendrecv_chunk(*this, get_internal_data(), newrank);
 
+    // sned/recv chunks
+    balancer->sendrecv_chunk(*this, get_internal_data(), boundary);
     chunkmap->set_rank_boundary(boundary);
     chunkvec.set_neighbors(chunkmap);
 

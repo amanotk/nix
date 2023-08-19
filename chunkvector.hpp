@@ -20,6 +20,8 @@ public:
   using vector_type::emplace_back;
   using vector_type::begin;
   using vector_type::end;
+  using vector_type::front;
+  using vector_type::back;
   using vector_type::operator[];
   using vector_type::size;
   using vector_type::capacity;

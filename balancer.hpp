@@ -16,6 +16,30 @@ protected:
   int                  nchunk;    ///< number of chunks
   std::vector<float64> chunkload; ///< array of chunk load
 
+  static int find_rank(int id, std::vector<int>& boundary)
+  {
+    auto it = std::upper_bound(boundary.begin(), boundary.end(), id);
+    return std::distance(boundary.begin(), it) - 1;
+  }
+
+  ///
+  /// @brief perform assignment of chunks according to SMILEI code (Derouillat et al. 2018)
+  ///
+  /// @param[in] load load of chunks
+  /// @param[out] boundary boundary between ranks
+  /// @return true if the assignment is changed and false otherwise
+  ///
+  bool assign_smilei(std::vector<float64>& load, std::vector<int>& boundary);
+
+  ///
+  /// @brief perform assignment of chunks via binary search for the best
+  ///
+  /// @param[in] load load of chunks
+  /// @param[out] boundary boundary between ranks
+  /// @return true if the assignment is successful and false otherwise
+  ///
+  bool assign_binarysearch(std::vector<float64>& load, std::vector<int>& boundary);
+
 public:
   // default constructor
   Balancer() : Balancer(0)
@@ -59,22 +83,6 @@ public:
   virtual std::vector<int> assign(std::vector<int>& boundary);
 
   ///
-  /// @brief calculate rank from boundary
-  ///
-  /// @param[in] boundary boundary between ranks
-  /// @param[out] rank rank of chunk
-  ///
-  void get_rank(std::vector<int>& boundary, std::vector<int>& rank);
-
-  ///
-  /// @brief calculate boundary from rank
-  ///
-  /// @param[in] rank rank of chunk
-  /// @param[out] boundary boundary between ranks
-  ///
-  void get_boundary(std::vector<int>& rank, std::vector<int>& boundary);
-
-  ///
   /// @brief return array of load for each rank
   ///
   /// @param[in] boundary boundary array
@@ -88,9 +96,8 @@ public:
   ///
   /// @param[in] out output stream
   /// @param[in] boundary boundary array
-  /// @param[in] load load for each chunk
   ///
-  void print_assignment(std::ostream& out, std::vector<int>& boundary, std::vector<float64>& load);
+  void print_assignment(std::ostream& out, std::vector<int>& boundary);
 
   ///
   /// @brief check if the boundary is in ascending order
@@ -109,15 +116,6 @@ public:
   bool is_boundary_optimum(const std::vector<int>& boundary);
 
   ///
-  /// @brief return if the boundary array gives appropriate assignment of chunks
-  ///
-  /// @param[in] Nc number of chunks
-  /// @param[in] boundary boundary arrays
-  /// @return true if the assignment is appropriate and false otherwise
-  ///
-  bool validate_boundary(int Nc, const std::vector<int>& boundary);
-
-  ///
   /// @brief update global chunk load
   ///
   /// @tparam Data Application internal data struct
@@ -132,29 +130,10 @@ public:
   /// @tparam Data Application internal data struct
   /// @param app Application object
   /// @param data Application internal data object
-  /// @param newrank new rank for each chunk
+  /// @param boundary array of boundary
   ///
   template <typename App, typename Data>
-  void sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank);
-
-protected:
-  ///
-  /// @brief perform assignment of chunks according to SMILEI code (Derouillat et al. 2018)
-  ///
-  /// @param[in] load load of chunks
-  /// @param[out] boundary boundary between ranks
-  /// @return true if the assignment is changed and false otherwise
-  ///
-  bool doit_smilei(std::vector<float64>& load, std::vector<int>& boundary);
-
-  ///
-  /// @brief perform assignment of chunks via binary search for the best
-  ///
-  /// @param[in] load load of chunks
-  /// @param[out] boundary boundary between ranks
-  /// @return true if the assignment is successful and false otherwise
-  ///
-  bool doit_binary_search(std::vector<float64>& load, std::vector<int>& boundary);
+  void sendrecv_chunk(App&& app, Data&& data, std::vector<int>& boundary);
 };
 
 ///
@@ -203,20 +182,21 @@ void Balancer::update_global_load(Data&& data)
 }
 
 template <typename App, typename Data>
-void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
+void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& boundary)
 {
-  const int nchunk_global = newrank.size();
+  const int nchunk_global = boundary.back();
 
-  int dims[3];
-  int numchunk = data.chunkvec.size();
   int thisrank = data.thisrank;
   int nprocess = data.nprocess;
+  int idxmin   = 0;
+  int idxmax   = data.chunkvec.size() - 1;
   int rankmin  = 0;
   int rankmax  = nprocess - 1;
   int rank_l   = thisrank > rankmin ? thisrank - 1 : MPI_PROC_NULL;
   int rank_r   = thisrank < rankmax ? thisrank + 1 : MPI_PROC_NULL;
 
   // chunk dimensions
+  int dims[3];
   dims[0] = data.ndims[0] / data.cdims[0];
   dims[1] = data.ndims[1] / data.cdims[1];
   dims[2] = data.ndims[2] / data.cdims[2];
@@ -235,13 +215,14 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
     int recvsize_l = 0;
     int recvsize_r = 0;
 
-    for (int i = 0; i < numchunk; i++) {
-      int id = data.chunkvec[i]->get_id();
+    for (int i = 0; i < data.chunkvec.size(); i++) {
+      int id   = data.chunkvec[i]->get_id();
+      int rank = find_rank(id, boundary);
 
-      if (newrank[id] == thisrank - 1) {
+      if (rank == thisrank - 1) {
         sendsize_l = std::max(sendsize_l, data.chunkvec[i]->pack(nullptr, 0));
       }
-      if (newrank[id] == thisrank + 1) {
+      if (rank == thisrank + 1) {
         sendsize_r = std::max(sendsize_r, data.chunkvec[i]->pack(nullptr, 0));
       }
     }
@@ -274,7 +255,7 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
     int         size;
     uint8_t*    buf = sendbuf.get(pos);
 
-    if (chunkid < 0 || chunkid >= newrank.size()) {
+    if (chunkid < 0 || chunkid >= nchunk_global) {
       return;
     }
 
@@ -282,7 +263,7 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
                            [&](auto& p) { return p->get_id() == chunkid; });
     int  index = std::distance(data.chunkvec.begin(), it);
 
-    while (newrank[chunkid] == rank) {
+    while (find_rank(chunkid, boundary) == rank) {
       // pack
       size = data.chunkvec[index]->pack(buf, 0);
       data.chunkvec[index]->set_id(nchunk_global + 1); // to be removed
@@ -303,11 +284,11 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
     int         size = recvbuf.size - pos;
     uint8_t*    buf  = recvbuf.get(pos);
 
-    if (chunkid < 0 || chunkid >= newrank.size()) {
+    if (chunkid < 0 || chunkid >= nchunk_global) {
       return;
     }
 
-    while (newrank[chunkid] == thisrank) {
+    while (find_rank(chunkid, boundary) == thisrank) {
       MPI_Irecv(buf, size, MPI_BYTE, rank, tag, MPI_COMM_WORLD, &request);
       MPI_Wait(&request, MPI_STATUS_IGNORE);
 
@@ -326,23 +307,23 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
   if (thisrank % 2 == 1) {
     // send to left
     {
-      int chunkid = data.chunkvec[0]->get_id();
+      int chunkid = data.chunkvec[idxmin]->get_id();
       send_chunk(chunkid, rank_l, 1, +1, 0);
     }
     // recv from left
     {
-      int chunkid = data.chunkvec[0]->get_id() - 1;
+      int chunkid = data.chunkvec[idxmin]->get_id() - 1;
       recv_chunk(chunkid, rank_l, 2, -1, 0);
     }
   } else {
     // send to right
     {
-      int chunkid = data.chunkvec[numchunk - 1]->get_id();
+      int chunkid = data.chunkvec[idxmax]->get_id();
       send_chunk(chunkid, rank_r, 2, -1, 0);
     }
     // recv from right
     {
-      int chunkid = data.chunkvec[numchunk - 1]->get_id() + 1;
+      int chunkid = data.chunkvec[idxmax]->get_id() + 1;
       recv_chunk(chunkid, rank_r, 1, +1, 0);
     }
   }
@@ -353,23 +334,23 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& newrank)
   if (thisrank % 2 == 1) {
     // send to right
     {
-      int chunkid = data.chunkvec[numchunk - 1]->get_id();
+      int chunkid = data.chunkvec[idxmax]->get_id();
       send_chunk(chunkid, rank_r, 3, -1, 0);
     }
     // recv from right
     {
-      int chunkid = data.chunkvec[numchunk - 1]->get_id() + 1;
+      int chunkid = data.chunkvec[idxmax]->get_id() + 1;
       recv_chunk(chunkid, rank_r, 4, +1, 0);
     }
   } else {
     // send to left
     {
-      int chunkid = data.chunkvec[0]->get_id();
+      int chunkid = data.chunkvec[idxmin]->get_id();
       send_chunk(chunkid, rank_l, 4, +1, 0);
     }
     // recv from left
     {
-      int chunkid = data.chunkvec[0]->get_id() - 1;
+      int chunkid = data.chunkvec[idxmin]->get_id() - 1;
       recv_chunk(chunkid, rank_l, 3, -1, 0);
     }
   }
