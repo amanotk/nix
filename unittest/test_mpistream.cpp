@@ -59,8 +59,6 @@ TEST_CASE("get_filename")
     REQUIRE(MpiStream::get_stderr_filename(".", 1, 16) == "./000001.stderr");
     REQUIRE(MpiStream::get_stdout_filename("", 0, 16) == "/dev/null");
     REQUIRE(MpiStream::get_stderr_filename("", 0, 16) == "/dev/null");
-    REQUIRE(MpiStream::get_stdout_filename(nullptr, 0, 16) == "/dev/null");
-    REQUIRE(MpiStream::get_stderr_filename(nullptr, 0, 16) == "/dev/null");
   }
 }
 

@@ -20,7 +20,7 @@ protected:
     this->add<std::string>("save", 's', "save file for restart", false, "");
     this->add<float64>("tmax", 't', "maximum physical time", false, ptmax);
     this->add<float64>("emax", 'e', "maximum elapsed time [sec]", false, etmax);
-    this->add<int>("debug", 'd', "debug level", false, 0);
+    this->add<int>("verbose", 'v', "verbosity level", false, 0);
   }
 
 public:
@@ -54,9 +54,9 @@ public:
     return this->get<float64>("emax");
   }
 
-  int get_debug_level() const
+  int get_verbosity() const
   {
-    return this->get<int>("debug");
+    return this->get<int>("verbose");
   }
 
   static std::vector<const char*> convert_to_clargs(const std::vector<std::string>& args)

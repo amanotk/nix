@@ -102,10 +102,9 @@ public:
 
   ///
   /// @brief main loop of simulation
-  /// @param out output stream
   /// @return return code of application
   ///
-  virtual int main(std::ostream& out);
+  virtual int main();
 
   ///
   /// @brief factory to create argument parser
@@ -185,9 +184,8 @@ protected:
 
   ///
   /// @brief finalize application
-  /// @param cleanup return code
   ///
-  virtual void finalize(int cleanup = 0);
+  virtual void finalize();
 
   ///
   /// @brief initialize MPI
@@ -198,9 +196,8 @@ protected:
 
   ///
   /// @brief finalize MPI
-  /// @param cleanup return code
   ///
-  void finalize_mpi(int cleanup);
+  void finalize_mpi();
 
   ///
   /// @brief initialize debug printing
@@ -337,7 +334,7 @@ protected:
   template <typename Chunk, typename ChunkMap>                                                     \
   type Application<Chunk, ChunkMap>::name
 
-DEFINE_MEMBER(int, main)(std::ostream& out)
+DEFINE_MEMBER(int, main)()
 {
   //
   // initialize the application
@@ -402,18 +399,13 @@ DEFINE_MEMBER(int, main)(std::ostream& out)
   // finalize the application
   //
   DEBUG1 << tfm::format("finalize");
-  {
-    int cleanup = argparser->get_debug_level() == 0 ? 0 : -1;
-    finalize(cleanup);
-  }
+  finalize();
 
   return 0;
 }
 
 DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 {
-  initialize_mpi(&argc, &argv);
-
   // parse command line arguments
   argparser = create_argparser();
   argparser->parse(argc, argv);
@@ -421,6 +413,9 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   // parse configuration file
   cfgparser = create_cfgparser();
   cfgparser->parse_file(argparser->get_config());
+
+  // initialize MPI first
+  initialize_mpi(&argc, &argv);
 
   // object initialization
   chunkmap = create_chunkmap();
@@ -439,13 +434,13 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   initialize_chunks();
 }
 
-DEFINE_MEMBER(void, finalize)(int cleanup)
+DEFINE_MEMBER(void, finalize)()
 {
   this->save_snapshot();
 
   logger->flush();
 
-  finalize_mpi(cleanup);
+  finalize_mpi();
 }
 
 DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
@@ -478,13 +473,24 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
   MPI_Bcast(&wclock, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   // redirect stdout/stderr
-  MpiStream::initialize(nullptr, thisrank, nprocess, 1024);
+  {
+    json        config            = cfgparser->get_application()["mpistream"];
+    std::string path              = "";
+    int         max_files_per_dir = 1024;
+
+    if (config.is_null() == false) {
+      path              = config.value("path", path);
+      max_files_per_dir = config.value("max_files_per_dir", max_files_per_dir);
+    }
+
+    MpiStream::initialize(path, max_files_per_dir);
+  }
 }
 
-DEFINE_MEMBER(void, finalize_mpi)(int cleanup)
+DEFINE_MEMBER(void, finalize_mpi)()
 {
   // release stdout/stderr
-  MpiStream::finalize(cleanup);
+  MpiStream::finalize();
 
   MPI_Finalize();
 }
@@ -492,7 +498,7 @@ DEFINE_MEMBER(void, finalize_mpi)(int cleanup)
 DEFINE_MEMBER(void, initialize_debugprinting)()
 {
   DebugPrinter::init();
-  DebugPrinter::set_level(argparser->get_debug_level());
+  DebugPrinter::set_level(argparser->get_verbosity());
 }
 
 DEFINE_MEMBER(void, initialize_dimensions)()
@@ -557,7 +563,7 @@ DEFINE_MEMBER(void, initialize_chunks)()
     ERROR << tfm::format("Number of processes should not exceed number of chunks");
     ERROR << tfm::format("* number of processes = %8d", nprocess);
     ERROR << tfm::format("* number of chunks    = %8d", nchunk_global);
-    finalize(-1);
+    finalize();
     exit(-1);
   }
 

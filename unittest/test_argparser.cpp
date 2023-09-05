@@ -31,13 +31,13 @@ TEST_CASE("Basic")
     REQUIRE(parser.get_elapsed_time_max() == 200);
   }
 
-  SECTION("debug flag")
+  SECTION("verbosity")
   {
-    std::string args = "./a.out -c config.json --debug 1";
+    std::string args = "./a.out -c config.json --verbose 1";
 
     parser.parse_check(args);
 
-    REQUIRE(parser.get_debug_level() == 1);
+    REQUIRE(parser.get_verbosity() == 1);
   }
 
   SECTION("C-style command line arguments")

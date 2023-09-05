@@ -96,7 +96,7 @@ public:
     cl_argc = argv.size();
     cl_argv = const_cast<char**>(&argv[0]);
 
-    REQUIRE(main(std::cout) == 0);
+    REQUIRE(main() == 0);
   }
 };
 

@@ -7,9 +7,12 @@
 #include "debug.hpp"
 #include "nix.hpp"
 #include "particle.hpp"
+#include "particle_primitives.hpp"
 #include "xtensorall.hpp"
 
 NIX_NAMESPACE_BEGIN
+
+using primitives::digitize;
 
 ///
 /// @brief Base class for 3D Chunk

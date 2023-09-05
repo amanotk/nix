@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <mpi.h>
 #include <ostream>
 #include <sstream>
 
@@ -96,9 +97,18 @@ protected:
   MpiStream& operator=(const MpiStream&);
 
 public:
-  static void initialize(const char* dirname, int thisrank, int nprocess, int max_file_per_dir = -1)
+  static void initialize(std::string dirname, int max_file_per_dir = -1)
   {
+    int thisrank = 0;
+    int nprocess = 0;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
+
     MpiStream* instance = getInstance();
+
+    // create directories
+    recursively_create_directory(dirname, thisrank, nprocess, max_file_per_dir);
 
     // open dummy standard output stream
     instance->m_outf   = get_stdout_filename(dirname, thisrank, nprocess, max_file_per_dir);
@@ -120,7 +130,7 @@ public:
     }
   }
 
-  static void finalize(int cleanup = 0)
+  static void finalize()
   {
     MpiStream* instance = getInstance();
 
@@ -133,14 +143,6 @@ public:
     instance->m_err->flush();
     instance->m_err->close();
     std::cerr.rdbuf(instance->m_errbuf);
-
-    // remove files
-    if (cleanup == 0 && instance->m_outf != dev_null) {
-      std::remove(instance->m_outf.c_str());
-    }
-    if (cleanup == 0 && instance->m_errf != dev_null) {
-      std::remove(instance->m_errf.c_str());
-    }
   }
 
   static void flush()
@@ -151,19 +153,76 @@ public:
     instance->m_err->flush();
   }
 
-  static std::string get_filename_pattern(int thisrank, int nprocess, int max_file_per_dir = -1)
+  static int get_directory_level(int nprocess, int max_file_per_dir)
   {
     if (max_file_per_dir == -1) {
       max_file_per_dir = nprocess;
     }
 
-    // compute recursive directory level
     int directory_level = 0;
 
     while (nprocess > max_file_per_dir) {
       nprocess /= max_file_per_dir;
       directory_level++;
     }
+
+    return directory_level;
+  }
+
+  static bool recursively_create_directory(std::string dirname, int thisrank, int nprocess,
+                                           int max_file_per_dir = -1)
+  {
+    bool use_null_stream = std::string("") == dirname;
+    bool status          = true;
+    int  directory_level = get_directory_level(nprocess, max_file_per_dir);
+
+    if (use_null_stream) {
+      return status;
+    }
+
+    // base directory
+    {
+      if (std::filesystem::exists(dirname) == false) {
+        if (thisrank == 0) {
+          status = status & std::filesystem::create_directory(dirname);
+        }
+      } else if (std::filesystem::is_directory(dirname) == false) {
+        status = false;
+        ERROR << tfm::format("Error: %s exists but not a directory.", dirname) << std::endl;
+      }
+
+      // synchronize
+      MPI_Barrier(MPI_COMM_WORLD);
+
+      if (status == false) {
+        return status;
+      }
+    }
+
+    // recursive directory creation
+    {
+      std::filesystem::path path(dirname);
+
+      for (int level = 0; level < directory_level; level++) {
+        int max_file_level = std::pow(max_file_per_dir, directory_level - level);
+
+        path = path / tfm::format(filename_format, (thisrank / max_file_level) * max_file_level);
+
+        if (thisrank % max_file_level == 0 && std::filesystem::exists(path) == false) {
+          status = status & std::filesystem::create_directory(path.string());
+        }
+
+        // synchronize
+        MPI_Barrier(MPI_COMM_WORLD);
+      }
+    }
+
+    return status;
+  }
+
+  static std::string get_filename_pattern(int thisrank, int nprocess, int max_file_per_dir = -1)
+  {
+    int directory_level = get_directory_level(nprocess, max_file_per_dir);
 
     // make directory name
     std::filesystem::path path;
@@ -178,27 +237,19 @@ public:
     return path.string();
   }
 
-  static std::string get_filename(const char* dirname, const char* extension, int thisrank,
+  static std::string get_filename(std::string dirname, std::string extension, int thisrank,
                                   int nprocess, int max_file_per_dir = -1)
   {
-    if (std::filesystem::exists(dirname) == false) {
-      if (thisrank == 0) {
-        std::filesystem::create_directory(dirname);
-      }
-    } else if (std::filesystem::is_directory(dirname) == false) {
-      ERROR << tfm::format("Error: %s exists but not a directory.", dirname) << std::endl;
-    }
-
     std::filesystem::path path(dirname);
     path = path / get_filename_pattern(thisrank, nprocess, max_file_per_dir);
 
     return path.string() + extension;
   }
 
-  static std::string get_stdout_filename(const char* dirname, int thisrank, int nprocess,
+  static std::string get_stdout_filename(std::string dirname, int thisrank, int nprocess,
                                          int max_file_per_dir = -1)
   {
-    bool use_null_stream = (dirname == nullptr) || std::string("") == dirname;
+    bool use_null_stream = std::string("") == dirname;
 
     if (use_null_stream) {
       return dev_null;
@@ -207,10 +258,10 @@ public:
     }
   }
 
-  static std::string get_stderr_filename(const char* dirname, int thisrank, int nprocess,
+  static std::string get_stderr_filename(std::string dirname, int thisrank, int nprocess,
                                          int max_file_per_dir = -1)
   {
-    bool use_null_stream = (dirname == nullptr) || std::string("") == dirname;
+    bool use_null_stream = std::string("") == dirname;
 
     if (use_null_stream) {
       return dev_null;
