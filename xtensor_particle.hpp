@@ -4,15 +4,17 @@
 
 #include "nix.hpp"
 #include "particle.hpp"
+#include "particle_primitives.hpp"
+#include "xtensorall.hpp"
 
 NIX_NAMESPACE_BEGIN
 
 template <int N_component>
-class XtensorParticle : public ParticleContainer<N_component>
+class XtensorParticle : public Particle<N_component>
 {
 public:
-  using ParticleContainer<N_component>::ParticleContainer; // inherit constructor
-  using BaseParticle = ParticleContainer<N_component>;
+  using Particle<N_component>::Particle; // inherit constructor
+  using BaseParticle = Particle<N_component>;
   using BaseParticle::Nc;
   using BaseParticle::Np_total;
   using BaseParticle::Np;
@@ -278,8 +280,7 @@ public:
   }
 };
 
-using Particle    = nix::XtensorParticle<7>;
-using ParticlePtr = std::shared_ptr<Particle>;
+using ParticlePtr = std::shared_ptr<XtensorParticle<7>>;
 using ParticleVec = std::vector<ParticlePtr>;
 
 NIX_NAMESPACE_END

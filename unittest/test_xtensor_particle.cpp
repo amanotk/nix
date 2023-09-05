@@ -5,8 +5,9 @@
 
 #include "catch.hpp"
 
-using namespace nix;
-using Particle     = XtensorParticle<7>;
+using namespace nix::typedefs;
+using namespace nix::primitives;
+using Particle     = nix::XtensorParticle<7>;
 using uniform_rand = std::uniform_real_distribution<float64>;
 
 // set random particle position
