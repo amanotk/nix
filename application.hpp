@@ -47,11 +47,11 @@ protected:
   int     cdims[4]; ///< chunk dimensions
   int     curstep;  ///< current iteration step
   float64 curtime;  ///< current time
+  float64 cc;       ///< speed of light
   float64 delt;     ///< time step
   float64 delx;     ///< grid size in x
   float64 dely;     ///< grid size in y
   float64 delz;     ///< grid size in z
-  float64 cc;       ///< speed of light
   float64 xlim[3];  ///< physical domain in x
   float64 ylim[3];  ///< physical domain in y
   float64 zlim[3];  ///< physical domain in z
@@ -231,15 +231,27 @@ protected:
   virtual bool validate_chunks();
 
   ///
+  /// @brief performing load balancing
+  /// @return return true if rebalancing is performed and false otherwise
+  ///
+  virtual bool rebalance();
+
+  ///
   /// @brief save profile of run
   ///
   virtual void save_profile();
 
   ///
-  /// @brief performing load balancing
-  /// @return return true if rebalancing is performed and false otherwise
+  /// @brief convert internal data to json object
+  /// @return json object
   ///
-  virtual bool rebalance();
+  virtual json to_json();
+
+  ///
+  /// @brief restore internal data from json object
+  /// @param obj json object
+  ///
+  virtual void from_json(json& obj);
 
   ///
   /// @brief load a snapshot file for restart
@@ -591,26 +603,6 @@ DEFINE_MEMBER(bool, validate_chunks)()
   return status;
 }
 
-DEFINE_MEMBER(void, save_profile)()
-{
-  if (thisrank == 0) {
-    std::string filename = "profile.msgpack";
-
-    // content
-    json content = {{"timestamp", wclock},
-                    {"nprocess", nprocess},
-                    {"configuration", cfgparser->get_root()},
-                    {"chunkmap", chunkmap->to_json()}};
-
-    // serialize and output
-    std::vector<std::uint8_t> buffer = json::to_msgpack(content);
-
-    std::ofstream ofs(filename, std::ios::binary);
-    ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-    ofs.close();
-  }
-}
-
 DEFINE_MEMBER(bool, rebalance)()
 {
   const int nchunk_global = cdims[3];
@@ -661,6 +653,73 @@ DEFINE_MEMBER(bool, rebalance)()
   logger->append(curstep, "rebalance", log);
 
   return status;
+}
+
+DEFINE_MEMBER(void, save_profile)()
+{
+  if (thisrank == 0) {
+    std::string filename = "profile.msgpack";
+
+    // serialize and output
+    std::vector<std::uint8_t> buffer = json::to_msgpack(to_json());
+
+    std::ofstream ofs(filename, std::ios::binary);
+    ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    ofs.close();
+  }
+}
+
+DEFINE_MEMBER(json, to_json)()
+{
+  json state = {{"timestamp", nix::wall_clock()},
+                {"wclock", wclock},
+                {"ndims", ndims},
+                {"cdims", cdims},
+                {"curstep", curstep},
+                {"curtime", curtime},
+                {"cc", cc},
+                {"delt", delt},
+                {"delx", delx},
+                {"dely", dely},
+                {"delz", delz},
+                {"xlim", xlim},
+                {"ylim", ylim},
+                {"zlim", zlim},
+                {"nprocess", nprocess},
+                {"thisrank", thisrank},
+                {"configuration", cfgparser->get_root()},
+                {"chunkmap", chunkmap->to_json()}};
+
+  return state;
+}
+
+DEFINE_MEMBER(void, from_json)(json& state)
+{
+  json current_state = to_json();
+
+  // check consistency
+  bool consistency = true;
+
+  consistency &= current_state["ndims"] == state["ndims"];
+  consistency &= current_state["cdims"] == state["cdims"];
+  consistency &= current_state["cc"] == state["cc"];
+  consistency &= current_state["delt"] == state["delt"];
+  consistency &= current_state["delx"] == state["delx"];
+  consistency &= current_state["dely"] == state["dely"];
+  consistency &= current_state["delz"] == state["delz"];
+  consistency &= current_state["xlim"] == state["xlim"];
+  consistency &= current_state["ylim"] == state["ylim"];
+  consistency &= current_state["zlim"] == state["zlim"];
+  consistency &= current_state["nprocess"] == state["nprocess"];
+  consistency &= current_state["configuration"] == state["configuration"];
+
+  if (consistency == false) {
+    ERROR << tfm::format("Trying to load inconsistent state");
+  } else {
+    curstep = state["curstep"].get<int>();
+    curtime = state["curtime"].get<float64>();
+    chunkmap->from_json(state["chunkmap"]);
+  }
 }
 
 #undef DEFINE_MEMBER

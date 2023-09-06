@@ -53,6 +53,7 @@ set(PARALLEL_EXECS
 	test_nixio_parallel
 	test_balancer_parallel
 	test_mpistream_parallel
+	test_statehandler_parallel
 	)
 
 add_library(obj_parallel OBJECT test_parallel.cpp)
@@ -78,4 +79,8 @@ add_test(NAME test_balancer_parallel
 
 add_test(NAME test_mpistream_parallel
 	COMMAND mpiexec -n 8 ./test_mpistream_parallel
+	)
+
+add_test(NAME test_statehandler_parallel
+	COMMAND mpiexec -n 8 ./test_statehandler_parallel
 	)
