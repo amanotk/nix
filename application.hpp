@@ -169,7 +169,7 @@ public:
   {
     auto application = cfgparser->get_application();
 
-    return std::make_unique<Logger>(thisrank, application["log"]);
+    return std::make_unique<Logger>(thisrank, application["log"], is_initial_run());
   }
 
   ///
@@ -283,7 +283,18 @@ protected:
   ///
   virtual void save_profile()
   {
-    statehandler->save_application(*this, get_internal_data(), "profile");
+    if (is_initial_run() == true) {
+      statehandler->save_application(*this, get_internal_data(), "profile");
+    }
+  }
+
+  ///
+  /// @brief check if this is the initial run or not
+  /// @return true if no snapshot is specified and false otherwise
+  ///
+  virtual bool is_initial_run()
+  {
+    return argparser->get_load() == "";
   }
 
   ///
@@ -483,10 +494,10 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   initialize_mpi(&argc, &argv);
 
   // object initialization
-  chunkmap     = create_chunkmap();
-  logger       = create_logger();
-  balancer     = create_balancer();
   statehandler = create_statehandler();
+  balancer     = create_balancer();
+  logger       = create_logger();
+  chunkmap     = create_chunkmap();
 
   // misc
   curstep = 0;
@@ -620,12 +631,25 @@ DEFINE_MEMBER(void, initialize_workload)()
 
 DEFINE_MEMBER(void, setup_chunks_init)()
 {
+  // error check
+  {
+    const int numchunk_global = cdims[3];
+
+    if (numchunk_global < nprocess) {
+      ERROR << tfm::format("Number of processes should not exceed number of chunks");
+      ERROR << tfm::format("* number of processes = %8d", nprocess);
+      ERROR << tfm::format("* number of chunks    = %8d", numchunk_global);
+      finalize();
+      exit(-1);
+    }
+  }
+
   // initial assignment
   initialize_workload();
   auto boundary = balancer->assign_initial(nprocess);
   chunkmap->set_rank_boundary(boundary);
 
-  // create and setup local chunks
+  // create local chunks
   int numchunk = boundary[thisrank + 1] - boundary[thisrank];
   int dims[3];
 
@@ -635,9 +659,7 @@ DEFINE_MEMBER(void, setup_chunks_init)()
   chunkvec.resize(numchunk);
 
   for (int i = 0, id = boundary[thisrank]; id < boundary[thisrank + 1]; i++, id++) {
-    auto config = cfgparser->get_parameter();
     chunkvec[i] = create_chunk(dims, id);
-    chunkvec[i]->setup(config);
   }
   chunkvec.set_neighbors(chunkmap);
 
@@ -652,24 +674,16 @@ DEFINE_MEMBER(void, setup_chunks_init)()
     offset[2] = ix * ndims[2] / cdims[2];
     chunkvec[i]->set_global_context(offset, ndims);
   }
+
+  // setup initial condition
+  for (int i = 0; i < chunkvec.size(); i++) {
+    auto config = cfgparser->get_parameter();
+    chunkvec[i]->setup(config);
+  }
 }
 
 DEFINE_MEMBER(void, setup_chunks)()
 {
-  // error check
-  {
-    const int numchunk_global = cdims[3];
-
-    if (numchunk_global < nprocess) {
-      ERROR << tfm::format("Number of processes should not exceed number of chunks");
-      ERROR << tfm::format("* number of processes = %8d", nprocess);
-      ERROR << tfm::format("* number of chunks    = %8d", numchunk_global);
-      finalize();
-      exit(-1);
-    }
-  }
-
-  // set initial condition or load snapshot
   if (argparser->get_load() != "") {
     statehandler->load(*this, get_internal_data(), argparser->get_load());
   } else {

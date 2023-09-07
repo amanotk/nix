@@ -13,7 +13,7 @@ static constexpr int default_max_file_per_dir = 1024;
 class StateHandler
 {
 protected:
-  using Vector = std::vector<std::int64_t>;
+  using Vector = std::vector<int64>;
 
   int max_file_per_dir;
 
@@ -125,8 +125,8 @@ protected:
   {
     const int element_size = sizeof(Vector::value_type);
 
-    int          numchunk    = data.chunkvec.size();
-    std::int64_t header_size = (1 + numchunk * 3) * element_size;
+    int64 numchunk    = data.chunkvec.size();
+    int64 header_size = (1 + numchunk * 3) * element_size;
 
     id.resize(numchunk);
     size.resize(numchunk);
@@ -139,7 +139,7 @@ protected:
 
     // calculate offset for each chunk
     std::partial_sum(size.begin(), size.end(), offset.begin() + 1);
-    for(int i=0; i < offset.size(); i++) {
+    for (int i = 0; i < offset.size(); i++) {
       offset[i] += header_size;
     }
 
@@ -187,7 +187,7 @@ protected:
   {
     const int element_size = sizeof(Vector::value_type);
 
-    int numchunk = 0;
+    int64 numchunk = 0;
 
     std::ifstream ifs(filename, std::ios::binary);
 
