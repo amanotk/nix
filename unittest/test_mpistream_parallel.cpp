@@ -24,7 +24,7 @@ TEST_CASE("recursively_create_directory")
   {
     std::vector<std::string> dirnames = {"foo/000000", "foo/000004"};
 
-    bool status = MpiStream::recursively_create_directory("foo", thisrank, nprocess, 4);
+    bool status = MpiStream::create_directory_tree("foo", thisrank, nprocess, 4);
 
     REQUIRE(status == true);
     for (int i = 0; i < dirnames.size(); i++) {
@@ -37,7 +37,7 @@ TEST_CASE("recursively_create_directory")
     std::vector<std::string> dirnames = {"foo/000000/000000", "foo/000000/000002",
                                          "foo/000004/000004", "foo/000004/000006"};
 
-    bool status = MpiStream::recursively_create_directory("foo", thisrank, nprocess, 2);
+    bool status = MpiStream::create_directory_tree("foo", thisrank, nprocess, 2);
 
     REQUIRE(status == true);
     for (int i = 0; i < dirnames.size(); i++) {

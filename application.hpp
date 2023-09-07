@@ -139,6 +139,15 @@ public:
   }
 
   ///
+  /// @brief factory to create state handler
+  /// @return state handler object
+  ///
+  virtual std::unique_ptr<StateHandler> create_statehandler()
+  {
+    return std::make_unique<StateHandler>();
+  }
+
+  ///
   /// @brief factory to create balancer
   /// @return balancer object
   ///
@@ -464,7 +473,7 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 {
   // parse command line arguments
   argparser = create_argparser();
-  argparser->parse(argc, argv);
+  argparser->parse_check(argc, argv);
 
   // parse configuration file
   cfgparser = create_cfgparser();
@@ -474,9 +483,10 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   initialize_mpi(&argc, &argv);
 
   // object initialization
-  chunkmap = create_chunkmap();
-  logger   = create_logger();
-  balancer = create_balancer();
+  chunkmap     = create_chunkmap();
+  logger       = create_logger();
+  balancer     = create_balancer();
+  statehandler = create_statehandler();
 
   // misc
   curstep = 0;

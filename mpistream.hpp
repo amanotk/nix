@@ -108,7 +108,7 @@ public:
     MpiStream* instance = getInstance();
 
     // create directories
-    recursively_create_directory(dirname, thisrank, nprocess, max_file_per_dir);
+    create_directory_tree(dirname, thisrank, nprocess, max_file_per_dir);
 
     // open dummy standard output stream
     instance->m_outf   = get_stdout_filename(dirname, thisrank, nprocess, max_file_per_dir);
@@ -169,8 +169,8 @@ public:
     return directory_level;
   }
 
-  static bool recursively_create_directory(std::string dirname, int thisrank, int nprocess,
-                                           int max_file_per_dir = -1)
+  static bool create_directory_tree(std::string dirname, int thisrank, int nprocess,
+                                    int max_file_per_dir = -1)
   {
     bool use_null_stream = std::string("") == dirname;
     bool status          = true;

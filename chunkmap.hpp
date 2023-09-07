@@ -311,9 +311,10 @@ DEFINE_MEMBER1(json, to_json)()
   json obj;
 
   // meta data
-  obj["size"]  = size;
-  obj["ndim"]  = 1;
-  obj["shape"] = {dims[0]};
+  obj["size"]        = size;
+  obj["ndim"]        = 1;
+  obj["shape"]       = {dims[0]};
+  obj["periodicity"] = {periodicity[0]};
 
   // map
   obj["chunkid"]  = chunkid;
@@ -328,9 +329,10 @@ DEFINE_MEMBER2(json, to_json)()
   json obj;
 
   // meta data
-  obj["size"]  = size;
-  obj["ndim"]  = 2;
-  obj["shape"] = {dims[0], dims[1]};
+  obj["size"]        = size;
+  obj["ndim"]        = 2;
+  obj["shape"]       = {dims[0], dims[1]};
+  obj["periodicity"] = {periodicity[0], periodicity[1]};
 
   // map
   obj["chunkid"]  = chunkid;
@@ -345,9 +347,10 @@ DEFINE_MEMBER3(json, to_json)()
   json obj;
 
   // meta data
-  obj["size"]  = size;
-  obj["ndim"]  = 3;
-  obj["shape"] = {dims[0], dims[1], dims[2]};
+  obj["size"]        = size;
+  obj["ndim"]        = 3;
+  obj["shape"]       = {dims[0], dims[1], dims[2]};
+  obj["periodicity"] = {periodicity[0], periodicity[1], periodicity[2]};
 
   // map
   obj["chunkid"]  = chunkid;
@@ -364,8 +367,9 @@ DEFINE_MEMBER1(void, from_json)(json& obj)
   }
 
   // meta data
-  size    = obj["size"].get<int>();
-  dims[0] = obj["shape"][0].get<int>();
+  size           = obj["size"].get<int>();
+  dims[0]        = obj["shape"][0].get<int>();
+  periodicity[0] = obj["periodicity"][0].get<int>();
 
   // map
   chunkid  = obj["chunkid"];
@@ -380,9 +384,11 @@ DEFINE_MEMBER2(void, from_json)(json& obj)
   }
 
   // meta data
-  size    = obj["size"].get<int>();
-  dims[0] = obj["shape"][0].get<int>();
-  dims[1] = obj["shape"][1].get<int>();
+  size           = obj["size"].get<int>();
+  dims[0]        = obj["shape"][0].get<int>();
+  dims[1]        = obj["shape"][1].get<int>();
+  periodicity[0] = obj["periodicity"][0].get<int>();
+  periodicity[1] = obj["periodicity"][1].get<int>();
 
   // map
   chunkid  = obj["chunkid"];
@@ -397,10 +403,13 @@ DEFINE_MEMBER3(void, from_json)(json& obj)
   }
 
   // meta data
-  size    = obj["size"].get<int>();
-  dims[0] = obj["shape"][0].get<int>();
-  dims[1] = obj["shape"][1].get<int>();
-  dims[2] = obj["shape"][2].get<int>();
+  size           = obj["size"].get<int>();
+  dims[0]        = obj["shape"][0].get<int>();
+  dims[1]        = obj["shape"][1].get<int>();
+  dims[2]        = obj["shape"][2].get<int>();
+  periodicity[0] = obj["periodicity"][0].get<int>();
+  periodicity[1] = obj["periodicity"][1].get<int>();
+  periodicity[2] = obj["periodicity"][2].get<int>();
 
   // map
   chunkid  = obj["chunkid"];

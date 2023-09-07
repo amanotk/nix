@@ -57,7 +57,7 @@ public:
     int thisrank = data.thisrank;
     int nprocess = data.nprocess;
 
-    MpiStream::recursively_create_directory(prefix, thisrank, nprocess, max_file_per_dir);
+    MpiStream::create_directory_tree(prefix, thisrank, nprocess, max_file_per_dir);
 
     std::string filename =
         MpiStream::get_filename(prefix, ".data", thisrank, nprocess, max_file_per_dir);
