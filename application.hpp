@@ -10,6 +10,7 @@
 #include "logger.hpp"
 #include "mpistream.hpp"
 #include "nix.hpp"
+#include "statehandler.hpp"
 #include "tinyformat.hpp"
 #include <nlohmann/json.hpp>
 
@@ -24,22 +25,26 @@ template <typename Chunk, typename ChunkMap>
 class Application
 {
 protected:
-  using ThisType     = Application<Chunk, ChunkMap>;
-  using PtrArgParser = std::unique_ptr<ArgParser>;
-  using PtrCfgParser = std::unique_ptr<CfgParser>;
-  using PtrBalancer  = std::unique_ptr<Balancer>;
-  using PtrLogger    = std::unique_ptr<Logger>;
-  using PtrChunkMap  = std::unique_ptr<ChunkMap>;
-  using PtrChunk     = std::unique_ptr<Chunk>;
-  using ChunkVec     = ChunkVector<PtrChunk>;
+  using ThisType        = Application<Chunk, ChunkMap>;
+  using PtrArgParser    = std::unique_ptr<ArgParser>;
+  using PtrCfgParser    = std::unique_ptr<CfgParser>;
+  using PtrStateHandler = std::unique_ptr<StateHandler>;
+  using PtrBalancer     = std::unique_ptr<Balancer>;
+  using PtrLogger       = std::unique_ptr<Logger>;
+  using PtrChunkMap     = std::unique_ptr<ChunkMap>;
+  using PtrChunk        = std::unique_ptr<Chunk>;
+  using ChunkVec        = ChunkVector<PtrChunk>;
 
-  PtrArgParser argparser; ///< argument parser
-  PtrCfgParser cfgparser; ///< configuration parser
-  PtrBalancer  balancer;  ///< load balancer
-  PtrLogger    logger;    ///< logger
-  PtrChunkMap  chunkmap;  ///< chunkmap
-  ChunkVec     chunkvec;  ///< local chunks
+  PtrArgParser    argparser;    ///< argument parser
+  PtrCfgParser    cfgparser;    ///< configuration parser
+  PtrStateHandler statehandler; ///< state handler
+  PtrBalancer     balancer;     ///< load balancer
+  PtrLogger       logger;       ///< logger
+  PtrChunkMap     chunkmap;     ///< chunkmap
+  ChunkVec        chunkvec;     ///< local chunks
 
+  int     thisrank; ///< my rank
+  int     nprocess; ///< number of mpi processes
   int     cl_argc;  ///< command-line argc
   char**  cl_argv;  ///< command-line argv
   float64 wclock;   ///< wall clock time at initialization
@@ -56,10 +61,7 @@ protected:
   float64 ylim[3];  ///< physical domain in y
   float64 zlim[3];  ///< physical domain in z
 
-  // MPI related
-  int  nprocess;              ///< number of mpi processes
-  int  thisrank;              ///< my rank
-  bool mpi_init_with_nullptr; ///< for testing purpose
+  bool is_mpi_init_already_called; ///< flag for testing purpose
 
   ///
   /// @brief internal data struct
@@ -85,7 +87,7 @@ protected:
 
 public:
   /// @brief default constructor
-  Application() : mpi_init_with_nullptr(false)
+  Application() : Application(0, nullptr)
   {
   }
 
@@ -94,11 +96,23 @@ public:
   /// @param argc number of arguments
   /// @param argv array of arguments
   ///
-  Application(int argc, char** argv) : mpi_init_with_nullptr(false)
+  Application(int argc, char** argv) : is_mpi_init_already_called(false)
   {
     cl_argc = argc;
     cl_argv = argv;
   }
+
+  ///
+  /// @brief convert internal data to json object
+  /// @return json object
+  ///
+  virtual json to_json();
+
+  ///
+  /// @brief restore internal data from json object
+  /// @param obj json object
+  ///
+  virtual bool from_json(json& obj);
 
   ///
   /// @brief main loop of simulation
@@ -220,9 +234,14 @@ protected:
   virtual void initialize_workload();
 
   ///
-  /// @brief initialize chunks
+  /// @brief setup chunks with initial condition
   ///
-  virtual void initialize_chunks();
+  virtual void setup_chunks_init();
+
+  ///
+  /// @brief setup chunks
+  ///
+  virtual void setup_chunks();
 
   ///
   /// @brief check the validity of chunks
@@ -237,44 +256,6 @@ protected:
   virtual bool rebalance();
 
   ///
-  /// @brief save profile of run
-  ///
-  virtual void save_profile();
-
-  ///
-  /// @brief convert internal data to json object
-  /// @return json object
-  ///
-  virtual json to_json();
-
-  ///
-  /// @brief restore internal data from json object
-  /// @param obj json object
-  ///
-  virtual void from_json(json& obj);
-
-  ///
-  /// @brief load a snapshot file for restart
-  ///
-  virtual void load_snapshot()
-  {
-  }
-
-  ///
-  /// @brief save current state to a snapshot file (for restart)
-  ///
-  virtual void save_snapshot()
-  {
-  }
-
-  ///
-  /// @brief setup initial conditions
-  ///
-  virtual void setup()
-  {
-  }
-
-  ///
   /// @brief perform various diagnostics output
   ///
   virtual void diagnostic()
@@ -286,6 +267,14 @@ protected:
   ///
   virtual void push()
   {
+  }
+
+  ///
+  /// @brief save profile of run
+  ///
+  virtual void save_profile()
+  {
+    statehandler->save_application(*this, get_internal_data(), "profile");
   }
 
   ///
@@ -346,6 +335,61 @@ protected:
   template <typename Chunk, typename ChunkMap>                                                     \
   type Application<Chunk, ChunkMap>::name
 
+DEFINE_MEMBER(json, to_json)()
+{
+  json state = {{"timestamp", nix::wall_clock()},
+                {"wclock", wclock},
+                {"ndims", ndims},
+                {"cdims", cdims},
+                {"curstep", curstep},
+                {"curtime", curtime},
+                {"cc", cc},
+                {"delt", delt},
+                {"delx", delx},
+                {"dely", dely},
+                {"delz", delz},
+                {"xlim", xlim},
+                {"ylim", ylim},
+                {"zlim", zlim},
+                {"nprocess", nprocess},
+                {"thisrank", thisrank},
+                {"configuration", cfgparser->get_root()},
+                {"chunkmap", chunkmap->to_json()}};
+
+  return state;
+}
+
+DEFINE_MEMBER(bool, from_json)(json& state)
+{
+  json current_state = to_json();
+
+  // check consistency
+  bool consistency = true;
+
+  consistency &= current_state["ndims"] == state["ndims"];
+  consistency &= current_state["cdims"] == state["cdims"];
+  consistency &= current_state["cc"] == state["cc"];
+  consistency &= current_state["delt"] == state["delt"];
+  consistency &= current_state["delx"] == state["delx"];
+  consistency &= current_state["dely"] == state["dely"];
+  consistency &= current_state["delz"] == state["delz"];
+  consistency &= current_state["xlim"] == state["xlim"];
+  consistency &= current_state["ylim"] == state["ylim"];
+  consistency &= current_state["zlim"] == state["zlim"];
+  consistency &= current_state["nprocess"] == state["nprocess"];
+  consistency &= current_state["configuration"] == state["configuration"];
+
+  if (consistency == false) {
+    ERROR << tfm::format("Trying to load inconsistent state");
+  } else {
+    curstep = state["curstep"].get<int>();
+    curtime = state["curtime"].get<float64>();
+    chunkmap->from_json(state["chunkmap"]);
+  }
+
+  return consistency;
+}
+
 DEFINE_MEMBER(int, main)()
 {
   //
@@ -357,8 +401,8 @@ DEFINE_MEMBER(int, main)()
   //
   // set initial condition
   //
-  setup();
-  DEBUG1 << tfm::format("setup");
+  setup_chunks();
+  DEBUG1 << tfm::format("setup_chunks");
 
   //
   // save profile
@@ -440,17 +484,16 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   initialize_debugprinting();
   initialize_dimensions();
   initialize_domain();
-  initialize_workload();
-
-  // chunks
-  initialize_chunks();
 }
 
 DEFINE_MEMBER(void, finalize)()
 {
-  this->save_snapshot();
-
   logger->flush();
+
+  // save snapshot
+  if (argparser->get_save() != "") {
+    statehandler->save(*this, get_internal_data(), argparser->get_save());
+  }
 
   finalize_mpi();
 }
@@ -462,10 +505,12 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
     int thread_required = MPI_THREAD_SERIALIZED;
     int thread_provided = -1;
 
-    if (mpi_init_with_nullptr == true) {
-      MPI_Init_thread(nullptr, nullptr, thread_required, &thread_provided);
-    } else {
+    if (is_mpi_init_already_called == false) {
       MPI_Init_thread(argc, argv, thread_required, &thread_provided);
+      is_mpi_init_already_called = true;
+    } else {
+      // MPI_Init should be already called when doing unit test
+      MPI_Init_thread(nullptr, nullptr, thread_required, &thread_provided);
     }
 
     if (thread_provided < thread_required) {
@@ -563,33 +608,63 @@ DEFINE_MEMBER(void, initialize_workload)()
   balancer->fill_load(1.0);
 }
 
-DEFINE_MEMBER(void, initialize_chunks)()
+DEFINE_MEMBER(void, setup_chunks_init)()
 {
-  const int nchunk_global = cdims[3];
-
-  // local dimensions
-  int dims[3] = {ndims[0] / cdims[0], ndims[1] / cdims[1], ndims[2] / cdims[2]};
-
-  // error check
-  if (nchunk_global < nprocess) {
-    ERROR << tfm::format("Number of processes should not exceed number of chunks");
-    ERROR << tfm::format("* number of processes = %8d", nprocess);
-    ERROR << tfm::format("* number of chunks    = %8d", nchunk_global);
-    finalize();
-    exit(-1);
-  }
-
   // initial assignment
+  initialize_workload();
   auto boundary = balancer->assign_initial(nprocess);
   chunkmap->set_rank_boundary(boundary);
 
-  // local chunks
-  int nchunk = boundary[thisrank + 1] - boundary[thisrank];
-  chunkvec.resize(nchunk);
+  // create and setup local chunks
+  int numchunk = boundary[thisrank + 1] - boundary[thisrank];
+  int dims[3];
+
+  dims[0] = ndims[0] / cdims[0];
+  dims[1] = ndims[1] / cdims[1];
+  dims[2] = ndims[2] / cdims[2];
+  chunkvec.resize(numchunk);
+
   for (int i = 0, id = boundary[thisrank]; id < boundary[thisrank + 1]; i++, id++) {
+    auto config = cfgparser->get_parameter();
     chunkvec[i] = create_chunk(dims, id);
+    chunkvec[i]->setup(config);
   }
   chunkvec.set_neighbors(chunkmap);
+
+  // set auxiliary information for chunk
+  for (int i = 0; i < chunkvec.size(); i++) {
+    int ix, iy, iz;
+    int offset[3];
+
+    chunkmap->get_coordinate(chunkvec[i]->get_id(), iz, iy, ix);
+    offset[0] = iz * ndims[0] / cdims[0];
+    offset[1] = iy * ndims[1] / cdims[1];
+    offset[2] = ix * ndims[2] / cdims[2];
+    chunkvec[i]->set_global_context(offset, ndims);
+  }
+}
+
+DEFINE_MEMBER(void, setup_chunks)()
+{
+  // error check
+  {
+    const int numchunk_global = cdims[3];
+
+    if (numchunk_global < nprocess) {
+      ERROR << tfm::format("Number of processes should not exceed number of chunks");
+      ERROR << tfm::format("* number of processes = %8d", nprocess);
+      ERROR << tfm::format("* number of chunks    = %8d", numchunk_global);
+      finalize();
+      exit(-1);
+    }
+  }
+
+  // set initial condition or load snapshot
+  if (argparser->get_load() != "") {
+    statehandler->load(*this, get_internal_data(), argparser->get_load());
+  } else {
+    setup_chunks_init();
+  }
 
   assert(validate_chunks() == true);
 }
@@ -653,73 +728,6 @@ DEFINE_MEMBER(bool, rebalance)()
   logger->append(curstep, "rebalance", log);
 
   return status;
-}
-
-DEFINE_MEMBER(void, save_profile)()
-{
-  if (thisrank == 0) {
-    std::string filename = "profile.msgpack";
-
-    // serialize and output
-    std::vector<std::uint8_t> buffer = json::to_msgpack(to_json());
-
-    std::ofstream ofs(filename, std::ios::binary);
-    ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-    ofs.close();
-  }
-}
-
-DEFINE_MEMBER(json, to_json)()
-{
-  json state = {{"timestamp", nix::wall_clock()},
-                {"wclock", wclock},
-                {"ndims", ndims},
-                {"cdims", cdims},
-                {"curstep", curstep},
-                {"curtime", curtime},
-                {"cc", cc},
-                {"delt", delt},
-                {"delx", delx},
-                {"dely", dely},
-                {"delz", delz},
-                {"xlim", xlim},
-                {"ylim", ylim},
-                {"zlim", zlim},
-                {"nprocess", nprocess},
-                {"thisrank", thisrank},
-                {"configuration", cfgparser->get_root()},
-                {"chunkmap", chunkmap->to_json()}};
-
-  return state;
-}
-
-DEFINE_MEMBER(void, from_json)(json& state)
-{
-  json current_state = to_json();
-
-  // check consistency
-  bool consistency = true;
-
-  consistency &= current_state["ndims"] == state["ndims"];
-  consistency &= current_state["cdims"] == state["cdims"];
-  consistency &= current_state["cc"] == state["cc"];
-  consistency &= current_state["delt"] == state["delt"];
-  consistency &= current_state["delx"] == state["delx"];
-  consistency &= current_state["dely"] == state["dely"];
-  consistency &= current_state["delz"] == state["delz"];
-  consistency &= current_state["xlim"] == state["xlim"];
-  consistency &= current_state["ylim"] == state["ylim"];
-  consistency &= current_state["zlim"] == state["zlim"];
-  consistency &= current_state["nprocess"] == state["nprocess"];
-  consistency &= current_state["configuration"] == state["configuration"];
-
-  if (consistency == false) {
-    ERROR << tfm::format("Trying to load inconsistent state");
-  } else {
-    curstep = state["curstep"].get<int>();
-    curtime = state["curtime"].get<float64>();
-    chunkmap->from_json(state["chunkmap"]);
-  }
 }
 
 #undef DEFINE_MEMBER

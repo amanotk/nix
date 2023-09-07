@@ -16,8 +16,8 @@ protected:
     const float64 ptmax = std::numeric_limits<float64>::max();
 
     this->add<std::string>("config", 'c', "configuration file", true);
-    this->add<std::string>("load", 'l', "load file for restart", false, "");
-    this->add<std::string>("save", 's', "save file for restart", false, "");
+    this->add<std::string>("load", 'l', "prefix of snapshot to load", false, "");
+    this->add<std::string>("save", 's', "prefix of snapshot to save", false, "");
     this->add<float64>("tmax", 't', "maximum physical time", false, ptmax);
     this->add<float64>("emax", 'e', "maximum elapsed time [sec]", false, etmax);
     this->add<int>("verbose", 'v', "verbosity level", false, 0);

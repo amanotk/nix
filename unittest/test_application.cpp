@@ -64,6 +64,14 @@ public:
   virtual void set_boundary_end(int mode) override
   {
   }
+
+  virtual void setup(json& config)
+  {
+  }
+
+  virtual void set_global_context(const int* offset, const int* gdims)
+  {
+  }
 };
 
 class MockChunkMap : public ChunkMap<3>
@@ -77,7 +85,7 @@ class TestApplication : public Application<MockChunk, MockChunkMap>
 public:
   TestApplication() : Application<MockChunk, MockChunkMap>()
   {
-    mpi_init_with_nullptr = true;
+    is_mpi_init_already_called = true;
 
     std::ofstream ofs(config_filename);
     ofs << config_content;
@@ -97,6 +105,9 @@ public:
     cl_argv = const_cast<char**>(&argv[0]);
 
     REQUIRE(main() == 0);
+
+    std::filesystem::remove("profile.msgpack");
+    std::filesystem::remove("log.msgpack");
   }
 };
 

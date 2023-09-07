@@ -50,6 +50,9 @@ public:
     last_flushed = wall_clock() + 10;
     log(1);
     REQUIRE(std::filesystem::is_regular_file(get_filename()) == false);
+
+    // cleanup
+    std::filesystem::remove(get_filename());
   }
 
   void test_append()
@@ -113,6 +116,9 @@ public:
         }
       }
     }
+
+    // cleanup
+    std::filesystem::remove(get_filename());
   }
 };
 
