@@ -172,6 +172,8 @@ public:
   static bool create_directory_tree(std::string dirname, int thisrank, int nprocess,
                                     int max_file_per_dir = -1)
   {
+    namespace fs = std::filesystem;
+
     bool use_null_stream = std::string("") == dirname;
     bool status          = true;
     int  directory_level = get_directory_level(nprocess, max_file_per_dir);
@@ -182,11 +184,11 @@ public:
 
     // base directory
     {
-      if (std::filesystem::exists(dirname) == false) {
+      if (fs::exists(dirname) == false) {
         if (thisrank == 0) {
-          status = status & std::filesystem::create_directory(dirname);
+          status = status & fs::create_directory(dirname);
         }
-      } else if (std::filesystem::is_directory(dirname) == false) {
+      } else if (fs::is_directory(dirname) == false) {
         status = false;
         ERROR << tfm::format("Error: %s exists but not a directory.", dirname) << std::endl;
       }
@@ -201,15 +203,15 @@ public:
 
     // recursive directory creation
     {
-      std::filesystem::path path(dirname);
+      fs::path path(dirname);
 
       for (int level = 0; level < directory_level; level++) {
         int max_file_level = std::pow(max_file_per_dir, directory_level - level);
 
         path = path / tfm::format(filename_format, (thisrank / max_file_level) * max_file_level);
 
-        if (thisrank % max_file_level == 0 && std::filesystem::exists(path) == false) {
-          status = status & std::filesystem::create_directory(path.string());
+        if (thisrank % max_file_level == 0 && fs::exists(path) == false) {
+          status = status & fs::create_directory(path.string());
         }
 
         // synchronize
@@ -222,10 +224,12 @@ public:
 
   static std::string get_filename_pattern(int thisrank, int nprocess, int max_file_per_dir = -1)
   {
+    namespace fs = std::filesystem;
+
     int directory_level = get_directory_level(nprocess, max_file_per_dir);
 
     // make directory name
-    std::filesystem::path path;
+    fs::path path;
 
     for (int level = 0; level < directory_level; level++) {
       int max_file_level = std::pow(max_file_per_dir, directory_level - level);
@@ -240,7 +244,9 @@ public:
   static std::string get_filename(std::string dirname, std::string extension, int thisrank,
                                   int nprocess, int max_file_per_dir = -1)
   {
-    std::filesystem::path path(dirname);
+    namespace fs = std::filesystem;
+
+    fs::path path(dirname);
     path = path / get_filename_pattern(thisrank, nprocess, max_file_per_dir);
 
     return path.string() + extension;

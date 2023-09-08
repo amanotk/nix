@@ -15,14 +15,12 @@ class StateHandler
 protected:
   using Vector = std::vector<int64>;
 
-  int max_file_per_dir;
+  int         max_file_per_dir; ///< maximum number of files per directory
+  std::string basedir;          ///< base directory
 
 public:
-  StateHandler() : StateHandler(default_max_file_per_dir)
-  {
-  }
-
-  StateHandler(int maxfile) : max_file_per_dir(maxfile)
+  StateHandler(std::string basedir = "", int max_file_per_dir = default_max_file_per_dir)
+      : basedir(basedir), max_file_per_dir(max_file_per_dir)
   {
   }
 
@@ -42,6 +40,8 @@ public:
       json                      state  = app.to_json();
       std::vector<std::uint8_t> buffer = json::to_msgpack(state);
 
+      prefix = get_path_with_basedir(prefix);
+
       std::string   filename = prefix + ".msgpack";
       std::ofstream ofs(filename, std::ios::binary);
       ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
@@ -57,8 +57,9 @@ public:
     int thisrank = data.thisrank;
     int nprocess = data.nprocess;
 
-    MpiStream::create_directory_tree(prefix, thisrank, nprocess, max_file_per_dir);
+    prefix = get_path_with_basedir(prefix);
 
+    MpiStream::create_directory_tree(prefix, thisrank, nprocess, max_file_per_dir);
     std::string filename =
         MpiStream::get_filename(prefix, ".data", thisrank, nprocess, max_file_per_dir);
 
@@ -86,6 +87,8 @@ public:
   template <typename App, typename Data>
   bool load_application(App&& app, Data&& data, std::string prefix)
   {
+    prefix = get_path_with_basedir(prefix);
+
     std::string   filename = prefix + ".msgpack";
     std::ifstream ifs(filename, std::ios::binary);
 
@@ -103,6 +106,8 @@ public:
     int thisrank = data.thisrank;
     int nprocess = data.nprocess;
 
+    prefix = get_path_with_basedir(prefix);
+
     std::string filename =
         MpiStream::get_filename(prefix, ".data", thisrank, nprocess, max_file_per_dir);
 
@@ -119,6 +124,13 @@ public:
   }
 
 protected:
+  std::string get_path_with_basedir(std::string name)
+  {
+    namespace fs = std::filesystem;
+
+    return (fs::path(basedir) / fs::path(name)).string();
+  }
+
   template <typename App, typename Data>
   bool save_chunkvec_header(App&& app, Data&& data, std::string filename, Vector& id, Vector& size,
                             Vector& offset)

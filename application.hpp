@@ -144,7 +144,9 @@ public:
   ///
   virtual std::unique_ptr<StateHandler> create_statehandler()
   {
-    return std::make_unique<StateHandler>();
+    std::string basedir = get_basedir();
+
+    return std::make_unique<StateHandler>(basedir);
   }
 
   ///
@@ -167,9 +169,10 @@ public:
   ///
   virtual std::unique_ptr<Logger> create_logger()
   {
-    auto application = cfgparser->get_application();
+    auto        config  = cfgparser->get_application()["log"];
+    std::string basedir = get_basedir();
 
-    return std::make_unique<Logger>(thisrank, application["log"], is_initial_run());
+    return std::make_unique<Logger>(config, basedir, thisrank, is_initial_run());
   }
 
   ///
@@ -221,6 +224,11 @@ protected:
   /// @brief finalize MPI
   ///
   void finalize_mpi();
+
+  ///
+  /// @brief initialize base directory
+  ///
+  void initialize_base_directory();
 
   ///
   /// @brief initialize debug printing
@@ -307,6 +315,15 @@ protected:
       return true;
     }
     return false;
+  }
+
+  ///
+  /// @brief get basedir from configuration file
+  /// @return return basedir
+  ///
+  std::string get_basedir()
+  {
+    return cfgparser->get_application().value("basedir", "");
   }
 
   ///
@@ -482,6 +499,9 @@ DEFINE_MEMBER(int, main)()
 
 DEFINE_MEMBER(void, initialize)(int argc, char** argv)
 {
+  curstep = 0;
+  curtime = 0.0;
+
   // parse command line arguments
   argparser = create_argparser();
   argparser->parse_check(argc, argv);
@@ -490,7 +510,7 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   cfgparser = create_cfgparser();
   cfgparser->parse_file(argparser->get_config());
 
-  // initialize MPI first
+  initialize_base_directory();
   initialize_mpi(&argc, &argv);
 
   // object initialization
@@ -500,8 +520,6 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   chunkmap     = create_chunkmap();
 
   // misc
-  curstep = 0;
-  curtime = 0.0;
   initialize_debugprinting();
   initialize_dimensions();
   initialize_domain();
@@ -517,6 +535,18 @@ DEFINE_MEMBER(void, finalize)()
   }
 
   finalize_mpi();
+}
+
+DEFINE_MEMBER(void, initialize_base_directory)()
+{
+  if (is_initial_run() == true) {
+    namespace fs = std::filesystem;
+
+    std::string basedir = get_basedir();
+    if (basedir != "" && fs::exists(basedir) == false) {
+      fs::create_directory(basedir);
+    }
+  }
 }
 
 DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
@@ -557,7 +587,8 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
     int         max_files_per_dir = 1024;
 
     if (config.is_null() == false) {
-      path              = config.value("path", path);
+      namespace fs      = std::filesystem;
+      path              = fs::path(get_basedir()) / config.value("path", path);
       max_files_per_dir = config.value("max_files_per_dir", max_files_per_dir);
     }
 

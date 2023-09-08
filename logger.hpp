@@ -27,11 +27,13 @@ class Logger
 protected:
   int               thisrank;     ///< MPI rank
   float64           last_flushed; ///< last flushed time
+  std::string       basedir;      ///< base directory
   json              config;       ///< configuration
   std::vector<json> content;      ///< log content
 
 public:
-  Logger(int rank, const json& object, bool overwrite = true) : thisrank(rank)
+  Logger(json& object, std::string basedir = "", int thisrank = 0, bool overwrite = true)
+      : basedir(basedir), thisrank(thisrank)
   {
     initialize_content();
 
@@ -58,10 +60,12 @@ public:
 
   virtual std::string get_filename()
   {
+    namespace fs = std::filesystem;
+
     std::string path   = config["path"];
     std::string prefix = config["prefix"];
 
-    return tfm::format("%s/%s.msgpack", path, prefix);
+    return (fs::path(basedir) / fs::path(path) / fs::path(prefix + ".msgpack")).string();
   }
 
   virtual bool is_flush_required()

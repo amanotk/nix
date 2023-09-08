@@ -128,7 +128,7 @@ TEST_CASE("test_config")
   {
     json object = {};
 
-    TestLogger logger(0, object);
+    TestLogger logger(object);
 
     logger.test_config("log", ".", 100, 10.0);
   }
@@ -137,7 +137,7 @@ TEST_CASE("test_config")
   {
     json object = {{"prefix", "foo"}, {"path", "bar"}, {"interval", 1}, {"flush", 1.0}};
 
-    TestLogger logger(0, object);
+    TestLogger logger(object);
 
     logger.test_config("foo", "bar", 1, 1.0);
   }
@@ -146,7 +146,7 @@ TEST_CASE("test_config")
   {
     json object = {{"interval", 10}, {"flush", 60.0}};
 
-    TestLogger logger(0, object);
+    TestLogger logger(object);
 
     logger.test_config("log", ".", 10, 60.0);
   }
@@ -154,7 +154,9 @@ TEST_CASE("test_config")
 
 TEST_CASE("test_is_flush_required")
 {
-  TestLogger logger(0, {});
+  json object = {};
+
+  TestLogger logger(object);
 
   SECTION("flush required")
   {
@@ -169,21 +171,27 @@ TEST_CASE("test_is_flush_required")
 
 TEST_CASE("test_log")
 {
-  TestLogger logger(0, {});
+  json object = {};
+
+  TestLogger logger(object);
 
   logger.test_log();
 }
 
 TEST_CASE("test_append")
 {
-  TestLogger logger(0, {});
+  json object = {};
+
+  TestLogger logger(object);
 
   logger.test_append();
 }
 
 TEST_CASE("test_flush")
 {
-  TestLogger logger(0, {}, true);
+  json object = {};
+
+  TestLogger logger(object, "", 0, true);
 
   logger.test_flush();
 }
