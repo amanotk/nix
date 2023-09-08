@@ -99,9 +99,9 @@ static void shape2(float64 x, float64 X, float64 rdx, float64 s[3], float64 w = 
 {
   float64 delta = (x - X) * rdx;
 
-  s[0] = w * 0.50 * (0.50 + delta) * (0.5 + delta);
+  s[0] = w * 0.50 * (0.50 - delta) * (0.5 - delta);
   s[1] = w * 0.75 - delta * delta;
-  s[2] = w * 0.50 * (0.50 - delta) * (0.5 - delta);
+  s[2] = w * 0.50 * (0.50 + delta) * (0.5 + delta);
 }
 
 ///
@@ -128,17 +128,82 @@ static float64 interp3d1(const T& eb, int iz, int iy, int ix, int ik, const floa
   float64 result;
 
   int ix1 = ix;
-  int ix2 = ix1 + 1;
+  int ix2 = ix + 1;
   int iy1 = iy;
-  int iy2 = iy1 + 1;
+  int iy2 = iy + 1;
   int iz1 = iz;
-  int iz2 = iz1 + 1;
+  int iz2 = iz + 1;
 
-  result = (wz[0] * (wy[0] * (wx[0] * eb(iz1, iy1, ix1, ik) + wx[1] * eb(iz1, iy1, ix2, ik)) +
-                     wy[1] * (wx[0] * eb(iz1, iy2, ix1, ik) + wx[1] * eb(iz1, iy2, ix2, ik))) +
-            wz[1] * (wy[0] * (wx[0] * eb(iz2, iy1, ix1, ik) + wx[1] * eb(iz2, iy1, ix2, ik)) +
-                     wy[1] * (wx[0] * eb(iz2, iy2, ix1, ik) + wx[1] * eb(iz2, iy2, ix2, ik)))) *
-           dt;
+  // clang-format off
+  result = (
+    wz[0] * (
+      wy[0] * (wx[0] * eb(iz1, iy1, ix1, ik) + wx[1] * eb(iz1, iy1, ix2, ik)) +
+      wy[1] * (wx[0] * eb(iz1, iy2, ix1, ik) + wx[1] * eb(iz1, iy2, ix2, ik))
+      ) +
+    wz[1] * (
+      wy[0] * (wx[0] * eb(iz2, iy1, ix1, ik) + wx[1] * eb(iz2, iy1, ix2, ik)) +
+      wy[1] * (wx[0] * eb(iz2, iy2, ix1, ik) + wx[1] * eb(iz2, iy2, ix2, ik))
+      )
+    ) * dt;
+  // clang-format on
+
+  return result;
+}
+
+template <typename T>
+static float64 interp3d2(const T& eb, int iz, int iy, int ix, int ik, const float64 wz[3],
+                         const float64 wy[3], const float64 wx[3], float64 dt = 1)
+{
+  float64 result;
+
+  int ix1 = ix - 1;
+  int ix2 = ix;
+  int ix3 = ix + 1;
+  int iy1 = iy - 1;
+  int iy2 = iy;
+  int iy3 = iy + 1;
+  int iz1 = iz - 1;
+  int iz2 = iz;
+  int iz3 = iz + 1;
+
+  // clang-format off
+  result = (
+    wz[0] * (
+      wy[0] * (
+        wx[0] * eb(iz1, iy1, ix1, ik) + wx[1] * eb(iz1, iy1, ix2, ik) + wx[2] * eb(iz1, iy1, ix3, ik)
+        ) +
+      wy[1] * (
+        wx[0] * eb(iz1, iy2, ix1, ik) + wx[1] * eb(iz1, iy2, ix2, ik) + wx[2] * eb(iz1, iy2, ix3, ik)
+        ) +
+      wy[2] * (
+        wx[0] * eb(iz1, iy3, ix1, ik) + wx[1] * eb(iz1, iy3, ix2, ik) + wx[2] * eb(iz1, iy3, ix3, ik)
+        )
+      ) +
+    wz[1] * (
+      wy[0] * (
+        wx[0] * eb(iz2, iy1, ix1, ik) + wx[1] * eb(iz2, iy1, ix2, ik) + wx[2] * eb(iz2, iy1, ix3, ik)
+        ) +
+      wy[1] * (
+        wx[0] * eb(iz2, iy2, ix1, ik) + wx[1] * eb(iz2, iy2, ix2, ik) + wx[2] * eb(iz2, iy2, ix3, ik)
+        ) +
+      wy[2] * (
+        wx[0] * eb(iz2, iy3, ix1, ik) + wx[1] * eb(iz2, iy3, ix2, ik) + wx[2] * eb(iz2, iy3, ix3, ik)
+        )
+      ) +
+    wz[2] * (
+      wy[0] * (
+        wx[0] * eb(iz3, iy1, ix1, ik) + wx[1] * eb(iz3, iy1, ix2, ik) + wx[2] * eb(iz3, iy1, ix3, ik)
+        ) +
+      wy[1] * (
+        wx[0] * eb(iz3, iy2, ix1, ik) + wx[1] * eb(iz3, iy2, ix2, ik) + wx[2] * eb(iz3, iy2, ix3, ik)
+        ) +
+      wy[2] * (
+        wx[0] * eb(iz3, iy3, ix1, ik) + wx[1] * eb(iz3, iy3, ix2, ik) + wx[2] * eb(iz3, iy3, ix3, ik)
+        )
+      )
+    ) * dt;
+  // clang-format on
+
   return result;
 }
 
@@ -231,6 +296,89 @@ static void esirkepov3d1(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2]
       current[1][jy][jx][3] += ww[0];
       current[2][jy][jx][3] += ww[1];
       current[3][jy][jx][3] += ww[2];
+    }
+  }
+}
+
+static void esirkepov3d2(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][3][5],
+                         float64 current[5][5][5][4])
+{
+  const float64 A = 1.0 / 2;
+  const float64 B = 1.0 / 3;
+
+  // rho
+  for (int jz = 0; jz < 5; jz++) {
+    for (int jy = 0; jy < 5; jy++) {
+      for (int jx = 0; jx < 5; jx++) {
+        current[jz][jy][jx][0] += ss[1][0][jx] * ss[1][1][jy] * ss[1][2][jz];
+      }
+    }
+  }
+
+  // ss[1][*][*] now represents DS(*,*) of Esirkepov (2001)
+  for (int dir = 0; dir < 3; dir++) {
+    for (int l = 0; l < 5; l++) {
+      ss[1][dir][l] -= ss[0][dir][l];
+    }
+  }
+
+  // Jx
+  for (int jz = 0; jz < 5; jz++) {
+    for (int jy = 0; jy < 5; jy++) {
+      float64 ww[4];
+      float64 wx = -((1 * ss[0][1][jy] + A * ss[1][1][jy]) * ss[0][2][jz] +
+                     (A * ss[0][1][jy] + B * ss[1][1][jy]) * ss[1][2][jz]) *
+                   dxdt;
+
+      ww[0] = ss[1][0][0] * wx;
+      ww[1] = ss[1][0][1] * wx + ww[0];
+      ww[2] = ss[1][0][2] * wx + ww[1];
+      ww[3] = ss[1][0][3] * wx + ww[2];
+
+      current[jz][jy][1][1] += ww[0];
+      current[jz][jy][2][1] += ww[1];
+      current[jz][jy][3][1] += ww[2];
+      current[jz][jy][4][1] += ww[3];
+    }
+  }
+
+  // Jy
+  for (int jz = 0; jz < 5; jz++) {
+    for (int jx = 0; jx < 5; jx++) {
+      float64 ww[4];
+      float64 wy = -((1 * ss[0][2][jz] + A * ss[1][2][jz]) * ss[0][0][jx] +
+                     (A * ss[0][2][jz] + B * ss[1][2][jz]) * ss[1][0][jx]) *
+                   dydt;
+
+      ww[0] = ss[1][1][0] * wy;
+      ww[1] = ss[1][1][1] * wy + ww[0];
+      ww[2] = ss[1][1][2] * wy + ww[1];
+      ww[3] = ss[1][1][3] * wy + ww[2];
+
+      current[jz][1][jx][2] += ww[0];
+      current[jz][2][jx][2] += ww[1];
+      current[jz][3][jx][2] += ww[2];
+      current[jz][4][jx][2] += ww[3];
+    }
+  }
+
+  // Jz
+  for (int jy = 0; jy < 5; jy++) {
+    for (int jx = 0; jx < 5; jx++) {
+      float64 ww[4];
+      float64 wz = -((1 * ss[0][0][jx] + A * ss[1][0][jx]) * ss[0][1][jy] +
+                     (A * ss[0][0][jx] + B * ss[1][0][jx]) * ss[1][1][jy]) *
+                   dzdt;
+
+      ww[0] = ss[1][2][0] * wz;
+      ww[1] = ss[1][2][1] * wz + ww[0];
+      ww[2] = ss[1][2][2] * wz + ww[1];
+      ww[3] = ss[1][2][3] * wz + ww[2];
+
+      current[1][jy][jx][3] += ww[0];
+      current[2][jy][jx][3] += ww[1];
+      current[3][jy][jx][3] += ww[2];
+      current[4][jy][jx][3] += ww[3];
     }
   }
 }
