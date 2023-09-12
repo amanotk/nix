@@ -52,7 +52,6 @@ protected:
   int     cdims[4]; ///< chunk dimensions
   int     curstep;  ///< current iteration step
   float64 curtime;  ///< current time
-  float64 cc;       ///< speed of light
   float64 delt;     ///< time step
   float64 delx;     ///< grid size in x
   float64 dely;     ///< grid size in y
@@ -380,7 +379,6 @@ DEFINE_MEMBER(json, to_json)()
                 {"cdims", cdims},
                 {"curstep", curstep},
                 {"curtime", curtime},
-                {"cc", cc},
                 {"delt", delt},
                 {"delx", delx},
                 {"dely", dely},
@@ -405,7 +403,6 @@ DEFINE_MEMBER(bool, from_json)(json& state)
 
   consistency &= current_state["ndims"] == state["ndims"];
   consistency &= current_state["cdims"] == state["cdims"];
-  consistency &= current_state["cc"] == state["cc"];
   consistency &= current_state["delt"] == state["delt"];
   consistency &= current_state["delx"] == state["delx"];
   consistency &= current_state["dely"] == state["dely"];

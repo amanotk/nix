@@ -421,21 +421,24 @@ template <>
 inline int Chunk<1>::get_sndtag(int dirx)
 {
   int dir = (dirx + 1);
-  return nbid[dir] % MAX_CHUNK_PER_RANK;
+  // return dummy tag for invalid neighbor
+  return nbid[dir] < 0 ? myid : nbid[dir] % MAX_CHUNK_PER_RANK;
 }
 
 template <>
 inline int Chunk<2>::get_sndtag(int diry, int dirx)
 {
   int dir = 3 * (diry + 1) + (dirx + 1);
-  return nbid[dir] % MAX_CHUNK_PER_RANK;
+  // return dummy tag for invalid neighbor
+  return nbid[dir] < 0 ? myid : nbid[dir] % MAX_CHUNK_PER_RANK;
 }
 
 template <>
 inline int Chunk<3>::get_sndtag(int dirz, int diry, int dirx)
 {
   int dir = 9 * (dirz + 1) + 3 * (diry + 1) + (dirx + 1);
-  return nbid[dir] % MAX_CHUNK_PER_RANK;
+  // return dummy tag for invalid neighbor
+  return nbid[dir] < 0 ? myid : nbid[dir] % MAX_CHUNK_PER_RANK;
 }
 
 template <>
