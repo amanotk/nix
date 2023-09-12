@@ -104,7 +104,7 @@ public:
       cdir = cdir >= 0 ? cdir : dims[dir] - 1;
       cdir = cdir < dims[dir] ? cdir : 0;
     } else {
-      cdir = (cdir >= 0 && cdir < dims[dir]) ? cdir : MPI_PROC_NULL;
+      cdir = (cdir >= 0 && cdir < dims[dir]) ? cdir : -1;
     }
 
     return cdir;

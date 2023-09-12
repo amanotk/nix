@@ -49,12 +49,12 @@ public:
       }
     } else {
       if (coord == first_coord && delta == -1) {
-        REQUIRE(nb_coord == MPI_PROC_NULL);
+        REQUIRE(nb_coord == -1);
         return;
       }
 
       if (coord == last_coord && delta == +1) {
-        REQUIRE(nb_coord == MPI_PROC_NULL);
+        REQUIRE(nb_coord == -1);
         return;
       }
     }
