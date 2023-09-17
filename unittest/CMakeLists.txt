@@ -43,6 +43,7 @@ foreach(target IN ITEMS ${SERIAL_EXECS})
 	target_link_directories(${target} PRIVATE ${LIBRARY_DIRS})
 	target_link_libraries(${target} obj_serial)
 	target_link_libraries(${target} nix)
+	target_link_libraries(${target} std::filesystem)
 	add_test(NAME ${target} COMMAND ${target})
 endforeach()
 
@@ -67,6 +68,7 @@ foreach(target IN ITEMS ${PARALLEL_EXECS})
 	target_link_directories(${target} PRIVATE ${LIBRARY_DIRS})
 	target_link_libraries(${target} obj_parallel)
 	target_link_libraries(${target} nix)
+	target_link_libraries(${target} std::filesystem)
 endforeach()
 
 add_test(NAME test_nixio_parallel
