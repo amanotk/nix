@@ -109,6 +109,7 @@ include(CheckIncludeFileCXX)
 
 # If we're not cross-compiling, try to run test executables.
 # Otherwise, assume that compile + link is a sufficient check.
+set(CMAKE_CROSSCOMPILING TRUE)
 if(CMAKE_CROSSCOMPILING)
     include(CheckCXXSourceCompiles)
     macro(_cmcm_check_cxx_source code var)
