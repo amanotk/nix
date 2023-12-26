@@ -176,7 +176,9 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
 
     // cleanup
-    std::filesystem::remove("foo.msgpack");
+    if (thisrank == 0) {
+      std::filesystem::remove("foo.msgpack");
+    }
 
     REQUIRE(save == true);
     REQUIRE(load == true);
@@ -201,7 +203,9 @@ public:
     REQUIRE(validate_chunkvec(numchunk) == true);
 
     // cleanup
-    std::filesystem::remove_all("foo");
+    if (thisrank == 0) {
+      std::filesystem::remove_all("foo");
+    }
 
     REQUIRE(save == true);
     REQUIRE(load == true);
