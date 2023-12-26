@@ -20,6 +20,7 @@ set(LIBRARY_DIRS
 set(SERIAL_EXECS
 	test_balancer
 	test_sfc
+	test_random
 	test_nixio
 	test_chunk
 	test_chunkmap
