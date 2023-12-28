@@ -207,6 +207,91 @@ static float64 interp3d2(const T& eb, int iz, int iy, int ix, int ik, const floa
   return result;
 }
 
+template <int N>
+static inline void esirkepov3d_rho(float64 ss[2][3][N], float64 current[N][N][N][4])
+{
+  for (int jz = 0; jz < N; jz++) {
+    for (int jy = 0; jy < N; jy++) {
+      for (int jx = 0; jx < N; jx++) {
+        current[jz][jy][jx][0] += ss[1][0][jx] * ss[1][1][jy] * ss[1][2][jz];
+      }
+    }
+  }
+}
+
+template <int N>
+static inline void esirkepov3d_ds(float64 ss[2][3][N])
+{
+  for (int dir = 0; dir < 3; dir++) {
+    for (int l = 0; l < N; l++) {
+      ss[1][dir][l] -= ss[0][dir][l];
+    }
+  }
+}
+
+template <int N>
+static inline void esirkepov3d_jx(float64 dxdt, float64 ss[2][3][N], float64 current[N][N][N][4])
+{
+  constexpr float64 A = 1.0 / 2;
+  constexpr float64 B = 1.0 / 3;
+
+  for (int jz = 0; jz < N; jz++) {
+    for (int jy = 0; jy < N; jy++) {
+      float64 ww = 0;
+      float64 wx = -((1 * ss[0][1][jy] + A * ss[1][1][jy]) * ss[0][2][jz] +
+                     (A * ss[0][1][jy] + B * ss[1][1][jy]) * ss[1][2][jz]) *
+                   dxdt;
+
+      for (int jx = 0; jx < N - 1; jx++) {
+        ww += ss[1][0][jx] * wx;
+        current[jz][jy][jx + 1][1] += ww;
+      }
+    }
+  }
+}
+
+template <int N>
+static inline void esirkepov3d_jy(float64 dydt, float64 ss[2][3][N], float64 current[N][N][N][4])
+{
+  constexpr float64 A = 1.0 / 2;
+  constexpr float64 B = 1.0 / 3;
+
+  for (int jz = 0; jz < N; jz++) {
+    for (int jx = 0; jx < N; jx++) {
+      float64 ww = 0;
+      float64 wy = -((1 * ss[0][2][jz] + A * ss[1][2][jz]) * ss[0][0][jx] +
+                     (A * ss[0][2][jz] + B * ss[1][2][jz]) * ss[1][0][jx]) *
+                   dydt;
+
+      for (int jy = 0; jy < N - 1; jy++) {
+        ww += ss[1][1][jy] * wy;
+        current[jz][jy + 1][jx][2] += ww;
+      }
+    }
+  }
+}
+
+template <int N>
+static inline void esirkepov3d_jz(float64 dzdt, float64 ss[2][3][N], float64 current[N][N][N][4])
+{
+  constexpr float64 A = 1.0 / 2;
+  constexpr float64 B = 1.0 / 3;
+
+  for (int jy = 0; jy < N; jy++) {
+    for (int jx = 0; jx < N; jx++) {
+      float64 ww = 0;
+      float64 wz = -((1 * ss[0][0][jx] + A * ss[1][0][jx]) * ss[0][1][jy] +
+                     (A * ss[0][0][jx] + B * ss[1][0][jx]) * ss[1][1][jy]) *
+                   dzdt;
+
+      for (int jz = 0; jz < N - 1; jz++) {
+        ww += ss[1][2][jz] * wz;
+        current[jz + 1][jy][jx][3] += ww;
+      }
+    }
+  }
+}
+
 ///
 /// @brief calculate current via first-order density decomposition scheme
 ///
@@ -226,161 +311,36 @@ static float64 interp3d2(const T& eb, int iz, int iy, int ix, int ik, const floa
 static void esirkepov3d1(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][3][4],
                          float64 current[4][4][4][4])
 {
-  const float64 A = 1.0 / 2;
-  const float64 B = 1.0 / 3;
-
-  // rho
-  for (int jz = 0; jz < 4; jz++) {
-    for (int jy = 0; jy < 4; jy++) {
-      for (int jx = 0; jx < 4; jx++) {
-        current[jz][jy][jx][0] += ss[1][0][jx] * ss[1][1][jy] * ss[1][2][jz];
-      }
-    }
-  }
+  // calculate rho
+  esirkepov3d_rho<4>(ss, current);
 
   // ss[1][*][*] now represents DS(*,*) of Esirkepov (2001)
-  for (int dir = 0; dir < 3; dir++) {
-    for (int l = 0; l < 4; l++) {
-      ss[1][dir][l] -= ss[0][dir][l];
-    }
-  }
+  esirkepov3d_ds<4>(ss);
 
-  // Jx
-  for (int jz = 0; jz < 4; jz++) {
-    for (int jy = 0; jy < 4; jy++) {
-      float64 ww[3];
-      float64 wx = -((1 * ss[0][1][jy] + A * ss[1][1][jy]) * ss[0][2][jz] +
-                     (A * ss[0][1][jy] + B * ss[1][1][jy]) * ss[1][2][jz]) *
-                   dxdt;
-
-      ww[0] = ss[1][0][0] * wx;
-      ww[1] = ss[1][0][1] * wx + ww[0];
-      ww[2] = ss[1][0][2] * wx + ww[1];
-
-      current[jz][jy][1][1] += ww[0];
-      current[jz][jy][2][1] += ww[1];
-      current[jz][jy][3][1] += ww[2];
-    }
-  }
-
-  // Jy
-  for (int jz = 0; jz < 4; jz++) {
-    for (int jx = 0; jx < 4; jx++) {
-      float64 ww[3];
-      float64 wy = -((1 * ss[0][2][jz] + A * ss[1][2][jz]) * ss[0][0][jx] +
-                     (A * ss[0][2][jz] + B * ss[1][2][jz]) * ss[1][0][jx]) *
-                   dydt;
-
-      ww[0] = ss[1][1][0] * wy;
-      ww[1] = ss[1][1][1] * wy + ww[0];
-      ww[2] = ss[1][1][2] * wy + ww[1];
-
-      current[jz][1][jx][2] += ww[0];
-      current[jz][2][jx][2] += ww[1];
-      current[jz][3][jx][2] += ww[2];
-    }
-  }
-
-  // Jz
-  for (int jy = 0; jy < 4; jy++) {
-    for (int jx = 0; jx < 4; jx++) {
-      float64 ww[3];
-      float64 wz = -((1 * ss[0][0][jx] + A * ss[1][0][jx]) * ss[0][1][jy] +
-                     (A * ss[0][0][jx] + B * ss[1][0][jx]) * ss[1][1][jy]) *
-                   dzdt;
-
-      ww[0] = ss[1][2][0] * wz;
-      ww[1] = ss[1][2][1] * wz + ww[0];
-      ww[2] = ss[1][2][2] * wz + ww[1];
-
-      current[1][jy][jx][3] += ww[0];
-      current[2][jy][jx][3] += ww[1];
-      current[3][jy][jx][3] += ww[2];
-    }
-  }
+  // calculate Jx, Jy, Jz
+  esirkepov3d_jx<4>(dxdt, ss, current);
+  esirkepov3d_jy<4>(dydt, ss, current);
+  esirkepov3d_jz<4>(dzdt, ss, current);
 }
 
+///
+/// @brief calculate current via second-order density decomposition scheme
+///
+/// The second order version update the current density of local 5x5x5 mesh.
+///
 static void esirkepov3d2(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][3][5],
                          float64 current[5][5][5][4])
 {
-  const float64 A = 1.0 / 2;
-  const float64 B = 1.0 / 3;
-
-  // rho
-  for (int jz = 0; jz < 5; jz++) {
-    for (int jy = 0; jy < 5; jy++) {
-      for (int jx = 0; jx < 5; jx++) {
-        current[jz][jy][jx][0] += ss[1][0][jx] * ss[1][1][jy] * ss[1][2][jz];
-      }
-    }
-  }
+  // calculate rho
+  esirkepov3d_rho<5>(ss, current);
 
   // ss[1][*][*] now represents DS(*,*) of Esirkepov (2001)
-  for (int dir = 0; dir < 3; dir++) {
-    for (int l = 0; l < 5; l++) {
-      ss[1][dir][l] -= ss[0][dir][l];
-    }
-  }
+  esirkepov3d_ds<5>(ss);
 
-  // Jx
-  for (int jz = 0; jz < 5; jz++) {
-    for (int jy = 0; jy < 5; jy++) {
-      float64 ww[4];
-      float64 wx = -((1 * ss[0][1][jy] + A * ss[1][1][jy]) * ss[0][2][jz] +
-                     (A * ss[0][1][jy] + B * ss[1][1][jy]) * ss[1][2][jz]) *
-                   dxdt;
-
-      ww[0] = ss[1][0][0] * wx;
-      ww[1] = ss[1][0][1] * wx + ww[0];
-      ww[2] = ss[1][0][2] * wx + ww[1];
-      ww[3] = ss[1][0][3] * wx + ww[2];
-
-      current[jz][jy][1][1] += ww[0];
-      current[jz][jy][2][1] += ww[1];
-      current[jz][jy][3][1] += ww[2];
-      current[jz][jy][4][1] += ww[3];
-    }
-  }
-
-  // Jy
-  for (int jz = 0; jz < 5; jz++) {
-    for (int jx = 0; jx < 5; jx++) {
-      float64 ww[4];
-      float64 wy = -((1 * ss[0][2][jz] + A * ss[1][2][jz]) * ss[0][0][jx] +
-                     (A * ss[0][2][jz] + B * ss[1][2][jz]) * ss[1][0][jx]) *
-                   dydt;
-
-      ww[0] = ss[1][1][0] * wy;
-      ww[1] = ss[1][1][1] * wy + ww[0];
-      ww[2] = ss[1][1][2] * wy + ww[1];
-      ww[3] = ss[1][1][3] * wy + ww[2];
-
-      current[jz][1][jx][2] += ww[0];
-      current[jz][2][jx][2] += ww[1];
-      current[jz][3][jx][2] += ww[2];
-      current[jz][4][jx][2] += ww[3];
-    }
-  }
-
-  // Jz
-  for (int jy = 0; jy < 5; jy++) {
-    for (int jx = 0; jx < 5; jx++) {
-      float64 ww[4];
-      float64 wz = -((1 * ss[0][0][jx] + A * ss[1][0][jx]) * ss[0][1][jy] +
-                     (A * ss[0][0][jx] + B * ss[1][0][jx]) * ss[1][1][jy]) *
-                   dzdt;
-
-      ww[0] = ss[1][2][0] * wz;
-      ww[1] = ss[1][2][1] * wz + ww[0];
-      ww[2] = ss[1][2][2] * wz + ww[1];
-      ww[3] = ss[1][2][3] * wz + ww[2];
-
-      current[1][jy][jx][3] += ww[0];
-      current[2][jy][jx][3] += ww[1];
-      current[3][jy][jx][3] += ww[2];
-      current[4][jy][jx][3] += ww[3];
-    }
-  }
+  // calculate Jx, Jy, Jz
+  esirkepov3d_jx<5>(dxdt, ss, current);
+  esirkepov3d_jy<5>(dydt, ss, current);
+  esirkepov3d_jz<5>(dzdt, ss, current);
 }
 
 } // namespace primitives
