@@ -14,15 +14,19 @@ using Array2D      = stdex::mdspan<float64, stdex::dextents<size_t, 2>>;
 using Array4D      = stdex::mdspan<float64, stdex::dextents<size_t, 4>>;
 using uniform_rand = std::uniform_real_distribution<float64>;
 
-// set random particle position
-void set_random_particle(Array2D& xu, int k, float64 rmin, float64 rmax)
+void set_random_particle(Array2D& xu, float64 delh, float64 delv)
 {
   std::random_device seed;
   std::mt19937_64    engine(seed());
-  uniform_rand       rand(rmin, rmax);
+  uniform_rand       rand(0, 1);
 
   for (int ip = 0; ip < xu.extent(0); ip++) {
-    xu(ip, k) = rand(engine);
+    xu(ip, 0) = rand(engine) * delh;
+    xu(ip, 1) = rand(engine) * delh;
+    xu(ip, 2) = rand(engine) * delh;
+    xu(ip, 3) = rand(engine) * delv * 2 - delv;
+    xu(ip, 4) = rand(engine) * delv * 2 - delv;
+    xu(ip, 5) = rand(engine) * delv * 2 - delv;
   }
 }
 
@@ -205,9 +209,11 @@ bool interpolate2nd(int N)
   return status;
 }
 
-// Esirkepov's scheme in 3D with 1st order shape function
-bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
-                    float64 rho[4][4][4], float64 cur[4][4][4][4], const float64 epsilon = 1.0e-14)
+template <int Order>
+bool test_esirkepov3d(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
+                      float64       rho[Order + 3][Order + 3][Order + 3],
+                      float64       cur[Order + 3][Order + 3][Order + 3][4],
+                      const float64 epsilon = 1.0e-14)
 {
   const float64 rdh  = 1 / delh;
   const float64 dhdt = delh / delt;
@@ -217,7 +223,7 @@ bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float
   float64 rhosum1 = 0;
   float64 rhosum2 = 0;
 
-  float64 ss[2][3][4] = {0};
+  float64 ss[2][3][Order + 3] = {0};
 
   xv[0] = xu[0];
   xv[1] = xu[1];
@@ -233,14 +239,14 @@ bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float
   int iy0 = digitize(xv[1], 0.0, rdh);
   int iz0 = digitize(xv[2], 0.0, rdh);
 
-  shape1(xv[0], ix0 * delh, rdh, &ss[0][0][1]);
-  shape1(xv[1], iy0 * delh, rdh, &ss[0][1][1]);
-  shape1(xv[2], iz0 * delh, rdh, &ss[0][2][1]);
+  shape<Order>(xv[0], ix0 * delh, rdh, &ss[0][0][1]);
+  shape<Order>(xv[1], iy0 * delh, rdh, &ss[0][1][1]);
+  shape<Order>(xv[2], iz0 * delh, rdh, &ss[0][2][1]);
 
   // check charge density
-  for (int jz = 0; jz < 4; jz++) {
-    for (int jy = 0; jy < 4; jy++) {
-      for (int jx = 0; jx < 4; jx++) {
+  for (int jz = 0; jz < Order + 3; jz++) {
+    for (int jy = 0; jy < Order + 3; jy++) {
+      for (int jx = 0; jx < Order + 3; jx++) {
         float64 r = ss[0][0][jx] * ss[0][1][jy] * ss[0][2][jz];
         rhosum0 += cur[jz][jy][jx][0];
         rhosum1 += r;
@@ -256,94 +262,17 @@ bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float
   int iy1 = digitize(xu[1], 0.0, rdh);
   int iz1 = digitize(xu[2], 0.0, rdh);
 
-  shape1(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0]);
-  shape1(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0]);
-  shape1(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0]);
+  shape<Order>(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0]);
+  shape<Order>(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0]);
+  shape<Order>(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0]);
 
   // calculate charge and current density
-  esirkepov3d1(dhdt, dhdt, dhdt, ss, cur);
+  esirkepov3d<Order>(dhdt, dhdt, dhdt, ss, cur);
 
   // check charge density
-  for (int jz = 0; jz < 4; jz++) {
-    for (int jy = 0; jy < 4; jy++) {
-      for (int jx = 0; jx < 4; jx++) {
-        rhosum2 += cur[jz][jy][jx][0];
-      }
-    }
-  }
-
-  // contribution to charge density is normalized to unity
-  status = status & (std::abs(rhosum1 - 1) < epsilon);
-
-  // charge density increases exactly by one
-  status = status & (std::abs(rhosum2 - (rhosum0 + 1)) < epsilon * std::abs(rhosum2));
-
-  return status;
-}
-
-// Esirkepov's scheme in 3D with 2nd order shape function
-bool esirkepov3d2nd(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
-                    float64 rho[5][5][5], float64 cur[5][5][5][4], const float64 epsilon = 1.0e-14)
-{
-  const float64 rdh  = 1 / delh;
-  const float64 dh2  = delh / 2;
-  const float64 dhdt = delh / delt;
-
-  bool    status  = true;
-  float64 rhosum0 = 0;
-  float64 rhosum1 = 0;
-  float64 rhosum2 = 0;
-
-  float64 ss[2][3][5] = {0};
-
-  xv[0] = xu[0];
-  xv[1] = xu[1];
-  xv[2] = xu[2];
-  xu[0] = xu[0] + xu[3] * delt;
-  xu[1] = xu[1] + xu[4] * delt;
-  xu[2] = xu[2] + xv[5] * delt;
-
-  //
-  // before move
-  //
-  int ix0 = digitize(xv[0], -dh2, rdh);
-  int iy0 = digitize(xv[1], -dh2, rdh);
-  int iz0 = digitize(xv[2], -dh2, rdh);
-
-  shape2(xv[0], ix0 * delh, rdh, &ss[0][0][1]);
-  shape2(xv[1], iy0 * delh, rdh, &ss[0][1][1]);
-  shape2(xv[2], iz0 * delh, rdh, &ss[0][2][1]);
-
-  // check charge density
-  for (int jz = 0; jz < 5; jz++) {
-    for (int jy = 0; jy < 5; jy++) {
-      for (int jx = 0; jx < 5; jx++) {
-        float64 r = ss[0][0][jx] * ss[0][1][jy] * ss[0][2][jz];
-        rhosum0 += cur[jz][jy][jx][0];
-        rhosum1 += r;
-        rho[jz][jy][jx] += r;
-      }
-    }
-  }
-
-  //
-  // after move
-  //
-  int ix1 = digitize(xu[0], -dh2, rdh);
-  int iy1 = digitize(xu[1], -dh2, rdh);
-  int iz1 = digitize(xu[2], -dh2, rdh);
-
-  shape2(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0]);
-  shape2(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0]);
-  shape2(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0]);
-
-  // calculate charge and current density
-  esirkepov3d2(dhdt, dhdt, dhdt, ss, cur);
-
-  // check charge density
-  for (int jz = 0; jz < 5; jz++) {
-    for (int jy = 0; jy < 5; jy++) {
-      for (int jx = 0; jx < 5; jx++) {
+  for (int jz = 0; jz < Order + 3; jz++) {
+    for (int jy = 0; jy < Order + 3; jy++) {
+      for (int jx = 0; jx < Order + 3; jx++) {
         rhosum2 += cur[jz][jy][jx][0];
       }
     }
@@ -375,7 +304,7 @@ TEST_CASE("First-order shape function")
     float64 s[2];
     float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-    shape1(x, xmin, delx, s);
+    shape<1>(x, xmin, delx, s);
     REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
     REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
   }
@@ -408,7 +337,7 @@ TEST_CASE("Second-order shape function")
     float64 s[3];
     float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-    shape2(x, xmid, delx, s);
+    shape<2>(x, xmid, delx, s);
     REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
     REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
     REQUIRE(std::abs(s[2] - W(xeval[2] - x)) < epsilon);
@@ -441,7 +370,7 @@ TEST_CASE("Third-order shape function")
     float64 s[4];
     float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-    shape3(x, xmin, delx, s);
+    shape<3>(x, xmin, delx, s);
     REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
     REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
     REQUIRE(std::abs(s[2] - W(xeval[2] - x)) < epsilon);
@@ -480,7 +409,7 @@ TEST_CASE("Fourth-order shape function")
     float64 s[5];
     float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-    shape4(x, xmid, delx, s);
+    shape<4>(x, xmid, delx, s);
     REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
     REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
     REQUIRE(std::abs(s[2] - W(xeval[2] - x)) < epsilon);
@@ -503,7 +432,7 @@ TEST_CASE("Interpolation with second-order shape function")
   REQUIRE(interpolate2nd(N) == true);
 }
 
-TEST_CASE("Esirkepov scheme 3D with first-order shape function")
+TEST_CASE("Esirkepov scheme in 3D")
 {
   const int     Np   = 1000;
   const float64 delt = GENERATE(0.5, 1.0, 2.0);
@@ -516,111 +445,174 @@ TEST_CASE("Esirkepov scheme 3D with first-order shape function")
   auto    xv = stdex::mdspan(xv_data, Np, 7);
   auto    xu = stdex::mdspan(xu_data, Np, 7);
 
-  // position
-  set_random_particle(xu, 0, +1.5 * delh, +2.5 * delh);
-  set_random_particle(xu, 1, +1.5 * delh, +2.5 * delh);
-  set_random_particle(xu, 2, +1.5 * delh, +2.5 * delh);
+  set_random_particle(xu, delh, delv);
 
-  // velocity
-  set_random_particle(xu, 3, -1.0 * delv, +1.0 * delv);
-  set_random_particle(xu, 4, -1.0 * delv, +1.0 * delv);
-  set_random_particle(xu, 5, -1.0 * delv, +1.0 * delv);
-
-  SECTION("check Esirkepov's scheme for individual particles")
+  //
+  // first order
+  //
+  SECTION("First-order Esirkepov scheme for individual particles")
   {
-    bool status1 = true;
-    bool status2 = true;
+    const int size    = 4;
+    bool      status1 = true;
+    bool      status2 = true;
 
     for (int ip = 0; ip < Np; ip++) {
-      float64 cur[4][4][4][4] = {0};
-      float64 rho[4][4][4]    = {0};
+      float64 cur[size][size][size][4] = {0};
+      float64 rho[size][size][size]    = {0};
 
       float64* xv_ptr = &xv(ip, 0);
       float64* xu_ptr = &xu(ip, 0);
 
-      status1 = status1 & esirkepov3d1st(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+      status1 = status1 & test_esirkepov3d<1>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
       status2 = status2 & check_charge_continuity(delt, delh, rho, cur, eps);
     }
 
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
   }
-  SECTION("check Esirkepov's scheme for group of particles")
+  SECTION("First-order Esirkepov scheme for group of particles")
   {
-    bool status1 = true;
-    bool status2 = true;
+    const int size    = 4;
+    bool      status1 = true;
+    bool      status2 = true;
 
-    float64 cur[4][4][4][4] = {0};
-    float64 rho[4][4][4]    = {0};
+    float64 cur[size][size][size][4] = {0};
+    float64 rho[size][size][size]    = {0};
 
     for (int ip = 0; ip < Np; ip++) {
       float64* xv_ptr = &xv(ip, 0);
       float64* xu_ptr = &xu(ip, 0);
 
-      status1 = status1 & esirkepov3d1st(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+      status1 = status1 & test_esirkepov3d<1>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
     }
     status2 = status2 & check_charge_continuity(delt, delh, rho, cur, eps);
 
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
   }
-}
-
-TEST_CASE("Esirkepov scheme 3D with second-order shape function")
-{
-  const int     Np   = 1000;
-  const float64 delt = GENERATE(0.5, 1.0, 2.0);
-  const float64 delh = GENERATE(0.5, 1.0, 2.0);
-  const float64 delv = delh / delt;
-  const float64 eps  = 1.0e-14;
-
-  float64 xv_data[Np * 7];
-  float64 xu_data[Np * 7];
-  auto    xv = stdex::mdspan(xv_data, Np, 7);
-  auto    xu = stdex::mdspan(xu_data, Np, 7);
-
-  // position
-  set_random_particle(xu, 0, +1.5 * delh, +2.5 * delh);
-  set_random_particle(xu, 1, +1.5 * delh, +2.5 * delh);
-  set_random_particle(xu, 2, +1.5 * delh, +2.5 * delh);
-
-  // velocity
-  set_random_particle(xu, 3, -1.0 * delv, +1.0 * delv);
-  set_random_particle(xu, 4, -1.0 * delv, +1.0 * delv);
-  set_random_particle(xu, 5, -1.0 * delv, +1.0 * delv);
-
-  SECTION("check Esirkepov's scheme for individual particles")
+  //
+  // second order
+  //
+  SECTION("Second-order Esirkepov scheme for individual particles")
   {
-    bool status1 = true;
-    bool status2 = true;
+    const int size    = 5;
+    bool      status1 = true;
+    bool      status2 = true;
 
     for (int ip = 0; ip < Np; ip++) {
-      float64 cur[5][5][5][4] = {0};
-      float64 rho[5][5][5]    = {0};
+      float64 cur[size][size][size][4] = {0};
+      float64 rho[size][size][size]    = {0};
 
       float64* xv_ptr = &xv(ip, 0);
       float64* xu_ptr = &xu(ip, 0);
 
-      status1 = status1 & esirkepov3d2nd(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+      status1 = status1 & test_esirkepov3d<2>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
       status2 = status2 & check_charge_continuity(delt, delh, rho, cur, eps);
     }
 
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
   }
-  SECTION("check Esirkepov's scheme for group of particles")
+  SECTION("Second-order Esirkepov scheme for group of particles")
   {
-    bool status1 = true;
-    bool status2 = true;
+    const int size    = 5;
+    bool      status1 = true;
+    bool      status2 = true;
 
-    float64 cur[5][5][5][4] = {0};
-    float64 rho[5][5][5]    = {0};
+    float64 cur[size][size][size][4] = {0};
+    float64 rho[size][size][size]    = {0};
 
     for (int ip = 0; ip < Np; ip++) {
       float64* xv_ptr = &xv(ip, 0);
       float64* xu_ptr = &xu(ip, 0);
 
-      status1 = status1 & esirkepov3d2nd(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+      status1 = status1 & test_esirkepov3d<2>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+    }
+    status2 = status2 & check_charge_continuity(delt, delh, rho, cur, eps);
+
+    REQUIRE(status1); // charge density
+    REQUIRE(status2); // charge continuity
+  }
+  //
+  // third order
+  //
+  SECTION("Third-order Esirkepov scheme for individual particles")
+  {
+    const int size    = 6;
+    bool      status1 = true;
+    bool      status2 = true;
+
+    for (int ip = 0; ip < Np; ip++) {
+      float64 cur[size][size][size][4] = {0};
+      float64 rho[size][size][size]    = {0};
+
+      float64* xv_ptr = &xv(ip, 0);
+      float64* xu_ptr = &xu(ip, 0);
+
+      status1 = status1 & test_esirkepov3d<3>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+      status2 = status2 & check_charge_continuity(delt, delh, rho, cur, eps);
+    }
+
+    REQUIRE(status1); // charge density
+    REQUIRE(status2); // charge continuity
+  }
+  SECTION("Third-order Esirkepov scheme for group of particles")
+  {
+    const int size    = 6;
+    bool      status1 = true;
+    bool      status2 = true;
+
+    float64 cur[size][size][size][4] = {0};
+    float64 rho[size][size][size]    = {0};
+
+    for (int ip = 0; ip < Np; ip++) {
+      float64* xv_ptr = &xv(ip, 0);
+      float64* xu_ptr = &xu(ip, 0);
+
+      status1 = status1 & test_esirkepov3d<3>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+    }
+    status2 = status2 & check_charge_continuity(delt, delh, rho, cur, eps);
+
+    REQUIRE(status1); // charge density
+    REQUIRE(status2); // charge continuity
+  }
+  //
+  // forth order
+  //
+  SECTION("Fourth-order Esirkepov scheme for individual particles")
+  {
+    const int size    = 7;
+    bool      status1 = true;
+    bool      status2 = true;
+
+    for (int ip = 0; ip < Np; ip++) {
+      float64 cur[size][size][size][4] = {0};
+      float64 rho[size][size][size]    = {0};
+
+      float64* xv_ptr = &xv(ip, 0);
+      float64* xu_ptr = &xu(ip, 0);
+
+      status1 = status1 & test_esirkepov3d<4>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+      status2 = status2 & check_charge_continuity(delt, delh, rho, cur, eps);
+    }
+
+    REQUIRE(status1); // charge density
+    REQUIRE(status2); // charge continuity
+  }
+  SECTION("Fourth-order Esirkepov scheme for group of particles")
+  {
+    const int size    = 7;
+    bool      status1 = true;
+    bool      status2 = true;
+
+    float64 cur[size][size][size][4] = {0};
+    float64 rho[size][size][size]    = {0};
+
+    for (int ip = 0; ip < Np; ip++) {
+      float64* xv_ptr = &xv(ip, 0);
+      float64* xu_ptr = &xu(ip, 0);
+
+      status1 = status1 & test_esirkepov3d<4>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
     }
     status2 = status2 & check_charge_continuity(delt, delh, rho, cur, eps);
 

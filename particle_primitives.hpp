@@ -64,17 +64,31 @@ static void push_buneman_boris(float64 u[3], float64 eb[6])
 }
 
 ///
-/// @brief first-order particle shape function
+/// @brief particle shape function
 ///
-/// This function assumes X <= x < X + dx and computes particle weights at
-/// the two gird points X, X + dx, which are assigned to s[0..1].
+/// This function calculate particle assignment weights at grid points using a given order of shape
+/// function. For an odd order shape function, the particle position is assume to be
+///     X <= x < X + dx.
+/// On the other hand, for an even order shape function, the particle position is assume to be
+///     X - dx/2 <= x < X + dx/2.
+///
+/// The weights at the following positions
+///     - first-order  : (X, X + dx)
+///     - second-order : (X - dx, X, X + dx)
+///     - third-order  : (X - dx, X, X + dx, X + 2dx)
+///     - fourth-order : (X - 2dx, X - dx, X, X + dx, X + 2dx)
+/// will be assigned to s.
 ///
 /// @param[in]  x   particle position
-/// @param[in]  X   grid point such that X <= x < X + dx
+/// @param[in]  X   grid position
 /// @param[in]  rdx 1/dx
-/// @param[out] s   weights at grid points (X, X + dx)
+/// @param[out] s   weights at grid points
 ///
-static void shape1(float64 x, float64 X, float64 rdx, float64 s[2])
+template <int Order>
+static void shape(float64 x, float64 X, float64 rdx, float64 s[Order + 1]);
+
+template <>
+void shape<1>(float64 x, float64 X, float64 rdx, float64 s[2])
 {
   float64 delta = (x - X) * rdx;
 
@@ -82,18 +96,8 @@ static void shape1(float64 x, float64 X, float64 rdx, float64 s[2])
   s[1] = delta;
 }
 
-///
-/// @brief second-order particle shape function
-///
-/// This function assumes X - dx/2 <= x < X + dx/2 and computes particle weights
-/// at the three grid points X - dx, X, X + dx, which are assigned to s[0..2].
-///
-/// @param[in]  x   particle position
-/// @param[in]  X   grid point such that X - dx/2 <= x < X + dx/2
-/// @param[in]  rdx 1/dx
-/// @param[out] s   weights at grid points (X - dx, X, X + dx)
-///
-static void shape2(float64 x, float64 X, float64 rdx, float64 s[3])
+template <>
+void shape<2>(float64 x, float64 X, float64 rdx, float64 s[3])
 {
   float64 delta0 = (x - X) * rdx;
   float64 delta1 = 0.5 - delta0;
@@ -104,18 +108,8 @@ static void shape2(float64 x, float64 X, float64 rdx, float64 s[3])
   s[2] = 0.50 * delta2 * delta2;
 }
 
-///
-/// @brief third-order particle shape function
-///
-/// This function assumes X <= x < X + dx and computes particle weights at
-/// the four gird points X - dx, X, X + dx, X + 2dx, which are assigned to s[0..3].
-///
-/// @param[in]  x   particle position
-/// @param[in]  X   grid point such that X <= x < X + dx
-/// @param[in]  rdx 1/dx
-/// @param[out] s   weights at grid points (X - dx, X, X + dx, X + 2dx)
-///
-static void shape3(float64 x, float64 X, float64 rdx, float64 s[4])
+template <>
+void shape<3>(float64 x, float64 X, float64 rdx, float64 s[4])
 {
   constexpr float64 a = 1 / 6.0;
 
@@ -132,18 +126,8 @@ static void shape3(float64 x, float64 X, float64 rdx, float64 s[4])
   s[3] = a * delta1_cubed;
 }
 
-///
-/// @brief fourth-order particle shape function
-///
-/// This function assumes X - dx/2 <= x < X + dx/2 and computes particle weights
-/// at the five grid points X - 2dx, X - dx, X, X + dx, X + 2dx, which are assigned to s[0..4].
-///
-/// @param[in]  x   particle position
-/// @param[in]  X   grid point such that X - dx/2 <= x < X + dx/2
-/// @param[in]  rdx 1/dx
-/// @param[out] s   weights at grid points (X - 2dx, X - dx, X, X + dx, X + 2dx)
-///
-static void shape4(float64 x, float64 X, float64 rdx, float64 s[5])
+template <>
+void shape<4>(float64 x, float64 X, float64 rdx, float64 s[5])
 {
   constexpr float64 a = 1 / 384.0;
   constexpr float64 b = 1 / 96.0;
@@ -168,6 +152,26 @@ static void shape4(float64 x, float64 X, float64 rdx, float64 s[5])
   s[2] = c + d * delta0_squared * (2 * delta0_squared - 5);
   s[3] = b * (55 + 20 * delta2 - 120 * delta2_squared + 80 * delta2_cubed - 16 * delta2_quad);
   s[4] = a * delta3 * delta3 * delta3 * delta3;
+}
+
+static void shape1(float64 x, float64 X, float64 rdx, float64 s[2])
+{
+  shape<1>(x, X, rdx, s);
+}
+
+static void shape2(float64 x, float64 X, float64 rdx, float64 s[3])
+{
+  shape<2>(x, X, rdx, s);
+}
+
+static void shape3(float64 x, float64 X, float64 rdx, float64 s[4])
+{
+  shape<3>(x, X, rdx, s);
+}
+
+static void shape4(float64 x, float64 X, float64 rdx, float64 s[5])
+{
+  shape<4>(x, X, rdx, s);
 }
 
 ///
