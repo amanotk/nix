@@ -209,7 +209,6 @@ bool interpolate2nd(int N)
 bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
                     float64 rho[4][4][4], float64 cur[4][4][4][4], const float64 epsilon = 1.0e-14)
 {
-  const float64 q    = 1.0;
   const float64 rdh  = 1 / delh;
   const float64 dhdt = delh / delt;
 
@@ -234,9 +233,9 @@ bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float
   int iy0 = digitize(xv[1], 0.0, rdh);
   int iz0 = digitize(xv[2], 0.0, rdh);
 
-  shape1(xv[0], ix0 * delh, rdh, &ss[0][0][1], q);
-  shape1(xv[1], iy0 * delh, rdh, &ss[0][1][1], q);
-  shape1(xv[2], iz0 * delh, rdh, &ss[0][2][1], q);
+  shape1(xv[0], ix0 * delh, rdh, &ss[0][0][1]);
+  shape1(xv[1], iy0 * delh, rdh, &ss[0][1][1]);
+  shape1(xv[2], iz0 * delh, rdh, &ss[0][2][1]);
 
   // check charge density
   for (int jz = 0; jz < 4; jz++) {
@@ -257,9 +256,9 @@ bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float
   int iy1 = digitize(xu[1], 0.0, rdh);
   int iz1 = digitize(xu[2], 0.0, rdh);
 
-  shape1(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0], q);
-  shape1(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0], q);
-  shape1(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0], q);
+  shape1(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0]);
+  shape1(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0]);
+  shape1(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0]);
 
   // calculate charge and current density
   esirkepov3d1(dhdt, dhdt, dhdt, ss, cur);
@@ -286,7 +285,6 @@ bool esirkepov3d1st(const float64 delt, const float64 delh, float64 xu[7], float
 bool esirkepov3d2nd(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
                     float64 rho[5][5][5], float64 cur[5][5][5][4], const float64 epsilon = 1.0e-14)
 {
-  const float64 q    = 1.0;
   const float64 rdh  = 1 / delh;
   const float64 dh2  = delh / 2;
   const float64 dhdt = delh / delt;
@@ -312,9 +310,9 @@ bool esirkepov3d2nd(const float64 delt, const float64 delh, float64 xu[7], float
   int iy0 = digitize(xv[1], -dh2, rdh);
   int iz0 = digitize(xv[2], -dh2, rdh);
 
-  shape2(xv[0], ix0 * delh, rdh, &ss[0][0][1], q);
-  shape2(xv[1], iy0 * delh, rdh, &ss[0][1][1], q);
-  shape2(xv[2], iz0 * delh, rdh, &ss[0][2][1], q);
+  shape2(xv[0], ix0 * delh, rdh, &ss[0][0][1]);
+  shape2(xv[1], iy0 * delh, rdh, &ss[0][1][1]);
+  shape2(xv[2], iz0 * delh, rdh, &ss[0][2][1]);
 
   // check charge density
   for (int jz = 0; jz < 5; jz++) {
@@ -335,9 +333,9 @@ bool esirkepov3d2nd(const float64 delt, const float64 delh, float64 xu[7], float
   int iy1 = digitize(xu[1], -dh2, rdh);
   int iz1 = digitize(xu[2], -dh2, rdh);
 
-  shape2(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0], q);
-  shape2(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0], q);
-  shape2(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0], q);
+  shape2(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0]);
+  shape2(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0]);
+  shape2(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0]);
 
   // calculate charge and current density
   esirkepov3d2(dhdt, dhdt, dhdt, ss, cur);
@@ -358,6 +356,137 @@ bool esirkepov3d2nd(const float64 delt, const float64 delh, float64 xu[7], float
   status = status & (std::abs(rhosum2 - (rhosum0 + 1)) < epsilon * std::abs(rhosum2));
 
   return status;
+}
+
+TEST_CASE("First-order shape function")
+{
+  const int     N        = 100;
+  const float64 epsilon  = 1.0e-14;
+  const float64 xmin     = 0;
+  const float64 xmax     = 1;
+  const float64 delx     = xmax - xmin;
+  const float64 xeval[2] = {xmin, xmax};
+
+  // analytic form
+  auto W = [](float64 x) { return std::abs(x) < 1 ? 1 - std::abs(x) : 0; };
+
+  // test
+  for (int i = 0; i < N; i++) {
+    float64 s[2];
+    float64 x = xmin + (xmax - xmin) * i / (N - 1);
+
+    shape1(x, xmin, delx, s);
+    REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
+    REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
+  }
+}
+
+TEST_CASE("Second-order shape function")
+{
+  const int     N        = 100;
+  const float64 epsilon  = 1.0e-14;
+  const float64 xmin     = -0.5;
+  const float64 xmax     = +0.5;
+  const float64 xmid     = 0;
+  const float64 delx     = xmax - xmin;
+  const float64 xeval[3] = {xmid - delx, xmid, xmid + delx};
+
+  // analytic form
+  auto W = [](float64 x) {
+    float64 abs_x = std::abs(x);
+    if (abs_x < 0.5) {
+      return 0.75 - std::pow(x, 2);
+    } else if (abs_x < 1.5) {
+      return std::pow(3 - 2 * abs_x, 2) / 8;
+    } else {
+      return 0.0;
+    }
+  };
+
+  // test
+  for (int i = 0; i < N; i++) {
+    float64 s[3];
+    float64 x = xmin + (xmax - xmin) * i / (N - 1);
+
+    shape2(x, xmid, delx, s);
+    REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
+    REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
+    REQUIRE(std::abs(s[2] - W(xeval[2] - x)) < epsilon);
+  }
+}
+
+TEST_CASE("Third-order shape function")
+{
+  const int     N        = 100;
+  const float64 epsilon  = 1.0e-14;
+  const float64 xmin     = 0;
+  const float64 xmax     = 1;
+  const float64 delx     = xmax - xmin;
+  const float64 xeval[4] = {xmin - delx, xmin, xmax, xmax + delx};
+
+  // analytic form
+  auto W = [](float64 x) {
+    float64 abs_x = std::abs(x);
+    if (abs_x < 1.0) {
+      return 2 / 3.0 - std::pow(x, 2) + std::pow(abs_x, 3) / 2;
+    } else if (abs_x < 2.0) {
+      return std::pow(2 - abs_x, 3) / 6;
+    } else {
+      return 0.0;
+    }
+  };
+
+  // test
+  for (int i = 0; i < N; i++) {
+    float64 s[4];
+    float64 x = xmin + (xmax - xmin) * i / (N - 1);
+
+    shape3(x, xmin, delx, s);
+    REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
+    REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
+    REQUIRE(std::abs(s[2] - W(xeval[2] - x)) < epsilon);
+    REQUIRE(std::abs(s[3] - W(xeval[3] - x)) < epsilon);
+  }
+}
+
+TEST_CASE("Fourth-order shape function")
+{
+  const int     N        = 100;
+  const float64 epsilon  = 1.0e-14;
+  const float64 xmin     = -0.5;
+  const float64 xmax     = +0.5;
+  const float64 xmid     = 0;
+  const float64 delx     = xmax - xmin;
+  const float64 xeval[5] = {xmid - 2 * delx, xmid - delx, xmid, xmid + delx, xmid + 2 * delx};
+
+  // analytic form
+  auto W = [](float64 x) {
+    float64 abs_x = std::abs(x);
+    if (abs_x < 0.5) {
+      return 115 / 192.0 - 5 * std::pow(x, 2) / 8 + std::pow(x, 4) / 4;
+    } else if (abs_x < 1.5) {
+      return (55 + 20 * abs_x - 120 * std::pow(x, 2) + 80 * std::pow(abs_x, 3) -
+              16 * std::pow(x, 4)) /
+             96;
+    } else if (abs_x < 2.5) {
+      return std::pow(5 - 2 * abs_x, 4) / 384;
+    } else {
+      return 0.0;
+    }
+  };
+
+  // test
+  for (int i = 0; i < N; i++) {
+    float64 s[5];
+    float64 x = xmin + (xmax - xmin) * i / (N - 1);
+
+    shape4(x, xmid, delx, s);
+    REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
+    REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
+    REQUIRE(std::abs(s[2] - W(xeval[2] - x)) < epsilon);
+    REQUIRE(std::abs(s[3] - W(xeval[3] - x)) < epsilon);
+    REQUIRE(std::abs(s[4] - W(xeval[4] - x)) < epsilon);
+  }
 }
 
 TEST_CASE("Interpolation with first-order shape function")
