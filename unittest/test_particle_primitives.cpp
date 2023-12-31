@@ -110,9 +110,9 @@ bool interpolate1st(int N)
           float64 x = static_cast<float64>(ix) / (N - 1);
           float64 y = static_cast<float64>(iy) / (N - 1);
           float64 z = static_cast<float64>(iz) / (N - 1);
-          shape1(x, 0.0, rdh, wx);
-          shape1(y, 0.0, rdh, wy);
-          shape1(z, 0.0, rdh, wz);
+          shape<1>(x, 0.0, rdh, wx);
+          shape<1>(y, 0.0, rdh, wy);
+          shape<1>(z, 0.0, rdh, wz);
 
           for (int ik = 0; ik < 6; ik++) {
             // interpolation
@@ -179,9 +179,9 @@ bool interpolate2nd(int N)
           float64 x = static_cast<float64>(ix) / (N - 1) - 0.5;
           float64 y = static_cast<float64>(iy) / (N - 1) - 0.5;
           float64 z = static_cast<float64>(iz) / (N - 1) - 0.5;
-          shape2(x, 0.0, rdh, wx);
-          shape2(y, 0.0, rdh, wy);
-          shape2(z, 0.0, rdh, wz);
+          shape<2>(x, 0.0, rdh, wx);
+          shape<2>(y, 0.0, rdh, wy);
+          shape<2>(z, 0.0, rdh, wz);
 
           for (int ik = 0; ik < 6; ik++) {
             // interpolation
@@ -300,14 +300,16 @@ TEST_CASE("First-order shape function")
   auto W = [](float64 x) { return std::abs(x) < 1 ? 1 - std::abs(x) : 0; };
 
   // test
+  bool status = true;
   for (int i = 0; i < N; i++) {
     float64 s[2];
     float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-    shape<1>(x, xmin, delx, s);
-    REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
-    REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
+    shape<1>(x, xmin, 1 / delx, s);
+    status = status & (std::abs(s[0] - W(xeval[0] - x)) < epsilon);
+    status = status & (std::abs(s[1] - W(xeval[1] - x)) < epsilon);
   }
+  REQUIRE(status == true);
 }
 
 TEST_CASE("Second-order shape function")
@@ -333,15 +335,17 @@ TEST_CASE("Second-order shape function")
   };
 
   // test
+  bool status = true;
   for (int i = 0; i < N; i++) {
     float64 s[3];
     float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-    shape<2>(x, xmid, delx, s);
-    REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
-    REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
-    REQUIRE(std::abs(s[2] - W(xeval[2] - x)) < epsilon);
+    shape<2>(x, xmid, 1 / delx, s);
+    status = status & (std::abs(s[0] - W(xeval[0] - x)) < epsilon);
+    status = status & (std::abs(s[1] - W(xeval[1] - x)) < epsilon);
+    status = status & (std::abs(s[2] - W(xeval[2] - x)) < epsilon);
   }
+  REQUIRE(status == true);
 }
 
 TEST_CASE("Third-order shape function")
@@ -366,16 +370,18 @@ TEST_CASE("Third-order shape function")
   };
 
   // test
+  bool status = true;
   for (int i = 0; i < N; i++) {
     float64 s[4];
     float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-    shape<3>(x, xmin, delx, s);
-    REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
-    REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
-    REQUIRE(std::abs(s[2] - W(xeval[2] - x)) < epsilon);
-    REQUIRE(std::abs(s[3] - W(xeval[3] - x)) < epsilon);
+    shape<3>(x, xmin, 1 / delx, s);
+    status = status & (std::abs(s[0] - W(xeval[0] - x)) < epsilon);
+    status = status & (std::abs(s[1] - W(xeval[1] - x)) < epsilon);
+    status = status & (std::abs(s[2] - W(xeval[2] - x)) < epsilon);
+    status = status & (std::abs(s[3] - W(xeval[3] - x)) < epsilon);
   }
+  REQUIRE(status == true);
 }
 
 TEST_CASE("Fourth-order shape function")
@@ -405,17 +411,93 @@ TEST_CASE("Fourth-order shape function")
   };
 
   // test
+  bool status = true;
   for (int i = 0; i < N; i++) {
     float64 s[5];
     float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-    shape<4>(x, xmid, delx, s);
-    REQUIRE(std::abs(s[0] - W(xeval[0] - x)) < epsilon);
-    REQUIRE(std::abs(s[1] - W(xeval[1] - x)) < epsilon);
-    REQUIRE(std::abs(s[2] - W(xeval[2] - x)) < epsilon);
-    REQUIRE(std::abs(s[3] - W(xeval[3] - x)) < epsilon);
-    REQUIRE(std::abs(s[4] - W(xeval[4] - x)) < epsilon);
+    shape<4>(x, xmid, 1 / delx, s);
+    status = status & (std::abs(s[0] - W(xeval[0] - x)) < epsilon);
+    status = status & (std::abs(s[1] - W(xeval[1] - x)) < epsilon);
+    status = status & (std::abs(s[2] - W(xeval[2] - x)) < epsilon);
+    status = status & (std::abs(s[3] - W(xeval[3] - x)) < epsilon);
+    status = status & (std::abs(s[4] - W(xeval[4] - x)) < epsilon);
   }
+  REQUIRE(status == true);
+}
+
+TEST_CASE("First-order shape function for WT scheme")
+{
+  const int     N        = 100;
+  const float64 epsilon  = 1.0e-14;
+  const float64 xmin     = 0;
+  const float64 xmax     = 1;
+  const float64 delx     = xmax - xmin;
+  const float64 xeval[2] = {xmin, xmax};
+  const float64 delt     = GENERATE(0.1, 0.2, 0.3, 0.4, 0.5);
+
+  // analytic form
+  auto W = [](float64 x, float64 dt) {
+    float64 abs_x = std::abs(x);
+    if (0.5 - dt < abs_x && abs_x <= 0.5 + dt) {
+      return (1 + 2 * dt - 2 * abs_x) / (4 * dt);
+    } else if (abs_x <= 0.5 - dt) {
+      return 1.0;
+    } else {
+      return 0.0;
+    }
+  };
+
+  // test
+  bool status = true;
+  for (int i = 0; i < N; i++) {
+    float64 s[2];
+    float64 x = xmin + (xmax - xmin) * i / (N - 1);
+
+    shape_wt<1>(x, xmin, 1 / delx, delt, 1 / delt, s);
+    status = status & (std::abs(s[0] - W(xeval[0] - x, delt)) < epsilon);
+    status = status & (std::abs(s[1] - W(xeval[1] - x, delt)) < epsilon);
+  }
+  REQUIRE(status == true);
+}
+
+TEST_CASE("Second-order shape function for WT scheme")
+{
+  const int     N        = 100;
+  const float64 epsilon  = 1.0e-14;
+  const float64 xmin     = -0.5;
+  const float64 xmax     = +0.5;
+  const float64 delx     = xmax - xmin;
+  const float64 xmid     = 0;
+  const float64 xeval[3] = {xmid - delx, xmid, xmid + delx};
+  const float64 delt     = GENERATE(0.1, 0.2, 0.3, 0.4, 0.5);
+
+  // analytic form
+  auto W = [](float64 x, float64 dt) {
+    float64 abs_x = std::abs(x);
+    if (1 - dt < abs_x && abs_x <= 1 + dt) {
+      return (dt + 1 - abs_x) * (dt + 1 - abs_x) / (4 * dt);
+    } else if (dt < abs_x && abs_x <= 1 - dt) {
+      return 1.0 - abs_x;
+    } else if (abs_x <= dt) {
+      return (2 * dt - dt * dt - abs_x * abs_x) / (2 * dt);
+    } else {
+      return 0.0;
+    }
+  };
+
+  // test
+  bool status = true;
+  for (int i = 0; i < N; i++) {
+    float64 s[3];
+    float64 x = xmin + (xmax - xmin) * i / (N - 1);
+
+    shape_wt<2>(x, xmid, 1 / delx, delt, 1 / delt, s);
+    status = status & (std::abs(s[0] - W(xeval[0] - x, delt)) < epsilon);
+    status = status & (std::abs(s[1] - W(xeval[1] - x, delt)) < epsilon);
+    status = status & (std::abs(s[2] - W(xeval[2] - x, delt)) < epsilon);
+  }
+  REQUIRE(status == true);
 }
 
 TEST_CASE("Interpolation with first-order shape function")

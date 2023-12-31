@@ -154,24 +154,32 @@ void shape<4>(float64 x, float64 X, float64 rdx, float64 s[5])
   s[4] = a * delta3 * delta3 * delta3 * delta3;
 }
 
-static void shape1(float64 x, float64 X, float64 rdx, float64 s[2])
+template <int Order>
+static void shape_wt(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt,
+                     float64 s[Order + 1]);
+
+template <>
+void shape_wt<1>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, float64 s[2])
 {
-  shape<1>(x, X, rdx, s);
+  float64 delta = (x - X) * rdx;
+  float64 ss    = std::min(1.0, std::max(0.0, 0.25 * rdt * (1 + 2 * dt - 2 * delta)));
+
+  s[0] = ss;
+  s[1] = 1 - ss;
 }
 
-static void shape2(float64 x, float64 X, float64 rdx, float64 s[3])
+template <>
+void shape_wt<2>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, float64 s[3])
 {
-  shape<2>(x, X, rdx, s);
-}
+  float64 delta  = (x - X) * rdx;
+  float64 flag   = std::abs(delta) < dt ? 1 : 0;
+  float64 delta0 = 1 - std::abs(delta);
+  float64 delta1 = dt - delta;
+  float64 delta2 = dt + delta;
 
-static void shape3(float64 x, float64 X, float64 rdx, float64 s[4])
-{
-  shape<3>(x, X, rdx, s);
-}
-
-static void shape4(float64 x, float64 X, float64 rdx, float64 s[5])
-{
-  shape<4>(x, X, rdx, s);
+  s[0] = 0.25 * rdt * delta1 * delta1 * flag + std::max(0.0, -delta) * (1 - flag);
+  s[1] = 0.50 * rdt * (2 * dt - dt * dt - delta * delta) * flag + delta0 * (1 - flag);
+  s[2] = 0.25 * rdt * delta2 * delta2 * flag + std::max(0.0, +delta) * (1 - flag);
 }
 
 ///
@@ -392,34 +400,6 @@ static void esirkepov3d(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][
   esirkepov3d_jx<Order + 3>(dxdt, ss, current);
   esirkepov3d_jy<Order + 3>(dydt, ss, current);
   esirkepov3d_jz<Order + 3>(dzdt, ss, current);
-}
-
-// first-order
-static void esirkepov3d1(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][3][4],
-                         float64 current[4][4][4][4])
-{
-  esirkepov3d<1>(dxdt, dydt, dzdt, ss, current);
-}
-
-// second-order
-static void esirkepov3d2(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][3][5],
-                         float64 current[5][5][5][4])
-{
-  esirkepov3d<2>(dxdt, dydt, dzdt, ss, current);
-}
-
-// third-order
-static void esirkepov3d3(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][3][6],
-                         float64 current[6][6][6][4])
-{
-  esirkepov3d<3>(dxdt, dydt, dzdt, ss, current);
-}
-
-// fourth-order
-static void esirkepov3d4(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][3][7],
-                         float64 current[7][7][7][4])
-{
-  esirkepov3d<4>(dxdt, dydt, dzdt, ss, current);
 }
 
 } // namespace primitives
