@@ -154,6 +154,23 @@ void shape<4>(float64 x, float64 X, float64 rdx, float64 s[5])
   s[4] = a * delta3 * delta3 * delta3 * delta3;
 }
 
+///
+/// @brief particle shape function for WT scheme
+///
+/// This function provides a particle shape function used for the WT scheme, which defines the
+/// assignment weights dependent on the time step.
+/// Otherwise, the function is the same as the `shape`.
+///
+/// Reference:
+/// - Y. Lu, et al., Journal of Computational Physics 413, 109388 (2020).
+///
+/// @param[in]  x   particle position
+/// @param[in]  X   grid position
+/// @param[in]  rdx 1/dx
+/// @param[in]  dt  c*dt/dx
+/// @param[in]  rdt 1/dt
+/// @param[out] s   weights at grid points
+///
 template <int Order>
 static void shape_wt(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt,
                      float64 s[Order + 1]);
@@ -172,14 +189,53 @@ template <>
 void shape_wt<2>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, float64 s[3])
 {
   float64 delta  = (x - X) * rdx;
-  float64 flag   = std::abs(delta) < dt ? 1 : 0;
+  float64 t1     = std::abs(delta) < dt ? 1 : 0;
+  float64 t2     = 1 - t1;
   float64 delta0 = 1 - std::abs(delta);
   float64 delta1 = dt - delta;
   float64 delta2 = dt + delta;
 
-  s[0] = 0.25 * rdt * delta1 * delta1 * flag + std::max(0.0, -delta) * (1 - flag);
-  s[1] = 0.50 * rdt * (2 * dt - dt * dt - delta * delta) * flag + delta0 * (1 - flag);
-  s[2] = 0.25 * rdt * delta2 * delta2 * flag + std::max(0.0, +delta) * (1 - flag);
+  // clang-format off
+  s[0] = 0.25 * rdt * delta1 * delta1                    * t1 + std::max(0.0, -delta) * t2;
+  s[1] = 0.50 * rdt * (2 * dt - dt * dt - delta * delta) * t1 + delta0                * t2;
+  s[2] = 0.25 * rdt * delta2 * delta2                    * t1 + std::max(0.0, +delta) * t2;
+  // clang-format on
+}
+
+template <>
+void shape_wt<3>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, float64 s[4])
+{
+  float64 delta  = (x - X) * rdx;
+  float64 delta0 = 1 - delta;
+  float64 delta1 = 1 - 2 * delta;
+  float64 delta2 = 1 + 2 * delta;
+  float64 delta3 = 2 * dt + delta1;
+  float64 delta4 = 2 * dt - delta1;
+  float64 delta5 = 3 - 2 * delta;
+  float64 t1     = delta < 0.5 - dt ? 1 : 0;
+  float64 t2     = 1 - t1;
+  float64 t3     = delta < 0.5 + dt ? 1 : 0;
+  float64 t4     = 1 - t3;
+
+  // clang-format off
+  float64 s01 = (4 * dt * dt + 3 * delta1 * delta1) / 24;
+  float64 s11 = (9 - 4 * dt * dt - 12 * delta * delta) / 12;
+  float64 s21 = (4 * dt * dt + 3 * delta2 * delta2) / 24;
+  float64 s31 = 0;
+  float64 s02 = delta3 * delta3 * delta3 / (96 * dt);
+  float64 s12 = (-8*dt*dt*dt - 36*dt*dt*delta1 - 6*dt*delta1*delta1 - 3*delta1*delta1*delta1) / (96*dt) + delta0;
+  float64 s22 = (-8*dt*dt*dt + 36*dt*dt*delta1 - 6*dt*delta1*delta1 + 3*delta1*delta1*delta1) / (96*dt) + delta;
+  float64 s32 = delta4 * delta4 * delta4 / (96 * dt);
+  float64 s03 = 0;
+  float64 s13 = (4 * dt * dt + 3 * delta5 * delta5) / 24;
+  float64 s23 = (9 - 4 * dt * dt - 12 * delta0 * delta0) / 12;
+  float64 s33 = (4 * dt * dt + 3 * delta1 * delta1) / 24;
+  // clang-format on
+
+  s[0] = s01 * t1 + s02 * t2 * t3 + s03 * t4;
+  s[1] = s11 * t1 + s12 * t2 * t3 + s13 * t4;
+  s[2] = s21 * t1 + s22 * t2 * t3 + s23 * t4;
+  s[3] = s31 * t1 + s32 * t2 * t3 + s33 * t4;
 }
 
 ///

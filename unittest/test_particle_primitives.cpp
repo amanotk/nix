@@ -476,7 +476,7 @@ TEST_CASE("Second-order shape function for WT scheme")
   auto W = [](float64 x, float64 dt) {
     float64 abs_x = std::abs(x);
     if (1 - dt < abs_x && abs_x <= 1 + dt) {
-      return (dt + 1 - abs_x) * (dt + 1 - abs_x) / (4 * dt);
+      return std::pow(dt + 1 - abs_x, 2) / (4 * dt);
     } else if (dt < abs_x && abs_x <= 1 - dt) {
       return 1.0 - abs_x;
     } else if (abs_x <= dt) {
@@ -496,6 +496,50 @@ TEST_CASE("Second-order shape function for WT scheme")
     status = status & (std::abs(s[0] - W(xeval[0] - x, delt)) < epsilon);
     status = status & (std::abs(s[1] - W(xeval[1] - x, delt)) < epsilon);
     status = status & (std::abs(s[2] - W(xeval[2] - x, delt)) < epsilon);
+  }
+  REQUIRE(status == true);
+}
+
+TEST_CASE("Third-order shape function for WT scheme")
+{
+  const int     N        = 100;
+  const float64 epsilon  = 1.0e-14;
+  const float64 xmin     = 0;
+  const float64 xmax     = 1;
+  const float64 delx     = xmax - xmin;
+  const float64 xeval[4] = {xmin - delx, xmin, xmax, xmax + delx};
+  const float64 delt     = 0.1;
+  // const float64 delt     = GENERATE(0.1, 0.2, 0.3, 0.4, 0.5);
+
+  // analytic form
+  auto W = [](float64 x, float64 dt) {
+    float64 abs_x = std::abs(x);
+    if (1.5 - dt < abs_x && abs_x <= 1.5 + dt) {
+      return std::pow(3 + 2 * dt - 2 * abs_x, 3) / (96 * dt);
+    } else if (0.5 + dt < abs_x && abs_x <= 1.5 - dt) {
+      return (4 * dt * dt + 3 * std::pow(3 - 2 * abs_x, 2)) / 24;
+    } else if (0.5 - dt < abs_x && abs_x <= 0.5 + dt) {
+      return (-8 * dt * dt * dt - 36 * dt * dt * (1 - 2 * abs_x) - 3 * std::pow(1 - 2 * abs_x, 3) +
+              6 * dt * (15 - 12 * abs_x - 4 * x * x)) /
+             (96 * dt);
+    } else if (abs_x <= 0.5 - dt) {
+      return (9 - 4 * dt * dt - 12 * x * x) / 12;
+    } else {
+      return 0.0;
+    }
+  };
+
+  // test
+  bool status = true;
+  for (int i = 0; i < N; i++) {
+    float64 s[4];
+    float64 x = xmin + (xmax - xmin) * i / (N - 1);
+
+    shape_wt<3>(x, xmin, 1 / delx, delt, 1 / delt, s);
+    status = status & (std::abs(s[0] - W(xeval[0] - x, delt)) < epsilon);
+    status = status & (std::abs(s[1] - W(xeval[1] - x, delt)) < epsilon);
+    status = status & (std::abs(s[2] - W(xeval[2] - x, delt)) < epsilon);
+    status = status & (std::abs(s[3] - W(xeval[3] - x, delt)) < epsilon);
   }
   REQUIRE(status == true);
 }
