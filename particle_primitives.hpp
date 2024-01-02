@@ -99,59 +99,72 @@ void shape<1>(float64 x, float64 X, float64 rdx, float64 s[2])
 template <>
 void shape<2>(float64 x, float64 X, float64 rdx, float64 s[3])
 {
-  float64 delta0 = (x - X) * rdx;
-  float64 delta1 = 0.5 - delta0;
-  float64 delta2 = 0.5 + delta0;
+  float64 delta = (x - X) * rdx;
 
-  s[0] = 0.50 * delta1 * delta1;
-  s[1] = 0.75 - delta0 * delta0;
-  s[2] = 0.50 * delta2 * delta2;
+  {
+    float64 w0 = delta;
+    float64 w1 = 0.5 - w0;
+    float64 w2 = 0.5 + w0;
+
+    s[0] = 0.50 * w1 * w1;
+    s[1] = 0.75 - w0 * w0;
+    s[2] = 0.50 * w2 * w2;
+  }
 }
 
 template <>
 void shape<3>(float64 x, float64 X, float64 rdx, float64 s[4])
 {
-  constexpr float64 a = 1 / 6.0;
+  float64 delta = (x - X) * rdx;
 
-  float64 delta1         = (x - X) * rdx;
-  float64 delta2         = 1 - delta1;
-  float64 delta1_squared = delta1 * delta1;
-  float64 delta2_squared = delta2 * delta2;
-  float64 delta1_cubed   = delta1_squared * delta1;
-  float64 delta2_cubed   = delta2_squared * delta2;
+  {
+    constexpr float64 a = 1 / 6.0;
 
-  s[0] = a * delta2_cubed;
-  s[1] = a * (4 - 6 * delta1_squared + 3 * delta1_cubed);
-  s[2] = a * (4 - 6 * delta2_squared + 3 * delta2_cubed);
-  s[3] = a * delta1_cubed;
+    float64 w1      = delta;
+    float64 w2      = 1 - delta;
+    float64 w1_pow2 = w1 * w1;
+    float64 w2_pow2 = w2 * w2;
+    float64 w1_pow3 = w1_pow2 * w1;
+    float64 w2_pow3 = w2_pow2 * w2;
+
+    s[0] = a * w2_pow3;
+    s[1] = a * (4 - 6 * w1_pow2 + 3 * w1_pow3);
+    s[2] = a * (4 - 6 * w2_pow2 + 3 * w2_pow3);
+    s[3] = a * w1_pow3;
+  }
 }
 
 template <>
 void shape<4>(float64 x, float64 X, float64 rdx, float64 s[5])
 {
-  constexpr float64 a = 1 / 384.0;
-  constexpr float64 b = 1 / 96.0;
-  constexpr float64 c = 115 / 192.0;
-  constexpr float64 d = 1 / 8.0;
+  float64 delta = (x - X) * rdx;
 
-  float64 delta0         = (x - X) * rdx;
-  float64 delta1         = 1 + delta0;
-  float64 delta2         = 1 - delta0;
-  float64 delta3         = 1 + delta0 * 2;
-  float64 delta4         = 1 - delta0 * 2;
-  float64 delta0_squared = delta0 * delta0;
-  float64 delta1_squared = delta1 * delta1;
-  float64 delta2_squared = delta2 * delta2;
-  float64 delta1_cubed   = delta1_squared * delta1;
-  float64 delta2_cubed   = delta2_squared * delta2;
-  float64 delta1_quad    = delta1_cubed * delta1;
-  float64 delta2_quad    = delta2_cubed * delta2;
+  {
+    constexpr float64 a = 1 / 384.0;
+    constexpr float64 b = 1 / 96.0;
+    constexpr float64 c = 115 / 192.0;
+    constexpr float64 d = 1 / 8.0;
 
-  s[0] = a * delta4 * delta4 * delta4 * delta4;
-  s[1] = b * (55 + 20 * delta1 - 120 * delta1_squared + 80 * delta1_cubed - 16 * delta1_quad);
-  s[2] = c + d * delta0_squared * (2 * delta0_squared - 5);
-  s[3] = b * (55 + 20 * delta2 - 120 * delta2_squared + 80 * delta2_cubed - 16 * delta2_quad);
-  s[4] = a * delta3 * delta3 * delta3 * delta3;
+    float64 w1      = 1 + delta;
+    float64 w2      = 1 - delta;
+    float64 w3      = 1 + delta * 2;
+    float64 w4      = 1 - delta * 2;
+    float64 w0_pow2 = delta * delta;
+    float64 w1_pow2 = w1 * w1;
+    float64 w2_pow2 = w2 * w2;
+    float64 w1_pow3 = w1_pow2 * w1;
+    float64 w2_pow3 = w2_pow2 * w2;
+    float64 w1_pow4 = w1_pow3 * w1;
+    float64 w2_pow4 = w2_pow3 * w2;
+    float64 w3_pow4 = w3 * w3 * w3 * w3;
+    float64 w4_pow4 = w4 * w4 * w4 * w4;
+
+    s[0] = a * w4_pow4;
+    s[1] = b * (55 + 20 * w1 - 120 * w1_pow2 + 80 * w1_pow3 - 16 * w1_pow4);
+    s[2] = c + d * w0_pow2 * (2 * w0_pow2 - 5);
+    s[3] = b * (55 + 20 * w2 - 120 * w2_pow2 + 80 * w2_pow3 - 16 * w2_pow4);
+    s[4] = a * w3_pow4;
+  }
 }
 
 ///
@@ -188,93 +201,152 @@ void shape_wt<1>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, flo
 template <>
 void shape_wt<2>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, float64 s[3])
 {
-  float64 delta  = (x - X) * rdx;
-  float64 t1     = std::abs(delta) < dt ? 1 : 0;
-  float64 t2     = 1 - t1;
-  float64 delta0 = 1 - std::abs(delta);
-  float64 delta1 = dt - delta;
-  float64 delta2 = dt + delta;
+  float64 delta = (x - X) * rdx;
 
-  // clang-format off
-  s[0] = 0.25 * rdt * delta1 * delta1                    * t1 + std::max(0.0, -delta) * t2;
-  s[1] = 0.50 * rdt * (2 * dt - dt * dt - delta * delta) * t1 + delta0                * t2;
-  s[2] = 0.25 * rdt * delta2 * delta2                    * t1 + std::max(0.0, +delta) * t2;
-  // clang-format on
+  {
+    float64 t1 = delta < -dt ? 1 : 0;
+    float64 t2 = 1 - t1;
+    float64 t3 = delta < +dt ? 1 : 0;
+    float64 t4 = 1 - t3;
+    float64 w0 = std::abs(delta);
+    float64 w1 = dt - delta;
+    float64 w2 = dt + delta;
+
+    float64 s0_1 = w0;
+    float64 s1_1 = 1 - w0;
+    float64 s2_1 = 0;
+    float64 s0_2 = 0.25 * rdt * w1 * w1;
+    float64 s1_2 = 0.50 * rdt * (dt * (2 - dt) - w0 * w0);
+    float64 s2_2 = 0.25 * rdt * w2 * w2;
+    float64 s0_3 = s2_1;
+    float64 s1_3 = s1_1;
+    float64 s2_3 = s0_1;
+
+    s[0] = s0_1 * t1 + s0_2 * t2 * t3 + s0_3 * t4;
+    s[1] = s1_1 * t1 + s1_2 * t2 * t3 + s1_3 * t4;
+    s[2] = s2_1 * t1 + s2_2 * t2 * t3 + s2_3 * t4;
+  }
 }
 
 template <>
 void shape_wt<3>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, float64 s[4])
 {
-  float64 delta  = (x - X) * rdx;
-  float64 delta0 = 1 - delta;
-  float64 delta1 = 1 - 2 * delta;
-  float64 delta2 = 1 + 2 * delta;
-  float64 delta3 = 2 * dt + delta1;
-  float64 delta4 = 2 * dt - delta1;
-  float64 delta5 = 3 - 2 * delta;
-  float64 t1     = delta < 0.5 - dt ? 1 : 0;
-  float64 t2     = 1 - t1;
-  float64 t3     = delta < 0.5 + dt ? 1 : 0;
-  float64 t4     = 1 - t3;
+  float64 delta = (x - X) * rdx;
 
-  // clang-format off
-  float64 s01 = (4 * dt * dt + 3 * delta1 * delta1) / 24;
-  float64 s11 = (9 - 4 * dt * dt - 12 * delta * delta) / 12;
-  float64 s21 = (4 * dt * dt + 3 * delta2 * delta2) / 24;
-  float64 s31 = 0;
-  float64 s02 = delta3 * delta3 * delta3 / (96 * dt);
-  float64 s12 = (-8*dt*dt*dt - 36*dt*dt*delta1 - 6*dt*delta1*delta1 - 3*delta1*delta1*delta1) / (96*dt) + delta0;
-  float64 s22 = (-8*dt*dt*dt + 36*dt*dt*delta1 - 6*dt*delta1*delta1 + 3*delta1*delta1*delta1) / (96*dt) + delta;
-  float64 s32 = delta4 * delta4 * delta4 / (96 * dt);
-  float64 s03 = 0;
-  float64 s13 = (4 * dt * dt + 3 * delta5 * delta5) / 24;
-  float64 s23 = (9 - 4 * dt * dt - 12 * delta0 * delta0) / 12;
-  float64 s33 = (4 * dt * dt + 3 * delta1 * delta1) / 24;
-  // clang-format on
+  {
+    constexpr float64 a   = 1 / 96.0;
+    constexpr float64 b   = 1 / 24.0;
+    constexpr float64 c   = 1 / 12.0;
+    const float64     adt = a * rdt;
 
-  s[0] = s01 * t1 + s02 * t2 * t3 + s03 * t4;
-  s[1] = s11 * t1 + s12 * t2 * t3 + s13 * t4;
-  s[2] = s21 * t1 + s22 * t2 * t3 + s23 * t4;
-  s[3] = s31 * t1 + s32 * t2 * t3 + s33 * t4;
+    float64 t1        = delta < 0.5 - dt ? 1 : 0;
+    float64 t2        = 1 - t1;
+    float64 t3        = delta < 0.5 + dt ? 1 : 0;
+    float64 t4        = 1 - t3;
+    float64 w0        = delta;
+    float64 w1        = 1 - delta;
+    float64 w2        = 1 + delta;
+    float64 w3        = 1 - 2 * delta;
+    float64 w4        = 1 + 2 * delta;
+    float64 w5        = 2 * dt + w3;
+    float64 w6        = 2 * dt - w3;
+    float64 w7        = 3 - 2 * delta;
+    float64 w0_pow2   = w0 * w0;
+    float64 w1_pow2   = w1 * w1;
+    float64 w3_pow2   = w3 * w3;
+    float64 w3_pow3   = w3_pow2 * w3;
+    float64 w4_pow2   = w4 * w4;
+    float64 w5_pow3   = w5 * w5 * w5;
+    float64 w6_pow3   = w6 * w6 * w6;
+    float64 w7_pow2   = w7 * w7;
+    float64 dt_pow2   = dt * dt;
+    float64 dt_pow3   = dt_pow2 * dt;
+    float64 dt_pow2_4 = 4 * dt_pow2;
+    float64 s_2_odd   = adt * (-8 * dt_pow3 - 6 * dt * w3_pow2);
+    float64 s_2_even  = adt * (-36 * dt_pow2 * w3 - 3 * w3_pow3);
+
+    float64 s0_1 = b * (dt_pow2_4 + 3 * w3_pow2);
+    float64 s1_1 = c * (9 - dt_pow2_4 - 12 * w0_pow2);
+    float64 s2_1 = b * (dt_pow2_4 + 3 * w4_pow2);
+    float64 s3_1 = 0;
+    float64 s0_2 = adt * w5_pow3;
+    float64 s1_2 = s_2_odd + s_2_even + w1;
+    float64 s2_2 = s_2_odd - s_2_even + w0;
+    float64 s3_2 = adt * w6_pow3;
+    float64 s0_3 = 0;
+    float64 s1_3 = b * (dt_pow2_4 + 3 * w7_pow2);
+    float64 s2_3 = c * (9 - dt_pow2_4 - 12 * w1_pow2);
+    float64 s3_3 = b * (dt_pow2_4 + 3 * w3_pow2);
+
+    s[0] = s0_1 * t1 + s0_2 * t2 * t3 + s0_3 * t4;
+    s[1] = s1_1 * t1 + s1_2 * t2 * t3 + s1_3 * t4;
+    s[2] = s2_1 * t1 + s2_2 * t2 * t3 + s2_3 * t4;
+    s[3] = s3_1 * t1 + s3_2 * t2 * t3 + s3_3 * t4;
+  }
 }
 
 template <>
 void shape_wt<4>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, float64 s[5])
 {
-  float64 delta  = (x - X) * rdx;
-  float64 absd   = std::abs(delta);
-  float64 delta1 = 1 + delta;
-  float64 delta2 = 1 - delta;
-  float64 delta3 = dt - delta;
-  float64 delta4 = dt + delta;
-  float64 t1     = delta < -dt ? 1 : 0;
-  float64 t2     = 1 - t1;
-  float64 t3     = delta < +dt ? 1 : 0;
-  float64 t4     = 1 - t3;
+  float64 delta = (x - X) * rdx;
 
-  // clang-format off
-  float64 s01 = absd*(absd*absd + dt * dt) / 6;
-  float64 s11 = (4 - 6 * (1 - absd)*(1 - absd) + 3*(1 - absd)*(1 - absd)*(1 - absd) + (1 -3*absd)*dt*dt) / 6;
-  float64 s21 = (4 - 6 * absd*absd + 3*absd*absd*absd - (2 - 3*absd)*dt*dt) / 6;
-  float64 s31 = (1 - absd)*( (1 - absd)*(1 - absd) + dt*dt) / 6;
-  float64 s41 = 0;
-  float64 s02 = delta3 * delta3 * delta3 * delta3 / (48 * dt);
-  float64 s12 = (-dt*dt*dt*dt + 2*dt*dt*dt*delta1 - 6*dt*dt*delta*delta + 2*dt*(-6*delta + delta1*delta1*delta1) - delta*delta*delta*delta) / (12*dt);
-  float64 s22 = (3*dt*dt*dt*dt - 8*dt*dt*dt + 18*dt*dt*delta*delta + (16-24*delta*delta)*dt + 3*delta*delta*delta*delta)/(24*dt);
-  float64 s32 = (-dt*dt*dt*dt + 2*dt*dt*dt*delta2 - 6*dt*dt*delta*delta + 2*dt*(+6*delta + delta2*delta2*delta2) - delta*delta*delta*delta) / (12*dt);
-  float64 s42 = delta4 * delta4 * delta4 * delta4 / (48 * dt);
-  float64 s03 = s41;
-  float64 s13 = s31;
-  float64 s23 = s21;
-  float64 s33 = s11;
-  float64 s43 = s01;
-  // clang-format on
+  {
+    constexpr float64 a   = 1 / 48.0;
+    constexpr float64 b   = 1 / 24.0;
+    constexpr float64 c   = 1 / 12.0;
+    constexpr float64 d   = 1 / 6.0;
+    const float64     adt = a * rdt;
+    const float64     bdt = b * rdt;
+    const float64     cdt = c * rdt;
 
-  s[0] = s01 * t1 + s02 * t2 * t3 + s03 * t4;
-  s[1] = s11 * t1 + s12 * t2 * t3 + s13 * t4;
-  s[2] = s21 * t1 + s22 * t2 * t3 + s23 * t4;
-  s[3] = s31 * t1 + s32 * t2 * t3 + s33 * t4;
-  s[4] = s41 * t1 + s42 * t2 * t3 + s43 * t4;
+    float64 t1      = delta < -dt ? 1 : 0;
+    float64 t2      = 1 - t1;
+    float64 t3      = delta < +dt ? 1 : 0;
+    float64 t4      = 1 - t3;
+    float64 w0      = std::abs(delta);
+    float64 w1      = 1 - w0;
+    float64 w2      = 1 - delta;
+    float64 w3      = 1 + delta;
+    float64 w4      = dt - delta;
+    float64 w5      = dt + delta;
+    float64 w0_pow2 = w0 * w0;
+    float64 w0_pow3 = w0_pow2 * w0;
+    float64 w0_pow4 = w0_pow3 * w0;
+    float64 w1_pow2 = w1 * w1;
+    float64 w1_pow3 = w1_pow2 * w1;
+    float64 w2_pow3 = w2 * w2 * w2;
+    float64 w3_pow3 = w3 * w3 * w3;
+    float64 w4_pow4 = w4 * w4 * w4 * w4;
+    float64 w5_pow4 = w5 * w5 * w5 * w5;
+    float64 dt_pow2 = dt * dt;
+    float64 dt_pow3 = dt_pow2 * dt;
+    float64 dt_pow4 = dt_pow3 * dt;
+    float64 ss1     = -dt_pow4 - 6 * w0_pow2 * dt_pow2 - w0_pow4;
+    float64 ss2 =
+        3 * dt_pow4 - 8 * dt_pow3 + 18 * w0_pow2 * dt_pow2 + (16 - 24 * w0_pow2) * dt + 3 * w0_pow4;
+
+    float64 s0_1 = d * w0 * (w0_pow2 + dt_pow2);
+    float64 s1_1 = d * (4 - 6 * w1_pow2 + 3 * w1_pow3 + (1 - 3 * w0) * dt_pow2);
+    float64 s2_1 = d * (4 - 6 * w0_pow2 + 3 * w0_pow3 - (2 - 3 * w0) * dt_pow2);
+    float64 s3_1 = d * w1 * (w1_pow2 + dt_pow2);
+    float64 s4_1 = 0;
+    float64 s0_2 = adt * w4_pow4;
+    float64 s1_2 = cdt * (ss1 + 2 * dt_pow3 * w3 + 2 * dt * (-6 * delta + w3_pow3));
+    float64 s2_2 = bdt * ss2;
+    float64 s3_2 = cdt * (ss1 + 2 * dt_pow3 * w2 + 2 * dt * (+6 * delta + w2_pow3));
+    float64 s4_2 = adt * w5_pow4;
+    float64 s0_3 = s4_1;
+    float64 s1_3 = s3_1;
+    float64 s2_3 = s2_1;
+    float64 s3_3 = s1_1;
+    float64 s4_3 = s0_1;
+
+    s[0] = s0_1 * t1 + s0_2 * t2 * t3 + s0_3 * t4;
+    s[1] = s1_1 * t1 + s1_2 * t2 * t3 + s1_3 * t4;
+    s[2] = s2_1 * t1 + s2_2 * t2 * t3 + s2_3 * t4;
+    s[3] = s3_1 * t1 + s3_2 * t2 * t3 + s3_3 * t4;
+    s[4] = s4_1 * t1 + s4_2 * t2 * t3 + s4_3 * t4;
+  }
 }
 
 ///
