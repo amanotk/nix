@@ -238,6 +238,45 @@ void shape_wt<3>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, flo
   s[3] = s31 * t1 + s32 * t2 * t3 + s33 * t4;
 }
 
+template <>
+void shape_wt<4>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, float64 s[5])
+{
+  float64 delta  = (x - X) * rdx;
+  float64 absd   = std::abs(delta);
+  float64 delta1 = 1 + delta;
+  float64 delta2 = 1 - delta;
+  float64 delta3 = dt - delta;
+  float64 delta4 = dt + delta;
+  float64 t1     = delta < -dt ? 1 : 0;
+  float64 t2     = 1 - t1;
+  float64 t3     = delta < +dt ? 1 : 0;
+  float64 t4     = 1 - t3;
+
+  // clang-format off
+  float64 s01 = absd*(absd*absd + dt * dt) / 6;
+  float64 s11 = (4 - 6 * (1 - absd)*(1 - absd) + 3*(1 - absd)*(1 - absd)*(1 - absd) + (1 -3*absd)*dt*dt) / 6;
+  float64 s21 = (4 - 6 * absd*absd + 3*absd*absd*absd - (2 - 3*absd)*dt*dt) / 6;
+  float64 s31 = (1 - absd)*( (1 - absd)*(1 - absd) + dt*dt) / 6;
+  float64 s41 = 0;
+  float64 s02 = delta3 * delta3 * delta3 * delta3 / (48 * dt);
+  float64 s12 = (-dt*dt*dt*dt + 2*dt*dt*dt*delta1 - 6*dt*dt*delta*delta + 2*dt*(-6*delta + delta1*delta1*delta1) - delta*delta*delta*delta) / (12*dt);
+  float64 s22 = (3*dt*dt*dt*dt - 8*dt*dt*dt + 18*dt*dt*delta*delta + (16-24*delta*delta)*dt + 3*delta*delta*delta*delta)/(24*dt);
+  float64 s32 = (-dt*dt*dt*dt + 2*dt*dt*dt*delta2 - 6*dt*dt*delta*delta + 2*dt*(+6*delta + delta2*delta2*delta2) - delta*delta*delta*delta) / (12*dt);
+  float64 s42 = delta4 * delta4 * delta4 * delta4 / (48 * dt);
+  float64 s03 = s41;
+  float64 s13 = s31;
+  float64 s23 = s21;
+  float64 s33 = s11;
+  float64 s43 = s01;
+  // clang-format on
+
+  s[0] = s01 * t1 + s02 * t2 * t3 + s03 * t4;
+  s[1] = s11 * t1 + s12 * t2 * t3 + s13 * t4;
+  s[2] = s21 * t1 + s22 * t2 * t3 + s23 * t4;
+  s[3] = s31 * t1 + s32 * t2 * t3 + s33 * t4;
+  s[4] = s41 * t1 + s42 * t2 * t3 + s43 * t4;
+}
+
 ///
 /// @brief calculate electromagnetic field at particle position by first-order interpolation
 ///

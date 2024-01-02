@@ -508,8 +508,7 @@ TEST_CASE("Third-order shape function for WT scheme")
   const float64 xmax     = 1;
   const float64 delx     = xmax - xmin;
   const float64 xeval[4] = {xmin - delx, xmin, xmax, xmax + delx};
-  const float64 delt     = 0.1;
-  // const float64 delt     = GENERATE(0.1, 0.2, 0.3, 0.4, 0.5);
+  const float64 delt     = GENERATE(0.1, 0.2, 0.3, 0.4, 0.5);
 
   // analytic form
   auto W = [](float64 x, float64 dt) {
@@ -540,6 +539,55 @@ TEST_CASE("Third-order shape function for WT scheme")
     status = status & (std::abs(s[1] - W(xeval[1] - x, delt)) < epsilon);
     status = status & (std::abs(s[2] - W(xeval[2] - x, delt)) < epsilon);
     status = status & (std::abs(s[3] - W(xeval[3] - x, delt)) < epsilon);
+  }
+  REQUIRE(status == true);
+}
+
+TEST_CASE("Fourth-order shape function for WT scheme")
+{
+  const int     N        = 100;
+  const float64 epsilon  = 1.0e-14;
+  const float64 xmin     = -0.5;
+  const float64 xmax     = +0.5;
+  const float64 delx     = xmax - xmin;
+  const float64 xmid     = 0;
+  const float64 xeval[5] = {xmid - 2 * delx, xmid - delx, xmid, xmid + delx, xmid + 2 * delx};
+  const float64 delt     = GENERATE(0.1, 0.2, 0.3, 0.4, 0.5);
+
+  // analytic form
+  auto W = [](float64 x, float64 dt) {
+    float64 abs_x = std::abs(x);
+    if (2 - dt < abs_x && abs_x <= 2 + dt) {
+      return std::pow(dt + 2 - abs_x, 4) / (48 * dt);
+    } else if (1 + dt < abs_x && abs_x <= 2 - dt) {
+      return (2 - abs_x) * (std::pow(2 - abs_x, 2) + dt * dt) / 6;
+    } else if (1 - dt < abs_x && abs_x <= 1 + dt) {
+      return (-std::pow(1 - abs_x, 4) + 2 * dt * (6 - 6 * abs_x + std::pow(abs_x, 3)) -
+              6 * dt * dt * std::pow(1 - abs_x, 2) + 2 * dt * dt * dt * abs_x - dt * dt * dt * dt) /
+             (12 * dt);
+    } else if (dt < abs_x && abs_x <= 1 - dt) {
+      return (4 - 6 * x * x + 3 * std::pow(abs_x, 3) - dt * dt * (2 - 3 * abs_x)) / 6;
+    } else if (abs_x <= dt) {
+      return (3 * std::pow(x, 4) + dt * (16 - 24 * x * x) + 18 * dt * dt * x * x -
+              8 * dt * dt * dt + 3 * dt * dt * dt * dt) /
+             (24 * dt);
+    } else {
+      return 0.0;
+    }
+  };
+
+  // test
+  bool status = true;
+  for (int i = 0; i < N; i++) {
+    float64 s[5];
+    float64 x = xmin + (xmax - xmin) * i / (N - 1);
+
+    shape_wt<4>(x, xmid, 1 / delx, delt, 1 / delt, s);
+    status = status & (std::abs(s[0] - W(xeval[0] - x, delt)) < epsilon);
+    status = status & (std::abs(s[1] - W(xeval[1] - x, delt)) < epsilon);
+    status = status & (std::abs(s[2] - W(xeval[2] - x, delt)) < epsilon);
+    status = status & (std::abs(s[3] - W(xeval[3] - x, delt)) < epsilon);
+    status = status & (std::abs(s[4] - W(xeval[4] - x, delt)) < epsilon);
   }
   REQUIRE(status == true);
 }
