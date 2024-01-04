@@ -68,147 +68,6 @@ bool check_charge_continuity(const float64 delt, const float64 delh, const float
   return status;
 }
 
-bool interpolate1st(int N)
-{
-  const float64 eps = 1.0e-14;
-
-  bool status = true;
-
-  float64 eb_data[2 * 2 * 2 * 6];
-  auto    eb = stdex::mdspan(eb_data, 2, 2, 2, 6);
-
-  // initialize field
-  {
-    std::random_device seed;
-    std::mt19937_64    engine(seed());
-    uniform_rand       rand(-1.0, +1.0);
-
-    for (int iz = 0; iz < 2; iz++) {
-      for (int iy = 0; iy < 2; iy++) {
-        for (int ix = 0; ix < 2; ix++) {
-          for (int ik = 0; ik < 6; ik++) {
-            eb(iz, iy, ix, ik) = rand(engine);
-          }
-        }
-      }
-    }
-  }
-
-  // interpolation
-  {
-    int     jx    = 0;
-    int     jy    = 0;
-    int     jz    = 0;
-    float64 wx[2] = {0};
-    float64 wy[2] = {0};
-    float64 wz[2] = {0};
-    float64 rdh   = 1.0;
-
-    for (int iz = 0; iz < N; iz++) {
-      for (int iy = 0; iy < N; iy++) {
-        for (int ix = 0; ix < N; ix++) {
-          float64 x = static_cast<float64>(ix) / (N - 1);
-          float64 y = static_cast<float64>(iy) / (N - 1);
-          float64 z = static_cast<float64>(iz) / (N - 1);
-          shape<1>(x, 0.0, rdh, wx);
-          shape<1>(y, 0.0, rdh, wy);
-          shape<1>(z, 0.0, rdh, wz);
-
-          for (int ik = 0; ik < 6; ik++) {
-            // interpolation
-            float64 val1 = interp3d1(eb, 0, 0, 0, ik, wz, wy, wx, 1.0);
-
-            // check
-            float64 val2 = 0;
-            for (int jz = 0; jz < 2; jz++) {
-              for (int jy = 0; jy < 2; jy++) {
-                for (int jx = 0; jx < 2; jx++) {
-                  val2 += eb(jz, jy, jx, ik) * wz[jz] * wy[jy] * wx[jx];
-                }
-              }
-            }
-
-            status = status & (std::abs(val1 - val2) < std::max(eps, eps * std::abs(val1)));
-          }
-        }
-      }
-    }
-
-    REQUIRE(status);
-  }
-
-  return status;
-}
-
-bool interpolate2nd(int N)
-{
-  const float64 eps = 1.0e-14;
-
-  bool status = true;
-
-  float64 eb_data[3 * 3 * 3 * 6];
-  auto    eb = stdex::mdspan(eb_data, 3, 3, 3, 6);
-
-  // initialize field
-  {
-    std::random_device seed;
-    std::mt19937_64    engine(seed());
-    uniform_rand       rand(-1.0, +1.0);
-
-    for (int iz = 0; iz < 3; iz++) {
-      for (int iy = 0; iy < 3; iy++) {
-        for (int ix = 0; ix < 3; ix++) {
-          for (int ik = 0; ik < 6; ik++) {
-            eb(iz, iy, ix, ik) = rand(engine);
-          }
-        }
-      }
-    }
-  }
-
-  // interpolation
-  {
-    float64 wx[3] = {0};
-    float64 wy[3] = {0};
-    float64 wz[3] = {0};
-    float64 rdh   = 1.0;
-
-    for (int iz = 0; iz < N; iz++) {
-      for (int iy = 0; iy < N; iy++) {
-        for (int ix = 0; ix < N; ix++) {
-          float64 x = static_cast<float64>(ix) / (N - 1) - 0.5;
-          float64 y = static_cast<float64>(iy) / (N - 1) - 0.5;
-          float64 z = static_cast<float64>(iz) / (N - 1) - 0.5;
-          shape<2>(x, 0.0, rdh, wx);
-          shape<2>(y, 0.0, rdh, wy);
-          shape<2>(z, 0.0, rdh, wz);
-
-          for (int ik = 0; ik < 6; ik++) {
-            // interpolation
-            float64 val1 = interp3d2(eb, 1, 1, 1, ik, wz, wy, wx, 1.0);
-
-            // check
-            float64 val2 = 0;
-            for (int jz = 0; jz < 3; jz++) {
-              for (int jy = 0; jy < 3; jy++) {
-                for (int jx = 0; jx < 3; jx++) {
-                  val2 += eb(jz, jy, jx, ik) * wz[jz] * wy[jy] * wx[jx];
-                }
-              }
-            }
-
-            status = status & (std::abs(val1 - val2) < std::max(eps, eps * std::abs(val1)));
-          }
-        }
-      }
-    }
-
-    REQUIRE(status);
-  }
-
-  return status;
-}
-
 template <int Order>
 bool test_esirkepov3d(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
                       float64       rho[Order + 3][Order + 3][Order + 3],
@@ -283,6 +142,72 @@ bool test_esirkepov3d(const float64 delt, const float64 delh, float64 xu[7], flo
 
   // charge density increases exactly by one
   status = status & (std::abs(rhosum2 - (rhosum0 + 1)) < epsilon * std::abs(rhosum2));
+
+  return status;
+}
+
+template <int Order>
+bool test_interpolate3d(int N)
+{
+  constexpr int size = Order + 1;
+
+  const float64 epsilon = 1.0e-14;
+
+  float64 eb_data[size * size * size * 6];
+  auto    eb = stdex::mdspan(eb_data, size, size, size, 6);
+
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+
+  // initialize field
+  {
+    uniform_rand rand(-1.0, +1.0);
+
+    for (int iz = 0; iz < size; iz++) {
+      for (int iy = 0; iy < size; iy++) {
+        for (int ix = 0; ix < size; ix++) {
+          for (int ik = 0; ik < 6; ik++) {
+            eb(iz, iy, ix, ik) = rand(engine);
+          }
+        }
+      }
+    }
+  }
+
+  // interpolation with random weights
+  bool status = true;
+
+  {
+    float64      wx[size] = {0};
+    float64      wy[size] = {0};
+    float64      wz[size] = {0};
+    float64      dt       = 0.5;
+    uniform_rand rand(0.0, +1.0);
+
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < size; j++) {
+        wx[j] = rand(engine);
+        wy[j] = rand(engine);
+        wz[j] = rand(engine);
+      }
+
+      for (int ik = 0; ik < 6; ik++) {
+        // interpolation
+        float64 val1 = interpolate3d<Order>(eb, 0, 0, 0, ik, wz, wy, wx, dt);
+
+        float64 val2 = 0;
+        for (int jz = 0; jz < size; jz++) {
+          for (int jy = 0; jy < size; jy++) {
+            for (int jx = 0; jx < size; jx++) {
+              val2 += eb(jz, jy, jx, ik) * wz[jz] * wy[jy] * wx[jx] * dt;
+            }
+          }
+        }
+
+        status = status & (std::abs(val1 - val2) < std::max(epsilon, epsilon * std::abs(val1)));
+      }
+    }
+  }
 
   return status;
 }
@@ -592,20 +517,6 @@ TEST_CASE("Fourth-order shape function for WT scheme")
   REQUIRE(status == true);
 }
 
-TEST_CASE("Interpolation with first-order shape function")
-{
-  const int N = GENERATE(8, 16, 32);
-
-  REQUIRE(interpolate1st(N) == true);
-}
-
-TEST_CASE("Interpolation with second-order shape function")
-{
-  const int N = GENERATE(8, 16, 32);
-
-  REQUIRE(interpolate2nd(N) == true);
-}
-
 TEST_CASE("Esirkepov scheme in 3D")
 {
   const int     Np   = 1000;
@@ -792,6 +703,40 @@ TEST_CASE("Esirkepov scheme in 3D")
 
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
+  }
+}
+
+TEST_CASE("Interpolation 3D")
+{
+  const int N = 100;
+
+  //
+  // first order
+  //
+  SECTION("First-order interpolation")
+  {
+    REQUIRE(test_interpolate3d<1>(N) == true);
+  }
+  //
+  // second order
+  //
+  SECTION("Second-order interpolation")
+  {
+    REQUIRE(test_interpolate3d<2>(N) == true);
+  }
+  //
+  // third order
+  //
+  SECTION("Third-order interpolation")
+  {
+    REQUIRE(test_interpolate3d<3>(N) == true);
+  }
+  //
+  // fourth order
+  //
+  SECTION("Fourth-order interpolation")
+  {
+    REQUIRE(test_interpolate3d<4>(N) == true);
   }
 }
 

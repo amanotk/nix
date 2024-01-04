@@ -349,109 +349,6 @@ void shape_wt<4>(float64 x, float64 X, float64 rdx, float64 dt, float64 rdt, flo
   }
 }
 
-///
-/// @brief calculate electromagnetic field at particle position by first-order interpolation
-///
-/// This implements linear interpolation of the electromagnetic field at the particle position.
-/// The indices iz, iy, ix and weights wz, wy, wx must appropriately be calculated in advance.
-/// This function is just a shorthand notation of interpolation.
-///
-/// @param[in] eb electromagnetic field (4D array)
-/// @param[in] iz z-index of particle position
-/// @param[in] iy y-index of particle position
-/// @param[in] ix x-index of particle position
-/// @param[in] ik index for electromagnetic field component
-/// @param[in] wz weight in z direction
-/// @param[in] wy weight in y direction
-/// @param[in] wx weight in x direction
-/// @param[in] dt time step (multiplied to the returned electromagnetic field)
-///
-template <typename T>
-static float64 interp3d1(const T& eb, int iz, int iy, int ix, int ik, const float64 wz[2],
-                         const float64 wy[2], const float64 wx[2], float64 dt = 1)
-{
-  float64 result;
-
-  int ix1 = ix;
-  int ix2 = ix + 1;
-  int iy1 = iy;
-  int iy2 = iy + 1;
-  int iz1 = iz;
-  int iz2 = iz + 1;
-
-  // clang-format off
-  result = (
-    wz[0] * (
-      wy[0] * (wx[0] * eb(iz1, iy1, ix1, ik) + wx[1] * eb(iz1, iy1, ix2, ik)) +
-      wy[1] * (wx[0] * eb(iz1, iy2, ix1, ik) + wx[1] * eb(iz1, iy2, ix2, ik))
-      ) +
-    wz[1] * (
-      wy[0] * (wx[0] * eb(iz2, iy1, ix1, ik) + wx[1] * eb(iz2, iy1, ix2, ik)) +
-      wy[1] * (wx[0] * eb(iz2, iy2, ix1, ik) + wx[1] * eb(iz2, iy2, ix2, ik))
-      )
-    ) * dt;
-  // clang-format on
-
-  return result;
-}
-
-template <typename T>
-static float64 interp3d2(const T& eb, int iz, int iy, int ix, int ik, const float64 wz[3],
-                         const float64 wy[3], const float64 wx[3], float64 dt = 1)
-{
-  float64 result;
-
-  int ix1 = ix - 1;
-  int ix2 = ix;
-  int ix3 = ix + 1;
-  int iy1 = iy - 1;
-  int iy2 = iy;
-  int iy3 = iy + 1;
-  int iz1 = iz - 1;
-  int iz2 = iz;
-  int iz3 = iz + 1;
-
-  // clang-format off
-  result = (
-    wz[0] * (
-      wy[0] * (
-        wx[0] * eb(iz1, iy1, ix1, ik) + wx[1] * eb(iz1, iy1, ix2, ik) + wx[2] * eb(iz1, iy1, ix3, ik)
-        ) +
-      wy[1] * (
-        wx[0] * eb(iz1, iy2, ix1, ik) + wx[1] * eb(iz1, iy2, ix2, ik) + wx[2] * eb(iz1, iy2, ix3, ik)
-        ) +
-      wy[2] * (
-        wx[0] * eb(iz1, iy3, ix1, ik) + wx[1] * eb(iz1, iy3, ix2, ik) + wx[2] * eb(iz1, iy3, ix3, ik)
-        )
-      ) +
-    wz[1] * (
-      wy[0] * (
-        wx[0] * eb(iz2, iy1, ix1, ik) + wx[1] * eb(iz2, iy1, ix2, ik) + wx[2] * eb(iz2, iy1, ix3, ik)
-        ) +
-      wy[1] * (
-        wx[0] * eb(iz2, iy2, ix1, ik) + wx[1] * eb(iz2, iy2, ix2, ik) + wx[2] * eb(iz2, iy2, ix3, ik)
-        ) +
-      wy[2] * (
-        wx[0] * eb(iz2, iy3, ix1, ik) + wx[1] * eb(iz2, iy3, ix2, ik) + wx[2] * eb(iz2, iy3, ix3, ik)
-        )
-      ) +
-    wz[2] * (
-      wy[0] * (
-        wx[0] * eb(iz3, iy1, ix1, ik) + wx[1] * eb(iz3, iy1, ix2, ik) + wx[2] * eb(iz3, iy1, ix3, ik)
-        ) +
-      wy[1] * (
-        wx[0] * eb(iz3, iy2, ix1, ik) + wx[1] * eb(iz3, iy2, ix2, ik) + wx[2] * eb(iz3, iy2, ix3, ik)
-        ) +
-      wy[2] * (
-        wx[0] * eb(iz3, iy3, ix1, ik) + wx[1] * eb(iz3, iy3, ix2, ik) + wx[2] * eb(iz3, iy3, ix3, ik)
-        )
-      )
-    ) * dt;
-  // clang-format on
-
-  return result;
-}
-
 template <int N>
 static inline void esirkepov3d_rho(float64 ss[2][3][N], float64 current[N][N][N][4])
 {
@@ -567,6 +464,42 @@ static void esirkepov3d(float64 dxdt, float64 dydt, float64 dzdt, float64 ss[2][
   esirkepov3d_jx<Order + 3>(dxdt, ss, current);
   esirkepov3d_jy<Order + 3>(dydt, ss, current);
   esirkepov3d_jz<Order + 3>(dzdt, ss, current);
+}
+
+///
+/// @brief calculate electromagnetic field at particle position by interpolation
+///
+/// @param[in] eb  electromagnetic field (4D array)
+/// @param[in] iz0 first z-index of eb
+/// @param[in] iy0 first y-index of eb
+/// @param[in] ix0 first x-index of eb
+/// @param[in] ik  index for electromagnetic field component
+/// @param[in] wz  weight in z direction
+/// @param[in] wy  weight in y direction
+/// @param[in] wx  weight in x direction
+/// @param[in] dt  time step (multiplied to the returned electromagnetic field)
+///
+template <int Order, typename Array>
+static float64 interpolate3d(const Array& eb, int iz0, int iy0, int ix0, int ik,
+                             const float64 wz[Order + 1], const float64 wy[Order + 1],
+                             const float64 wx[Order + 1], const float64 dt)
+{
+  constexpr int size = Order + 1;
+
+  float64 result_z = 0;
+  for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+    float64 result_y = 0;
+    for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+      float64 result_x = 0;
+      for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+        result_x += eb(iz, iy, ix, ik) * wx[jx];
+      }
+      result_y += result_x * wy[jy];
+    }
+    result_z += result_y * wz[jz];
+  }
+
+  return result_z * dt;
 }
 
 } // namespace primitives
