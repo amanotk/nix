@@ -18,9 +18,9 @@ namespace xsimd
 {
 
     /**
-     * @ingroup arch
+     * @ingroup architectures
      *
-     * AVX512CD instrutions
+     * AVX512CD instructions
      */
     struct avx512cd : avx512f
     {
@@ -30,7 +30,7 @@ namespace xsimd
         static constexpr char const* name() noexcept { return "avx512cd"; }
     };
 
-#if XSIMD_WITH_AVX512BW
+#if XSIMD_WITH_AVX512CD
 
     namespace types
     {

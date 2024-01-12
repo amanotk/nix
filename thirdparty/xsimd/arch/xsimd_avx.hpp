@@ -159,7 +159,7 @@ namespace xsimd
         template <class A, class T_out, class T_in>
         inline batch_bool<T_out, A> batch_bool_cast(batch_bool<T_in, A> const& self, batch_bool<T_out, A> const&, requires_arch<avx>) noexcept
         {
-            return { bitwise_cast<batch<T_out, A>>(batch<T_in, A>(self.data)).data };
+            return { bitwise_cast<T_out>(batch<T_in, A>(self.data)).data };
         }
 
         // bitwise_and
@@ -516,37 +516,17 @@ namespace xsimd
             }
 
             template <class A>
-            inline batch<float, A> fast_cast(batch<uint32_t, A> const& v, batch<float, A> const&, requires_arch<avx>) noexcept
-            {
-                // see https://stackoverflow.com/questions/34066228/how-to-perform-uint32-float-conversion-with-sse
-                // adapted to avx
-                __m256i msk_lo = _mm256_set1_epi32(0xFFFF);
-                __m256 cnst65536f = _mm256_set1_ps(65536.0f);
-
-                __m256i v_lo = bitwise_and(batch<uint32_t, A>(v), batch<uint32_t, A>(msk_lo)); /* extract the 16 lowest significant bits of self                             */
-                __m256i v_hi = bitwise_rshift(batch<uint32_t, A>(v), 16, avx {}); /* 16 most significant bits of v                                                 */
-                __m256 v_lo_flt = _mm256_cvtepi32_ps(v_lo); /* No rounding                                                                   */
-                __m256 v_hi_flt = _mm256_cvtepi32_ps(v_hi); /* No rounding                                                                   */
-                v_hi_flt = _mm256_mul_ps(cnst65536f, v_hi_flt); /* No rounding                                                                   */
-                return _mm256_add_ps(v_hi_flt, v_lo_flt); /* Rounding may occur here, mul and add may fuse to fma for haswell and newer    */
-            }
-
-            template <class A>
             inline batch<int32_t, A> fast_cast(batch<float, A> const& self, batch<int32_t, A> const&, requires_arch<avx>) noexcept
             {
                 return _mm256_cvttps_epi32(self);
             }
+        }
 
-            template <class A>
-            inline batch<uint32_t, A> fast_cast(batch<float, A> const& self, batch<uint32_t, A> const&, requires_arch<avx>) noexcept
-            {
-                return _mm256_castps_si256(
-                    _mm256_blendv_ps(_mm256_castsi256_ps(_mm256_cvttps_epi32(self)),
-                                     _mm256_xor_ps(
-                                         _mm256_castsi256_ps(_mm256_cvttps_epi32(_mm256_sub_ps(self, _mm256_set1_ps(1u << 31)))),
-                                         _mm256_castsi256_ps(_mm256_set1_epi32(1u << 31))),
-                                     _mm256_cmp_ps(self, _mm256_set1_ps(1u << 31), _CMP_GE_OQ)));
-            }
+        // decr_if
+        template <class A, class T, class = typename std::enable_if<std::is_integral<T>::value, void>::type>
+        inline batch<T, A> decr_if(batch<T, A> const& self, batch_bool<T, A> const& mask, requires_arch<avx>) noexcept
+        {
+            return self + batch<T, A>(mask.data);
         }
 
         // div
@@ -575,16 +555,12 @@ namespace xsimd
         template <class A>
         inline batch_bool<float, A> eq(batch_bool<float, A> const& self, batch_bool<float, A> const& other, requires_arch<avx>) noexcept
         {
-            return _mm256_castsi256_ps(detail::fwd_to_sse([](__m128i s, __m128i o) noexcept
-                                                          { return eq(batch_bool<int32_t, sse4_2>(s), batch_bool<int32_t, sse4_2>(o), sse4_2 {}); },
-                                                          _mm256_castps_si256(self), _mm256_castps_si256(other)));
+            return ~(self != other);
         }
         template <class A>
         inline batch_bool<double, A> eq(batch_bool<double, A> const& self, batch_bool<double, A> const& other, requires_arch<avx>) noexcept
         {
-            return _mm256_castsi256_pd(detail::fwd_to_sse([](__m128i s, __m128i o) noexcept
-                                                          { return eq(batch_bool<int32_t, sse4_2>(s), batch_bool<int32_t, sse4_2>(o), sse4_2 {}); },
-                                                          _mm256_castpd_si256(self), _mm256_castpd_si256(other)));
+            return ~(self != other);
         }
         template <class A, class T, class = typename std::enable_if<std::is_integral<T>::value, void>::type>
         inline batch_bool<T, A> eq(batch<T, A> const& self, batch<T, A> const& other, requires_arch<avx>) noexcept
@@ -597,7 +573,7 @@ namespace xsimd
         template <class A, class T, class = typename std::enable_if<std::is_integral<T>::value, void>::type>
         inline batch_bool<T, A> eq(batch_bool<T, A> const& self, batch_bool<T, A> const& other, requires_arch<avx>) noexcept
         {
-            return eq(batch<T, A>(self.data), batch<T, A>(other.data));
+            return ~(self != other);
         }
 
         // floor
@@ -753,6 +729,13 @@ namespace xsimd
             return _mm256_add_pd(tmp1, tmp2);
         }
 
+        // incr_if
+        template <class A, class T, class = typename std::enable_if<std::is_integral<T>::value, void>::type>
+        inline batch<T, A> incr_if(batch<T, A> const& self, batch_bool<T, A> const& mask, requires_arch<avx>) noexcept
+        {
+            return self - batch<T, A>(mask.data);
+        }
+
         // insert
         template <class A, class T, size_t I, class = typename std::enable_if<std::is_integral<T>::value, void>::type>
         inline batch<T, A> insert(batch<T, A> const& self, T val, index<I> pos, requires_arch<avx>) noexcept
@@ -828,11 +811,10 @@ namespace xsimd
                 using batch_type = batch<float, A>;
                 __m128 tmp0 = _mm256_extractf128_ps(hi, 0);
                 __m128 tmp1 = _mm256_extractf128_ps(hi, 1);
-                batch_type real, imag;
                 __m128 tmp_real = _mm_shuffle_ps(tmp0, tmp1, _MM_SHUFFLE(2, 0, 2, 0));
                 __m128 tmp_imag = _mm_shuffle_ps(tmp0, tmp1, _MM_SHUFFLE(3, 1, 3, 1));
-                real = _mm256_insertf128_ps(real, tmp_real, 0);
-                imag = _mm256_insertf128_ps(imag, tmp_imag, 0);
+                batch_type real = _mm256_castps128_ps256(tmp_real);
+                batch_type imag = _mm256_castps128_ps256(tmp_imag);
 
                 tmp0 = _mm256_extractf128_ps(lo, 0);
                 tmp1 = _mm256_extractf128_ps(lo, 1);
@@ -848,15 +830,15 @@ namespace xsimd
                 using batch_type = batch<double, A>;
                 __m128d tmp0 = _mm256_extractf128_pd(hi, 0);
                 __m128d tmp1 = _mm256_extractf128_pd(hi, 1);
-                batch_type real, imag;
-                __m256d re_tmp0 = _mm256_insertf128_pd(real, _mm_unpacklo_pd(tmp0, tmp1), 0);
-                __m256d im_tmp0 = _mm256_insertf128_pd(imag, _mm_unpackhi_pd(tmp0, tmp1), 0);
+                batch_type real = _mm256_castpd128_pd256(_mm_unpacklo_pd(tmp0, tmp1));
+                batch_type imag = _mm256_castpd128_pd256(_mm_unpackhi_pd(tmp0, tmp1));
+
                 tmp0 = _mm256_extractf128_pd(lo, 0);
                 tmp1 = _mm256_extractf128_pd(lo, 1);
                 __m256d re_tmp1 = _mm256_insertf128_pd(real, _mm_unpacklo_pd(tmp0, tmp1), 1);
                 __m256d im_tmp1 = _mm256_insertf128_pd(imag, _mm_unpackhi_pd(tmp0, tmp1), 1);
-                real = _mm256_blend_pd(re_tmp0, re_tmp1, 12);
-                imag = _mm256_blend_pd(im_tmp0, im_tmp1, 12);
+                real = _mm256_blend_pd(real, re_tmp1, 12);
+                imag = _mm256_blend_pd(imag, im_tmp1, 12);
                 return { real, imag };
             }
         }
@@ -1047,7 +1029,7 @@ namespace xsimd
         template <class A, class T, class = typename std::enable_if<std::is_integral<T>::value, void>::type>
         inline batch_bool<T, A> neq(batch_bool<T, A> const& self, batch_bool<T, A> const& other, requires_arch<avx>) noexcept
         {
-            return ~(self == other);
+            return _mm256_castps_si256(_mm256_xor_ps(_mm256_castsi256_ps(self.data), _mm256_castsi256_ps(other.data)));
         }
 
         // reciprocal
@@ -1133,16 +1115,6 @@ namespace xsimd
         }
 
         // sadd
-        template <class A>
-        inline batch<float, A> sadd(batch<float, A> const& self, batch<float, A> const& other, requires_arch<avx>) noexcept
-        {
-            return add(self, other); // no saturated arithmetic on floating point numbers
-        }
-        template <class A>
-        inline batch<double, A> sadd(batch<double, A> const& self, batch<double, A> const& other, requires_arch<avx>) noexcept
-        {
-            return add(self, other); // no saturated arithmetic on floating point numbers
-        }
         template <class A, class T, class = typename std::enable_if<std::is_integral<T>::value, void>::type>
         inline batch<T, A> sadd(batch<T, A> const& self, batch<T, A> const& other, requires_arch<avx>) noexcept
         {
@@ -1264,6 +1236,37 @@ namespace xsimd
             return _mm256_castsi256_pd(set(batch<int64_t, A>(), A {}, static_cast<int64_t>(values ? -1LL : 0LL)...).data);
         }
 
+        // shuffle
+        template <class A, class ITy, ITy I0, ITy I1, ITy I2, ITy I3, ITy I4, ITy I5, ITy I6, ITy I7>
+        inline batch<float, A> shuffle(batch<float, A> const& x, batch<float, A> const& y, batch_constant<batch<ITy, A>, I0, I1, I2, I3, I4, I5, I6, I7> mask, requires_arch<avx>) noexcept
+        {
+            constexpr uint32_t smask = detail::mod_shuffle(I0, I1, I2, I3);
+            // shuffle within lane
+            if (I4 == (I0 + 4) && I5 == (I1 + 4) && I6 == (I2 + 4) && I7 == (I3 + 4) && I0 < 4 && I1 < 4 && I2 >= 8 && I2 < 12 && I3 >= 8 && I3 < 12)
+                return _mm256_shuffle_ps(x, y, smask);
+
+            // shuffle within opposite lane
+            if (I4 == (I0 + 4) && I5 == (I1 + 4) && I6 == (I2 + 4) && I7 == (I3 + 4) && I2 < 4 && I3 < 4 && I0 >= 8 && I0 < 12 && I1 >= 8 && I1 < 12)
+                return _mm256_shuffle_ps(y, x, smask);
+
+            return shuffle(x, y, mask, generic {});
+        }
+
+        template <class A, class ITy, ITy I0, ITy I1, ITy I2, ITy I3>
+        inline batch<double, A> shuffle(batch<double, A> const& x, batch<double, A> const& y, batch_constant<batch<ITy, A>, I0, I1, I2, I3> mask, requires_arch<avx>) noexcept
+        {
+            constexpr uint32_t smask = (I0 & 0x1) | ((I1 & 0x1) << 1) | ((I2 & 0x1) << 2) | ((I3 & 0x1) << 3);
+            // shuffle within lane
+            if (I0 < 2 && I1 >= 4 && I1 < 6 && I2 >= 2 && I2 < 4 && I3 >= 6)
+                return _mm256_shuffle_pd(x, y, smask);
+
+            // shuffle within opposite lane
+            if (I1 < 2 && I0 >= 4 && I0 < 6 && I3 >= 2 && I3 < 4 && I2 >= 6)
+                return _mm256_shuffle_pd(y, x, smask);
+
+            return shuffle(x, y, mask, generic {});
+        }
+
         // slide_left
         template <size_t N, class A, class T>
         inline batch<T, A> slide_left(batch<T, A> const& x, requires_arch<avx>) noexcept
@@ -1358,16 +1361,6 @@ namespace xsimd
         }
 
         // ssub
-        template <class A>
-        inline batch<float, A> ssub(batch<float, A> const& self, batch<float, A> const& other, requires_arch<avx>) noexcept
-        {
-            return _mm256_sub_ps(self, other); // no saturated arithmetic on floating point numbers
-        }
-        template <class A>
-        inline batch<double, A> ssub(batch<double, A> const& self, batch<double, A> const& other, requires_arch<avx>) noexcept
-        {
-            return _mm256_sub_pd(self, other); // no saturated arithmetic on floating point numbers
-        }
         template <class A, class T, class = typename std::enable_if<std::is_integral<T>::value, void>::type>
         inline batch<T, A> ssub(batch<T, A> const& self, batch<T, A> const& other, requires_arch<avx>) noexcept
         {
@@ -1445,7 +1438,71 @@ namespace xsimd
             return _mm256_sub_pd(self, other);
         }
 
-        // swizzle
+        // swizzle (dynamic mask)
+        template <class A>
+        inline batch<float, A> swizzle(batch<float, A> const& self, batch<uint32_t, A> mask, requires_arch<avx>) noexcept
+        {
+            // duplicate low and high part of input
+            __m256 hi = _mm256_castps128_ps256(_mm256_extractf128_ps(self, 1));
+            __m256 hi_hi = _mm256_insertf128_ps(self, _mm256_castps256_ps128(hi), 0);
+
+            __m256 low = _mm256_castps128_ps256(_mm256_castps256_ps128(self));
+            __m256 low_low = _mm256_insertf128_ps(self, _mm256_castps256_ps128(low), 1);
+
+            // normalize mask
+            batch<uint32_t, A> half_mask = mask % 4;
+
+            // permute within each lane
+            __m256 r0 = _mm256_permutevar_ps(low_low, half_mask);
+            __m256 r1 = _mm256_permutevar_ps(hi_hi, half_mask);
+
+            // mask to choose the right lane
+            batch_bool<uint32_t, A> blend_mask = mask >= 4;
+
+            // blend the two permutes
+            return _mm256_blendv_ps(r0, r1, batch_bool_cast<float>(blend_mask));
+        }
+
+        template <class A>
+        inline batch<double, A> swizzle(batch<double, A> const& self, batch<uint64_t, A> mask, requires_arch<avx>) noexcept
+        {
+            // duplicate low and high part of input
+            __m256d hi = _mm256_castpd128_pd256(_mm256_extractf128_pd(self, 1));
+            __m256d hi_hi = _mm256_insertf128_pd(self, _mm256_castpd256_pd128(hi), 0);
+
+            __m256d low = _mm256_castpd128_pd256(_mm256_castpd256_pd128(self));
+            __m256d low_low = _mm256_insertf128_pd(self, _mm256_castpd256_pd128(low), 1);
+
+            // normalize mask
+            batch<uint64_t, A> half_mask = -(mask & 1);
+
+            // permute within each lane
+            __m256d r0 = _mm256_permutevar_pd(low_low, half_mask);
+            __m256d r1 = _mm256_permutevar_pd(hi_hi, half_mask);
+
+            // mask to choose the right lane
+            batch_bool<uint64_t, A> blend_mask = mask >= 2;
+
+            // blend the two permutes
+            return _mm256_blendv_pd(r0, r1, batch_bool_cast<double>(blend_mask));
+        }
+
+        template <class A, typename T, detail::enable_sized_integral_t<T, 4> = 0>
+        inline batch<T, A> swizzle(batch<T, A> const& self, batch<uint32_t, A> const& mask, requires_arch<avx>) noexcept
+        {
+            return bitwise_cast<T>(
+                swizzle(bitwise_cast<float>(self), mask));
+        }
+
+        template <class A, typename T, detail::enable_sized_integral_t<T, 8> = 0>
+        inline batch<T, A>
+        swizzle(batch<T, A> const& self, batch<uint64_t, A> const& mask, requires_arch<avx>) noexcept
+        {
+            return bitwise_cast<T>(
+                swizzle(bitwise_cast<double>(self), mask));
+        }
+
+        // swizzle (constant mask)
         template <class A, uint32_t V0, uint32_t V1, uint32_t V2, uint32_t V3, uint32_t V4, uint32_t V5, uint32_t V6, uint32_t V7>
         inline batch<float, A> swizzle(batch<float, A> const& self, batch_constant<batch<uint32_t, A>, V0, V1, V2, V3, V4, V5, V6, V7>, requires_arch<avx>) noexcept
         {
@@ -1518,8 +1575,8 @@ namespace xsimd
                                                   V7> const& mask,
                                    requires_arch<avx>) noexcept
         {
-            return bitwise_cast<batch<T, A>>(
-                swizzle(bitwise_cast<batch<float, A>>(self), mask));
+            return bitwise_cast<T>(
+                swizzle(bitwise_cast<float>(self), mask));
         }
 
         template <class A,
@@ -1534,8 +1591,8 @@ namespace xsimd
                 batch_constant<batch<uint64_t, A>, V0, V1, V2, V3> const& mask,
                 requires_arch<avx>) noexcept
         {
-            return bitwise_cast<batch<T, A>>(
-                swizzle(bitwise_cast<batch<double, A>>(self), mask));
+            return bitwise_cast<T>(
+                swizzle(bitwise_cast<double>(self), mask));
         }
 
         // trunc
@@ -1556,23 +1613,20 @@ namespace xsimd
         {
             XSIMD_IF_CONSTEXPR(sizeof(T) == 1 || sizeof(T) == 2)
             {
-                // extract low word
-                __m128i self_lo = _mm256_extractf128_si256(self, 0);
-                __m128i self_hi = _mm256_extractf128_si256(self, 1);
                 // extract high word
-                __m128i other_lo = _mm256_extractf128_si256(other, 0);
+                __m128i self_hi = _mm256_extractf128_si256(self, 1);
                 __m128i other_hi = _mm256_extractf128_si256(other, 1);
 
                 // interleave
                 __m128i res_lo, res_hi;
                 XSIMD_IF_CONSTEXPR(sizeof(T) == 1)
                 {
-                    res_lo = _mm_unpackhi_epi8(self_lo, other_lo);
+                    res_lo = _mm_unpacklo_epi8(self_hi, other_hi);
                     res_hi = _mm_unpackhi_epi8(self_hi, other_hi);
                 }
                 else
                 {
-                    res_lo = _mm_unpackhi_epi16(self_lo, other_lo);
+                    res_lo = _mm_unpacklo_epi16(self_hi, other_hi);
                     res_hi = _mm_unpackhi_epi16(self_hi, other_hi);
                 }
 
@@ -1585,11 +1639,15 @@ namespace xsimd
             }
             else XSIMD_IF_CONSTEXPR(sizeof(T) == 4)
             {
-                return _mm256_castps_si256(_mm256_unpackhi_ps(_mm256_castsi256_ps(self), _mm256_castsi256_ps(other)));
+                auto lo = _mm256_unpacklo_ps(_mm256_castsi256_ps(self), _mm256_castsi256_ps(other));
+                auto hi = _mm256_unpackhi_ps(_mm256_castsi256_ps(self), _mm256_castsi256_ps(other));
+                return _mm256_castps_si256(_mm256_permute2f128_ps(lo, hi, 0x31));
             }
             else XSIMD_IF_CONSTEXPR(sizeof(T) == 8)
             {
-                return _mm256_castpd_si256(_mm256_unpackhi_pd(_mm256_castsi256_pd(self), _mm256_castsi256_pd(other)));
+                auto lo = _mm256_unpacklo_pd(_mm256_castsi256_pd(self), _mm256_castsi256_pd(other));
+                auto hi = _mm256_unpackhi_pd(_mm256_castsi256_pd(self), _mm256_castsi256_pd(other));
+                return _mm256_castpd_si256(_mm256_permute2f128_pd(lo, hi, 0x31));
             }
             else
             {
@@ -1600,12 +1658,16 @@ namespace xsimd
         template <class A>
         inline batch<float, A> zip_hi(batch<float, A> const& self, batch<float, A> const& other, requires_arch<avx>) noexcept
         {
-            return _mm256_unpackhi_ps(self, other);
+            auto lo = _mm256_unpacklo_ps(self, other);
+            auto hi = _mm256_unpackhi_ps(self, other);
+            return _mm256_permute2f128_ps(lo, hi, 0x31);
         }
         template <class A>
         inline batch<double, A> zip_hi(batch<double, A> const& self, batch<double, A> const& other, requires_arch<avx>) noexcept
         {
-            return _mm256_unpackhi_pd(self, other);
+            auto lo = _mm256_unpacklo_pd(self, other);
+            auto hi = _mm256_unpackhi_pd(self, other);
+            return _mm256_permute2f128_pd(lo, hi, 0x31);
         }
 
         // zip_lo
@@ -1616,22 +1678,19 @@ namespace xsimd
             {
                 // extract low word
                 __m128i self_lo = _mm256_extractf128_si256(self, 0);
-                __m128i self_hi = _mm256_extractf128_si256(self, 1);
-                // extract high word
                 __m128i other_lo = _mm256_extractf128_si256(other, 0);
-                __m128i other_hi = _mm256_extractf128_si256(other, 1);
 
                 // interleave
                 __m128i res_lo, res_hi;
                 XSIMD_IF_CONSTEXPR(sizeof(T) == 1)
                 {
                     res_lo = _mm_unpacklo_epi8(self_lo, other_lo);
-                    res_hi = _mm_unpacklo_epi8(self_hi, other_hi);
+                    res_hi = _mm_unpackhi_epi8(self_lo, other_lo);
                 }
                 else
                 {
                     res_lo = _mm_unpacklo_epi16(self_lo, other_lo);
-                    res_hi = _mm_unpacklo_epi16(self_hi, other_hi);
+                    res_hi = _mm_unpackhi_epi16(self_lo, other_lo);
                 }
 
                 // fuse
@@ -1643,11 +1702,15 @@ namespace xsimd
             }
             else XSIMD_IF_CONSTEXPR(sizeof(T) == 4)
             {
-                return _mm256_castps_si256(_mm256_unpacklo_ps(_mm256_castsi256_ps(self), _mm256_castsi256_ps(other)));
+                auto lo = _mm256_unpacklo_ps(_mm256_castsi256_ps(self), _mm256_castsi256_ps(other));
+                auto hi = _mm256_unpackhi_ps(_mm256_castsi256_ps(self), _mm256_castsi256_ps(other));
+                return _mm256_castps_si256(_mm256_insertf128_ps(lo, _mm256_castps256_ps128(hi), 1));
             }
             else XSIMD_IF_CONSTEXPR(sizeof(T) == 8)
             {
-                return _mm256_castpd_si256(_mm256_unpacklo_pd(_mm256_castsi256_pd(self), _mm256_castsi256_pd(other)));
+                auto lo = _mm256_unpacklo_pd(_mm256_castsi256_pd(self), _mm256_castsi256_pd(other));
+                auto hi = _mm256_unpackhi_pd(_mm256_castsi256_pd(self), _mm256_castsi256_pd(other));
+                return _mm256_castpd_si256(_mm256_insertf128_pd(lo, _mm256_castpd256_pd128(hi), 1));
             }
             else
             {
@@ -1659,12 +1722,16 @@ namespace xsimd
         template <class A>
         inline batch<float, A> zip_lo(batch<float, A> const& self, batch<float, A> const& other, requires_arch<avx>) noexcept
         {
-            return _mm256_unpacklo_ps(self, other);
+            auto lo = _mm256_unpacklo_ps(self, other);
+            auto hi = _mm256_unpackhi_ps(self, other);
+            return _mm256_insertf128_ps(lo, _mm256_castps256_ps128(hi), 1);
         }
         template <class A>
         inline batch<double, A> zip_lo(batch<double, A> const& self, batch<double, A> const& other, requires_arch<avx>) noexcept
         {
-            return _mm256_unpacklo_pd(self, other);
+            auto lo = _mm256_unpacklo_pd(self, other);
+            auto hi = _mm256_unpackhi_pd(self, other);
+            return _mm256_insertf128_pd(lo, _mm256_castpd256_pd128(hi), 1);
         }
     }
 }

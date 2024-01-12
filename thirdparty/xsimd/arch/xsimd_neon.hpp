@@ -378,8 +378,8 @@ namespace xsimd
                                                  std::complex<float> c0, std::complex<float> c1,
                                                  std::complex<float> c2, std::complex<float> c3) noexcept
         {
-            return batch<std::complex<float>>(float32x4_t { c0.real(), c1.real(), c2.real(), c3.real() },
-                                              float32x4_t { c0.imag(), c1.imag(), c2.imag(), c3.imag() });
+            return batch<std::complex<float>, A>(float32x4_t { c0.real(), c1.real(), c2.real(), c3.real() },
+                                                 float32x4_t { c0.imag(), c1.imag(), c2.imag(), c3.imag() });
         }
 
         template <class A, class... Args>
@@ -452,59 +452,114 @@ namespace xsimd
          * load *
          ********/
 
+        // It is not possible to use a call to A::alignment() here, so use an
+        // immediate instead.
+#if defined(__clang__) || defined(__GNUC__)
+#define xsimd_aligned_load(inst, type, expr) inst((type)__builtin_assume_aligned(expr, 16))
+#elif defined(_MSC_VER)
+#define xsimd_aligned_load(inst, type, expr) inst##_ex((type)expr, 128)
+#else
+#define xsimd_aligned_load(inst, type, expr) inst((type)expr)
+#endif
+
         template <class A, class T, detail::enable_sized_unsigned_t<T, 1> = 0>
         inline batch<T, A> load_aligned(T const* src, convert<T>, requires_arch<neon>) noexcept
         {
-            return vld1q_u8((uint8_t*)src);
+            return xsimd_aligned_load(vld1q_u8, uint8_t*, src);
         }
 
         template <class A, class T, detail::enable_sized_signed_t<T, 1> = 0>
         inline batch<T, A> load_aligned(T const* src, convert<T>, requires_arch<neon>) noexcept
         {
-            return vld1q_s8((int8_t*)src);
+            return xsimd_aligned_load(vld1q_s8, int8_t*, src);
         }
 
         template <class A, class T, detail::enable_sized_unsigned_t<T, 2> = 0>
         inline batch<T, A> load_aligned(T const* src, convert<T>, requires_arch<neon>) noexcept
         {
-            return vld1q_u16((uint16_t*)src);
+            return xsimd_aligned_load(vld1q_u16, uint16_t*, src);
         }
         template <class A, class T, detail::enable_sized_signed_t<T, 2> = 0>
         inline batch<T, A> load_aligned(T const* src, convert<T>, requires_arch<neon>) noexcept
         {
-            return vld1q_s16((int16_t*)src);
+            return xsimd_aligned_load(vld1q_s16, int16_t*, src);
         }
         template <class A, class T, detail::enable_sized_unsigned_t<T, 4> = 0>
         inline batch<T, A> load_aligned(T const* src, convert<T>, requires_arch<neon>) noexcept
         {
-            return vld1q_u32((uint32_t*)src);
+            return xsimd_aligned_load(vld1q_u32, uint32_t*, src);
         }
         template <class A, class T, detail::enable_sized_signed_t<T, 4> = 0>
         inline batch<T, A> load_aligned(T const* src, convert<T>, requires_arch<neon>) noexcept
         {
-            return vld1q_s32((int32_t*)src);
+            return xsimd_aligned_load(vld1q_s32, int32_t*, src);
         }
         template <class A, class T, detail::enable_sized_unsigned_t<T, 8> = 0>
         inline batch<T, A> load_aligned(T const* src, convert<T>, requires_arch<neon>) noexcept
         {
-            return vld1q_u64((uint64_t*)src);
+            return xsimd_aligned_load(vld1q_u64, uint64_t*, src);
         }
         template <class A, class T, detail::enable_sized_signed_t<T, 8> = 0>
         inline batch<T, A> load_aligned(T const* src, convert<T>, requires_arch<neon>) noexcept
         {
-            return vld1q_s64((int64_t*)src);
+            return xsimd_aligned_load(vld1q_s64, int64_t*, src);
         }
 
         template <class A>
         inline batch<float, A> load_aligned(float const* src, convert<float>, requires_arch<neon>) noexcept
         {
-            return vld1q_f32(src);
+            return xsimd_aligned_load(vld1q_f32, float*, src);
         }
 
-        template <class A, class T>
+#undef xsimd_aligned_load
+
+        template <class A, class T, detail::enable_sized_unsigned_t<T, 1> = 0>
         inline batch<T, A> load_unaligned(T const* src, convert<T>, requires_arch<neon>) noexcept
         {
-            return load_aligned<A>(src, convert<T>(), A {});
+            return vld1q_u8((uint8_t*)src);
+        }
+
+        template <class A, class T, detail::enable_sized_signed_t<T, 1> = 0>
+        inline batch<T, A> load_unaligned(T const* src, convert<T>, requires_arch<neon>) noexcept
+        {
+            return vld1q_s8((int8_t*)src);
+        }
+
+        template <class A, class T, detail::enable_sized_unsigned_t<T, 2> = 0>
+        inline batch<T, A> load_unaligned(T const* src, convert<T>, requires_arch<neon>) noexcept
+        {
+            return vld1q_u16((uint16_t*)src);
+        }
+        template <class A, class T, detail::enable_sized_signed_t<T, 2> = 0>
+        inline batch<T, A> load_unaligned(T const* src, convert<T>, requires_arch<neon>) noexcept
+        {
+            return vld1q_s16((int16_t*)src);
+        }
+        template <class A, class T, detail::enable_sized_unsigned_t<T, 4> = 0>
+        inline batch<T, A> load_unaligned(T const* src, convert<T>, requires_arch<neon>) noexcept
+        {
+            return vld1q_u32((uint32_t*)src);
+        }
+        template <class A, class T, detail::enable_sized_signed_t<T, 4> = 0>
+        inline batch<T, A> load_unaligned(T const* src, convert<T>, requires_arch<neon>) noexcept
+        {
+            return vld1q_s32((int32_t*)src);
+        }
+        template <class A, class T, detail::enable_sized_unsigned_t<T, 8> = 0>
+        inline batch<T, A> load_unaligned(T const* src, convert<T>, requires_arch<neon>) noexcept
+        {
+            return vld1q_u64((uint64_t*)src);
+        }
+        template <class A, class T, detail::enable_sized_signed_t<T, 8> = 0>
+        inline batch<T, A> load_unaligned(T const* src, convert<T>, requires_arch<neon>) noexcept
+        {
+            return vld1q_s64((int64_t*)src);
+        }
+
+        template <class A>
+        inline batch<float, A> load_unaligned(float const* src, convert<float>, requires_arch<neon>) noexcept
+        {
+            return vld1q_f32(src);
         }
 
         /*********
@@ -2526,9 +2581,9 @@ namespace xsimd
                 inline batch<T, A> operator()(batch<T, A> const& x, requires_arch<neon>) noexcept
                 {
                     const auto left = vdupq_n_u8(0);
-                    const auto right = bitwise_cast<batch<uint8_t, A>>(x).data;
+                    const auto right = bitwise_cast<uint8_t>(x).data;
                     const batch<uint8_t, A> res(vextq_u8(left, right, 16 - N));
-                    return bitwise_cast<batch<T, A>>(res);
+                    return bitwise_cast<T>(res);
                 }
             };
 
@@ -2558,10 +2613,10 @@ namespace xsimd
                 template <class A, class T>
                 inline batch<T, A> operator()(batch<T, A> const& x, requires_arch<neon>) noexcept
                 {
-                    const auto left = bitwise_cast<batch<uint8_t, A>>(x).data;
+                    const auto left = bitwise_cast<uint8_t>(x).data;
                     const auto right = vdupq_n_u8(0);
                     const batch<uint8_t, A> res(vextq_u8(left, right, N));
-                    return bitwise_cast<batch<T, A>>(res);
+                    return bitwise_cast<T>(res);
                 }
             };
 
@@ -2580,6 +2635,43 @@ namespace xsimd
         inline batch<T, A> slide_right(batch<T, A> const& x, requires_arch<neon>) noexcept
         {
             return detail::slider_right<N> {}(x, A {});
+        }
+
+        /****************
+         * rotate_right *
+         ****************/
+        namespace wrap
+        {
+            template <size_t N>
+            inline uint8x16_t rotate_right_u8(uint8x16_t a, uint8x16_t b) noexcept { return vextq_u8(a, b, N); }
+            template <size_t N>
+            inline int8x16_t rotate_right_s8(int8x16_t a, int8x16_t b) noexcept { return vextq_s8(a, b, N); }
+            template <size_t N>
+            inline uint16x8_t rotate_right_u16(uint16x8_t a, uint16x8_t b) noexcept { return vextq_u16(a, b, N); }
+            template <size_t N>
+            inline int16x8_t rotate_right_s16(int16x8_t a, int16x8_t b) noexcept { return vextq_s16(a, b, N); }
+            template <size_t N>
+            inline uint32x4_t rotate_right_u32(uint32x4_t a, uint32x4_t b) noexcept { return vextq_u32(a, b, N); }
+            template <size_t N>
+            inline int32x4_t rotate_right_s32(int32x4_t a, int32x4_t b) noexcept { return vextq_s32(a, b, N); }
+            template <size_t N>
+            inline uint64x2_t rotate_right_u64(uint64x2_t a, uint64x2_t b) noexcept { return vextq_u64(a, b, N); }
+            template <size_t N>
+            inline int64x2_t rotate_right_s64(int64x2_t a, int64x2_t b) noexcept { return vextq_s64(a, b, N); }
+            template <size_t N>
+            inline float32x4_t rotate_right_f32(float32x4_t a, float32x4_t b) noexcept { return vextq_f32(a, b, N); }
+        }
+
+        template <size_t N, class A, class T, detail::enable_neon_type_t<T> = 0>
+        inline batch<T, A> rotate_right(batch<T, A> const& a, requires_arch<neon>) noexcept
+        {
+            using register_type = typename batch<T, A>::register_type;
+            const detail::neon_dispatcher::binary dispatcher = {
+                std::make_tuple(wrap::rotate_right_u8<N>, wrap::rotate_right_s8<N>, wrap::rotate_right_u16<N>, wrap::rotate_right_s16<N>,
+                                wrap::rotate_right_u32<N>, wrap::rotate_right_s32<N>, wrap::rotate_right_u64<N>, wrap::rotate_right_s64<N>,
+                                wrap::rotate_right_f32<N>)
+            };
+            return dispatcher.apply(register_type(a), register_type(a));
         }
     }
 

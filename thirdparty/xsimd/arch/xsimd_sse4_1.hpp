@@ -65,17 +65,6 @@ namespace xsimd
                 __m128d f = _mm_sub_pd(_mm_castsi128_pd(xH), _mm_set1_pd(19342813118337666422669312.)); //  2^84 + 2^52
                 return _mm_add_pd(f, _mm_castsi128_pd(xL));
             }
-
-            template <class A>
-            inline batch<uint32_t, A> fast_cast(batch<float, A> const& self, batch<uint32_t, A> const&, requires_arch<sse4_1>) noexcept
-            {
-                return _mm_castps_si128(
-                    _mm_blendv_ps(_mm_castsi128_ps(_mm_cvttps_epi32(self)),
-                                  _mm_castsi128_ps(_mm_xor_si128(
-                                      _mm_cvttps_epi32(_mm_sub_ps(self, _mm_set1_ps(1u << 31))),
-                                      _mm_set1_epi32(1u << 31))),
-                                  _mm_cmpge_ps(self, _mm_set1_ps(1u << 31))));
-            }
         }
 
         // eq
@@ -115,11 +104,16 @@ namespace xsimd
             else XSIMD_IF_CONSTEXPR(sizeof(T) == 4)
             {
                 return _mm_insert_epi32(self, val, I);
-#if !defined(_MSC_VER) || _MSC_VER > 1900 && defined(_M_X64)
             }
             else XSIMD_IF_CONSTEXPR(sizeof(T) == 8)
             {
+#if (!defined(_MSC_VER) && __x86_64__) || (_MSC_VER > 1900 && defined(_M_X64))
                 return _mm_insert_epi64(self, val, I);
+#else
+                uint32_t lo, hi;
+                memcpy(&lo, (reinterpret_cast<uint32_t*>(&val)), sizeof(lo));
+                memcpy(&hi, (reinterpret_cast<uint32_t*>(&val)) + 1, sizeof(hi));
+                return _mm_insert_epi32(_mm_insert_epi32(self, lo, 2 * I), hi, 2 * I + 1);
 #endif
             }
             else
