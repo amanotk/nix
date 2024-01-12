@@ -39,28 +39,30 @@ static float64 lorentz_factor(float64 ux, float64 uy, float64 uz, float64 rc)
 }
 
 ///
-/// @brief Buneman-Boris pusher for Lorentz equation
+/// @brief Boris pusher for equation of motion
 ///
-/// @param[in,out] u  Velocity
-/// @param[in]     eb Electromagnetic field multiplied by time step
+/// @param[in,out] ux, uy, uz  Velocity in x, y, z directions
+/// @param[in]     ex, ey, ez  Electric field in x, y, z directions multiplied by time step
+/// @param[in]     bx, by, bz  Magnetic field in x, y, z directions multiplied by time step
 ///
-static void push_buneman_boris(float64 u[3], float64 eb[6])
+static void push_boris(float64& ux, float64& uy, float64& uz, float64 ex, float64 ey, float64 ez,
+                       float64 bx, float64 by, float64 bz)
 {
-  float64 tt, v[3];
+  float64 tt, vx, vy, vz;
 
-  u[0] += eb[0];
-  u[1] += eb[1];
-  u[2] += eb[2];
+  ux += ex;
+  uy += ey;
+  uz += ez;
 
-  tt = 2.0 / (1.0 + eb[3] * eb[3] + eb[4] * eb[4] + eb[5] * eb[5]);
+  tt = 2.0 / (1.0 + bx * bx + by * by + bz * bz);
 
-  v[0] = u[0] + (u[1] * eb[5] - u[2] * eb[4]);
-  v[1] = u[1] + (u[2] * eb[3] - u[0] * eb[5]);
-  v[2] = u[2] + (u[0] * eb[4] - u[1] * eb[3]);
+  vx = ux + (uy * bz - uz * by);
+  vy = uy + (uz * bx - ux * bz);
+  vz = uz + (ux * by - uy * bx);
 
-  u[0] += (v[1] * eb[5] - v[2] * eb[4]) * tt + eb[0];
-  u[1] += (v[2] * eb[3] - v[0] * eb[5]) * tt + eb[1];
-  u[2] += (v[0] * eb[4] - v[1] * eb[3]) * tt + eb[2];
+  ux += (vy * bz - vz * by) * tt + ex;
+  uy += (vz * bx - vx * bz) * tt + ey;
+  uz += (vx * by - vy * bx) * tt + ez;
 }
 
 ///
