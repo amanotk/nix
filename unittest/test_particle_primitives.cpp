@@ -30,6 +30,12 @@ bool test_esirkepov3d(const float64 delt, const float64 delh, float64 xu[7], flo
                       float64       cur[Order + 3][Order + 3][Order + 3][4],
                       const float64 epsilon = 1.0e-14);
 
+template <int Order, typename T_float>
+bool test_esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7], T_float xv[7],
+                            T_float       rho[Order + 3][Order + 3][Order + 3],
+                            T_float       cur[Order + 3][Order + 3][Order + 3][4],
+                            const float64 epsilon = 1.0e-14);
+
 template <int Order>
 bool test_interpolate3d(int N);
 
@@ -857,7 +863,7 @@ TEST_CASE("Esirkepov scheme in 3D")
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
   }
-  SECTION("First-order Esirkepov scheme for group of particles")
+  SECTION("First-order Esirkepov scheme for group of particles : scalar")
   {
     const int size    = 4;
     bool      status1 = true;
@@ -876,6 +882,60 @@ TEST_CASE("Esirkepov scheme in 3D")
 
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
+  }
+  SECTION("First-order Esirkepov scheme for group of particles : xsimd")
+  {
+    using simd::simd_f64;
+    using simd::simd_i64;
+
+    const int size    = 4;
+    bool      status1 = true;
+    bool      status2 = true;
+
+    float64  cur[size][size][size][4]      = {0};
+    float64  rho[size][size][size]         = {0};
+    simd_f64 cur_simd[size][size][size][4] = {0};
+    simd_f64 rho_simd[size][size][size]    = {0};
+    simd_f64 delt_simd                     = delt;
+    simd_f64 delh_simd                     = delh;
+    simd_f64 xu_simd[7];
+    simd_f64 xv_simd[7];
+
+    // load data
+    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
+    for (int k = 0; k < 7; k++) {
+      xv_simd[k] = simd_f64::gather(&xv(0, k), index_simd);
+      xu_simd[k] = simd_f64::gather(&xu(0, k), index_simd);
+    }
+
+    // SIMD version
+    status1 = status1 & test_esirkepov3d_xsimd<1>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
+                                                  cur_simd, eps);
+
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      float64* xv_ptr = &xv(ip, 0);
+      float64* xu_ptr = &xu(ip, 0);
+
+      test_esirkepov3d<1>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+    }
+
+    // compare scalar and SIMD results
+    for (int i = 0; i < size; i++) {
+      for (int j = 0; j < size; j++) {
+        for (int k = 0; k < size; k++) {
+          for (int l = 0; l < 4; l++) {
+            float64 cur_sum = xsimd::reduce_add(cur_simd[i][j][k][l]);
+            status2         = status2 & (std::abs(cur[i][j][k][l] - cur_sum) < eps);
+          }
+          float64 rho_sum = xsimd::reduce_add(rho_simd[i][j][k]);
+          status2         = status2 & (std::abs(rho[i][j][k] - rho_sum) < eps);
+        }
+      }
+    }
+
+    REQUIRE(status1); // xsimd version
+    REQUIRE(status2); // comparison between xsimd and scalar
   }
   //
   // second order
@@ -900,7 +960,7 @@ TEST_CASE("Esirkepov scheme in 3D")
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
   }
-  SECTION("Second-order Esirkepov scheme for group of particles")
+  SECTION("Second-order Esirkepov scheme for group of particles : scalar")
   {
     const int size    = 5;
     bool      status1 = true;
@@ -919,6 +979,60 @@ TEST_CASE("Esirkepov scheme in 3D")
 
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
+  }
+  SECTION("Second-order Esirkepov scheme for group of particles : xsimd")
+  {
+    using simd::simd_f64;
+    using simd::simd_i64;
+
+    const int size    = 5;
+    bool      status1 = true;
+    bool      status2 = true;
+
+    float64  cur[size][size][size][4]      = {0};
+    float64  rho[size][size][size]         = {0};
+    simd_f64 cur_simd[size][size][size][4] = {0};
+    simd_f64 rho_simd[size][size][size]    = {0};
+    simd_f64 delt_simd                     = delt;
+    simd_f64 delh_simd                     = delh;
+    simd_f64 xu_simd[7];
+    simd_f64 xv_simd[7];
+
+    // load data
+    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
+    for (int k = 0; k < 7; k++) {
+      xv_simd[k] = simd_f64::gather(&xv(0, k), index_simd);
+      xu_simd[k] = simd_f64::gather(&xu(0, k), index_simd);
+    }
+
+    // SIMD version
+    status1 = status1 & test_esirkepov3d_xsimd<2>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
+                                                  cur_simd, eps);
+
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      float64* xv_ptr = &xv(ip, 0);
+      float64* xu_ptr = &xu(ip, 0);
+
+      test_esirkepov3d<2>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+    }
+
+    // compare scalar and SIMD results
+    for (int i = 0; i < size; i++) {
+      for (int j = 0; j < size; j++) {
+        for (int k = 0; k < size; k++) {
+          for (int l = 0; l < 4; l++) {
+            float64 cur_sum = xsimd::reduce_add(cur_simd[i][j][k][l]);
+            status2         = status2 & (std::abs(cur[i][j][k][l] - cur_sum) < eps);
+          }
+          float64 rho_sum = xsimd::reduce_add(rho_simd[i][j][k]);
+          status2         = status2 & (std::abs(rho[i][j][k] - rho_sum) < eps);
+        }
+      }
+    }
+
+    REQUIRE(status1); // xsimd version
+    REQUIRE(status2); // comparison between xsimd and scalar
   }
   //
   // third order
@@ -943,7 +1057,7 @@ TEST_CASE("Esirkepov scheme in 3D")
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
   }
-  SECTION("Third-order Esirkepov scheme for group of particles")
+  SECTION("Third-order Esirkepov scheme for group of particles : scalar")
   {
     const int size    = 6;
     bool      status1 = true;
@@ -962,6 +1076,60 @@ TEST_CASE("Esirkepov scheme in 3D")
 
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
+  }
+  SECTION("Third-order Esirkepov scheme for group of particles : xsimd")
+  {
+    using simd::simd_f64;
+    using simd::simd_i64;
+
+    const int size    = 6;
+    bool      status1 = true;
+    bool      status2 = true;
+
+    float64  cur[size][size][size][4]      = {0};
+    float64  rho[size][size][size]         = {0};
+    simd_f64 cur_simd[size][size][size][4] = {0};
+    simd_f64 rho_simd[size][size][size]    = {0};
+    simd_f64 delt_simd                     = delt;
+    simd_f64 delh_simd                     = delh;
+    simd_f64 xu_simd[7];
+    simd_f64 xv_simd[7];
+
+    // load data
+    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
+    for (int k = 0; k < 7; k++) {
+      xv_simd[k] = simd_f64::gather(&xv(0, k), index_simd);
+      xu_simd[k] = simd_f64::gather(&xu(0, k), index_simd);
+    }
+
+    // SIMD version
+    status1 = status1 & test_esirkepov3d_xsimd<3>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
+                                                  cur_simd, eps);
+
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      float64* xv_ptr = &xv(ip, 0);
+      float64* xu_ptr = &xu(ip, 0);
+
+      test_esirkepov3d<3>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+    }
+
+    // compare scalar and SIMD results
+    for (int i = 0; i < size; i++) {
+      for (int j = 0; j < size; j++) {
+        for (int k = 0; k < size; k++) {
+          for (int l = 0; l < 4; l++) {
+            float64 cur_sum = xsimd::reduce_add(cur_simd[i][j][k][l]);
+            status2         = status2 & (std::abs(cur[i][j][k][l] - cur_sum) < eps);
+          }
+          float64 rho_sum = xsimd::reduce_add(rho_simd[i][j][k]);
+          status2         = status2 & (std::abs(rho[i][j][k] - rho_sum) < eps);
+        }
+      }
+    }
+
+    REQUIRE(status1); // xsimd version
+    REQUIRE(status2); // comparison between xsimd and scalar
   }
   //
   // forth order
@@ -986,7 +1154,7 @@ TEST_CASE("Esirkepov scheme in 3D")
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
   }
-  SECTION("Fourth-order Esirkepov scheme for group of particles")
+  SECTION("Fourth-order Esirkepov scheme for group of particles : scalar")
   {
     const int size    = 7;
     bool      status1 = true;
@@ -1005,6 +1173,60 @@ TEST_CASE("Esirkepov scheme in 3D")
 
     REQUIRE(status1); // charge density
     REQUIRE(status2); // charge continuity
+  }
+  SECTION("Fourth-order Esirkepov scheme for group of particles : xsimd")
+  {
+    using simd::simd_f64;
+    using simd::simd_i64;
+
+    const int size    = 7;
+    bool      status1 = true;
+    bool      status2 = true;
+
+    float64  cur[size][size][size][4]      = {0};
+    float64  rho[size][size][size]         = {0};
+    simd_f64 cur_simd[size][size][size][4] = {0};
+    simd_f64 rho_simd[size][size][size]    = {0};
+    simd_f64 delt_simd                     = delt;
+    simd_f64 delh_simd                     = delh;
+    simd_f64 xu_simd[7];
+    simd_f64 xv_simd[7];
+
+    // load data
+    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
+    for (int k = 0; k < 7; k++) {
+      xv_simd[k] = simd_f64::gather(&xv(0, k), index_simd);
+      xu_simd[k] = simd_f64::gather(&xu(0, k), index_simd);
+    }
+
+    // SIMD version
+    status1 = status1 & test_esirkepov3d_xsimd<4>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
+                                                  cur_simd, eps);
+
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      float64* xv_ptr = &xv(ip, 0);
+      float64* xu_ptr = &xu(ip, 0);
+
+      test_esirkepov3d<4>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
+    }
+
+    // compare scalar and SIMD results
+    for (int i = 0; i < size; i++) {
+      for (int j = 0; j < size; j++) {
+        for (int k = 0; k < size; k++) {
+          for (int l = 0; l < 4; l++) {
+            float64 cur_sum = xsimd::reduce_add(cur_simd[i][j][k][l]);
+            status2         = status2 & (std::abs(cur[i][j][k][l] - cur_sum) < eps);
+          }
+          float64 rho_sum = xsimd::reduce_add(rho_simd[i][j][k]);
+          status2         = status2 & (std::abs(rho[i][j][k] - rho_sum) < eps);
+        }
+      }
+    }
+
+    REQUIRE(status1); // xsimd version
+    REQUIRE(status2); // comparison between xsimd and scalar
   }
 }
 
@@ -1120,7 +1342,7 @@ bool test_esirkepov3d(const float64 delt, const float64 delh, float64 xu[7], flo
   xv[2] = xu[2];
   xu[0] = xu[0] + xu[3] * delt;
   xu[1] = xu[1] + xu[4] * delt;
-  xu[2] = xu[2] + xv[5] * delt;
+  xu[2] = xu[2] + xu[5] * delt;
 
   //
   // before move
@@ -1173,6 +1395,95 @@ bool test_esirkepov3d(const float64 delt, const float64 delh, float64 xu[7], flo
 
   // charge density increases exactly by one
   status = status & (std::abs(rhosum2 - (rhosum0 + 1)) < epsilon * std::abs(rhosum2));
+
+  return status;
+}
+
+template <int Order, typename T_float>
+bool test_esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7], T_float xv[7],
+                            T_float rho[Order + 3][Order + 3][Order + 3],
+                            T_float cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon)
+{
+  const T_float zero = 0;
+  const T_float rdh  = 1 / delh;
+  const T_float dhdt = delh / delt;
+
+  bool    status  = true;
+  T_float rhosum0 = 0;
+  T_float rhosum1 = 0;
+  T_float rhosum2 = 0;
+
+  T_float ss[2][3][Order + 3] = {0};
+
+  xv[0] = xu[0];
+  xv[1] = xu[1];
+  xv[2] = xu[2];
+  xu[0] = xu[0] + xu[3] * delt;
+  xu[1] = xu[1] + xu[4] * delt;
+  xu[2] = xu[2] + xu[5] * delt;
+
+  //
+  // before move
+  //
+  auto ix0 = digitize(xv[0], zero, rdh);
+  auto iy0 = digitize(xv[1], zero, rdh);
+  auto iz0 = digitize(xv[2], zero, rdh);
+  shape<Order>(xv[0], xsimd::to_float(ix0) * delh, rdh, &ss[0][0][1]);
+  shape<Order>(xv[1], xsimd::to_float(iy0) * delh, rdh, &ss[0][1][1]);
+  shape<Order>(xv[2], xsimd::to_float(iz0) * delh, rdh, &ss[0][2][1]);
+
+  // check charge density
+  for (int jz = 0; jz < Order + 3; jz++) {
+    for (int jy = 0; jy < Order + 3; jy++) {
+      for (int jx = 0; jx < Order + 3; jx++) {
+        T_float r = ss[0][0][jx] * ss[0][1][jy] * ss[0][2][jz];
+        rhosum0 += cur[jz][jy][jx][0];
+        rhosum1 += r;
+        rho[jz][jy][jx] += r;
+      }
+    }
+  }
+
+  //
+  // after move
+  //
+  auto ix1 = digitize(xu[0], zero, rdh);
+  auto iy1 = digitize(xu[1], zero, rdh);
+  auto iz1 = digitize(xu[2], zero, rdh);
+  shape<Order>(xu[0], xsimd::to_float(ix1) * delh, rdh, &ss[1][0][1]);
+  shape<Order>(xu[1], xsimd::to_float(iy1) * delh, rdh, &ss[1][1][1]);
+  shape<Order>(xu[2], xsimd::to_float(iz1) * delh, rdh, &ss[1][2][1]);
+
+  //
+  // in-place shift of ss[1] according to particle movement
+  //
+  xsimd::batch<int64_t> shift[3] = {ix1 - ix0, iy1 - iy0, iz1 - iz0};
+  esirkepov3d_shift_weights_after_movement<Order>(shift, ss[1]);
+
+  // calculate charge and current density
+  esirkepov3d<Order>(dhdt, dhdt, dhdt, ss, cur);
+
+  // check charge density
+  for (int jz = 0; jz < Order + 3; jz++) {
+    for (int jy = 0; jy < Order + 3; jy++) {
+      for (int jx = 0; jx < Order + 3; jx++) {
+        rhosum2 += cur[jz][jy][jx][0];
+      }
+    }
+  }
+
+  // error check
+  {
+    float64 rho0 = xsimd::reduce_add(rhosum0) / T_float::size;
+    float64 rho1 = xsimd::reduce_add(rhosum1) / T_float::size;
+    float64 rho2 = xsimd::reduce_add(rhosum2) / T_float::size;
+
+    // contribution to charge density is normalized to unity
+    status = status & (std::abs(rho1 - 1) < epsilon);
+
+    // charge density increases exactly by one
+    status = status & (std::abs(rho2 - (rho0 + 1)) < epsilon * std::abs(rho2));
+  }
 
   return status;
 }

@@ -454,7 +454,7 @@ static void shape_wt(T_float x, T_float X, T_float rdx, T_float dt, T_float rdt,
   }
 }
 
-/// charge density calculation for Esirkepov's scheme
+/// charge density calculation for Esirkepov scheme
 template <int N, typename T_float>
 static void esirkepov3d_rho(T_float ss[2][3][N], T_float current[N][N][N][4])
 {
@@ -478,7 +478,7 @@ static void esirkepov3d_ds(T_float ss[2][3][N])
   }
 }
 
-/// calculation of Jx for Esirkepov's scheme
+/// calculation of Jx for Esirkepov scheme
 template <int N, typename T_float>
 static void esirkepov3d_jx(T_float dxdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
@@ -500,7 +500,7 @@ static void esirkepov3d_jx(T_float dxdt, T_float ss[2][3][N], T_float current[N]
   }
 }
 
-/// calculation of Jy for Esirkepov's scheme
+/// calculation of Jy for Esirkepov scheme
 template <int N, typename T_float>
 static void esirkepov3d_jy(T_float dydt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
@@ -522,7 +522,7 @@ static void esirkepov3d_jy(T_float dydt, T_float ss[2][3][N], T_float current[N]
   }
 }
 
-/// calculation of Jz for Esirkepov's scheme
+/// calculation of Jz for Esirkepov scheme
 template <int N, typename T_float>
 static void esirkepov3d_jz(T_float dzdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
@@ -540,6 +540,26 @@ static void esirkepov3d_jz(T_float dzdt, T_float ss[2][3][N], T_float current[N]
         ww += ss[1][2][jz] * wz;
         current[jz + 1][jy][jx][3] += ww;
       }
+    }
+  }
+}
+
+/// shift weights after movement for Esirkepov scheme
+template <int Order, typename T_int, typename T_float>
+static void esirkepov3d_shift_weights_after_movement(T_int shift[3], T_float ss[3][Order + 3])
+{
+  using value_type = typename T_float::value_type;
+
+  for (int dir = 0; dir < 3; dir++) {
+    // forward
+    for (int ii = 0; ii < Order + 2; ii++) {
+      auto cond      = xsimd::batch_bool_cast<value_type>(shift[dir] < 0);
+      ss[dir][ii] = xsimd::select(cond, ss[dir][ii + 1], ss[dir][ii]);
+    }
+    // backward
+    for (int ii = Order + 2; ii > 0; ii--) {
+      auto cond      = xsimd::batch_bool_cast<value_type>(shift[dir] > 0);
+      ss[dir][ii] = xsimd::select(cond, ss[dir][ii - 1], ss[dir][ii]);
     }
   }
 }
