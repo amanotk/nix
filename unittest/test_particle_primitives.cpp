@@ -1230,6 +1230,421 @@ TEST_CASE("Esirkepov scheme in 3D")
   }
 }
 
+TEST_CASE("Current append to global array 3D")
+{
+  const int     Nz  = 16;
+  const int     Ny  = 16;
+  const int     Nx  = 16;
+  const float64 eps = 1.0e-14;
+  const float64 q   = 1.0;
+
+  std::vector<float64> uj_data1(Nz * Ny * Nx * 4);
+  std::vector<float64> uj_data2(Nz * Ny * Nx * 4);
+  auto                 uj1 = stdex::mdspan(uj_data1.data(), Nz, Ny, Nx, 4);
+  auto                 uj2 = stdex::mdspan(uj_data2.data(), Nz, Ny, Nx, 4);
+
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(-1, +1);
+
+  //
+  // first order
+  //
+  SECTION("First-order current append to global array : scalar")
+  {
+    const int size = 4;
+    const int iz0  = 2;
+    const int iy0  = 4;
+    const int ix0  = 8;
+
+    float64 cur[size][size][size][4] = {0};
+
+    // test data
+    for (int jz = 0; jz < size; jz++) {
+      for (int jy = 0; jy < size; jy++) {
+        for (int jx = 0; jx < size; jx++) {
+          for (int k = 0; k < 4; k++) {
+            cur[jz][jy][jx][k] = k + 1;
+          }
+        }
+      }
+    }
+
+    // append
+    append_current3d<1>(uj1, iz0, iy0, ix0, cur, q);
+
+    // check
+    bool status = true;
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int k = 0; k < 4; k++) {
+            status = status & (std::abs(uj1(iz, iy, ix, k) - q * (k + 1)) < eps);
+          }
+        }
+      }
+    }
+
+    REQUIRE(status == true);
+  }
+  SECTION("First-order current append to global array : xsimd with scalar index")
+  {
+    using simd::simd_f64;
+    using simd::simd_i64;
+
+    const int size   = 4;
+    const int iz0    = 2;
+    const int iy0    = 4;
+    const int ix0    = 8;
+    const int stride = size * size * size * 4;
+
+    float64  cur[simd_f64::size][size][size][size][4] = {0};
+    simd_f64 cur_simd[size][size][size][4]            = {0};
+    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+
+    // test data
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      for (int jz = 0; jz < size; jz++) {
+        for (int jy = 0; jy < size; jy++) {
+          for (int jx = 0; jx < size; jx++) {
+            for (int k = 0; k < 4; k++) {
+              cur[ip][jz][jy][jx][k] = rand(engine);
+            }
+          }
+        }
+      }
+    }
+    for (int jz = 0; jz < size; jz++) {
+      for (int jy = 0; jy < size; jy++) {
+        for (int jx = 0; jx < size; jx++) {
+          for (int k = 0; k < 4; k++) {
+            cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
+          }
+        }
+      }
+    }
+
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      append_current3d<1>(uj1, iz0, iy0, ix0, cur[ip], q);
+    }
+
+    // SIMD version
+    append_current3d<1>(uj2, iz0, iy0, ix0, cur_simd, q);
+
+    // compare scalar and SIMD results
+    bool status = true;
+    for (int iz = 0; iz < Nz; iz++) {
+      for (int iy = 0; iy < Ny; iy++) {
+        for (int ix = 0; ix < Nx; ix++) {
+          for (int k = 0; k < 4; k++) {
+            status = status & (std::abs(uj1(iz, iy, ix, k) - uj2(iz, iy, ix, k) < eps));
+          }
+        }
+      }
+    }
+
+    REQUIRE(status == true);
+  }
+  //
+  // second order
+  //
+  SECTION("Second-order current append to global array : scalar")
+  {
+    const int size = 5;
+    const int iz0  = 2;
+    const int iy0  = 4;
+    const int ix0  = 8;
+
+    float64 cur[size][size][size][4] = {0};
+
+    // test data
+    for (int jz = 0; jz < size; jz++) {
+      for (int jy = 0; jy < size; jy++) {
+        for (int jx = 0; jx < size; jx++) {
+          for (int k = 0; k < 4; k++) {
+            cur[jz][jy][jx][k] = k + 1;
+          }
+        }
+      }
+    }
+
+    // append
+    append_current3d<2>(uj1, iz0, iy0, ix0, cur, q);
+
+    // check
+    bool status = true;
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int k = 0; k < 4; k++) {
+            status = status & (std::abs(uj1(iz, iy, ix, k) - q * (k + 1)) < eps);
+          }
+        }
+      }
+    }
+
+    REQUIRE(status == true);
+  }
+  SECTION("Second-order current append to global array : xsimd with scalar index")
+  {
+    using simd::simd_f64;
+    using simd::simd_i64;
+
+    const int size   = 5;
+    const int iz0    = 2;
+    const int iy0    = 4;
+    const int ix0    = 8;
+    const int stride = size * size * size * 4;
+
+    float64  cur[simd_f64::size][size][size][size][4] = {0};
+    simd_f64 cur_simd[size][size][size][4]            = {0};
+    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+
+    // test data
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      for (int jz = 0; jz < size; jz++) {
+        for (int jy = 0; jy < size; jy++) {
+          for (int jx = 0; jx < size; jx++) {
+            for (int k = 0; k < 4; k++) {
+              cur[ip][jz][jy][jx][k] = rand(engine);
+            }
+          }
+        }
+      }
+    }
+    for (int jz = 0; jz < size; jz++) {
+      for (int jy = 0; jy < size; jy++) {
+        for (int jx = 0; jx < size; jx++) {
+          for (int k = 0; k < 4; k++) {
+            cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
+          }
+        }
+      }
+    }
+
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      append_current3d<2>(uj1, iz0, iy0, ix0, cur[ip], q);
+    }
+
+    // SIMD version
+    append_current3d<2>(uj2, iz0, iy0, ix0, cur_simd, q);
+
+    // compare scalar and SIMD results
+    bool status = true;
+    for (int iz = 0; iz < Nz; iz++) {
+      for (int iy = 0; iy < Ny; iy++) {
+        for (int ix = 0; ix < Nx; ix++) {
+          for (int k = 0; k < 4; k++) {
+            status = status & (std::abs(uj1(iz, iy, ix, k) - uj2(iz, iy, ix, k) < eps));
+          }
+        }
+      }
+    }
+
+    REQUIRE(status == true);
+  }
+  //
+  // third order
+  //
+  SECTION("Third-order current append to global array : scalar")
+  {
+    const int size = 6;
+    const int iz0  = 2;
+    const int iy0  = 4;
+    const int ix0  = 8;
+
+    float64 cur[size][size][size][4] = {0};
+
+    // test data
+    for (int jz = 0; jz < size; jz++) {
+      for (int jy = 0; jy < size; jy++) {
+        for (int jx = 0; jx < size; jx++) {
+          for (int k = 0; k < 4; k++) {
+            cur[jz][jy][jx][k] = k + 1;
+          }
+        }
+      }
+    }
+
+    // append
+    append_current3d<3>(uj1, iz0, iy0, ix0, cur, q);
+
+    // check
+    bool status = true;
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int k = 0; k < 4; k++) {
+            status = status & (std::abs(uj1(iz, iy, ix, k) - q * (k + 1)) < eps);
+          }
+        }
+      }
+    }
+
+    REQUIRE(status == true);
+  }
+  SECTION("Third-order current append to global array : xsimd with scalar index")
+  {
+    using simd::simd_f64;
+    using simd::simd_i64;
+
+    const int size   = 6;
+    const int iz0    = 2;
+    const int iy0    = 4;
+    const int ix0    = 8;
+    const int stride = size * size * size * 4;
+
+    float64  cur[simd_f64::size][size][size][size][4] = {0};
+    simd_f64 cur_simd[size][size][size][4]            = {0};
+    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+
+    // test data
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      for (int jz = 0; jz < size; jz++) {
+        for (int jy = 0; jy < size; jy++) {
+          for (int jx = 0; jx < size; jx++) {
+            for (int k = 0; k < 4; k++) {
+              cur[ip][jz][jy][jx][k] = rand(engine);
+            }
+          }
+        }
+      }
+    }
+    for (int jz = 0; jz < size; jz++) {
+      for (int jy = 0; jy < size; jy++) {
+        for (int jx = 0; jx < size; jx++) {
+          for (int k = 0; k < 4; k++) {
+            cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
+          }
+        }
+      }
+    }
+
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      append_current3d<3>(uj1, iz0, iy0, ix0, cur[ip], q);
+    }
+
+    // SIMD version
+    append_current3d<3>(uj2, iz0, iy0, ix0, cur_simd, q);
+
+    // compare scalar and SIMD results
+    bool status = true;
+    for (int iz = 0; iz < Nz; iz++) {
+      for (int iy = 0; iy < Ny; iy++) {
+        for (int ix = 0; ix < Nx; ix++) {
+          for (int k = 0; k < 4; k++) {
+            status = status & (std::abs(uj1(iz, iy, ix, k) - uj2(iz, iy, ix, k) < eps));
+          }
+        }
+      }
+    }
+
+    REQUIRE(status == true);
+  }
+  //
+  // fourth order
+  //
+  SECTION("Fourth-order current append to global array : scalar")
+  {
+    const int size = 7;
+    const int iz0  = 2;
+    const int iy0  = 4;
+    const int ix0  = 8;
+
+    float64 cur[size][size][size][4] = {0};
+
+    // test data
+    for (int jz = 0; jz < size; jz++) {
+      for (int jy = 0; jy < size; jy++) {
+        for (int jx = 0; jx < size; jx++) {
+          for (int k = 0; k < 4; k++) {
+            cur[jz][jy][jx][k] = k + 1;
+          }
+        }
+      }
+    }
+
+    // append
+    append_current3d<4>(uj1, iz0, iy0, ix0, cur, q);
+
+    // check
+    bool status = true;
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int k = 0; k < 4; k++) {
+            status = status & (std::abs(uj1(iz, iy, ix, k) - q * (k + 1)) < eps);
+          }
+        }
+      }
+    }
+
+    REQUIRE(status == true);
+  }
+  SECTION("Fourth-order current append to global array : xsimd with scalar index")
+  {
+    using simd::simd_f64;
+    using simd::simd_i64;
+
+    const int size   = 7;
+    const int iz0    = 2;
+    const int iy0    = 4;
+    const int ix0    = 8;
+    const int stride = size * size * size * 4;
+
+    float64  cur[simd_f64::size][size][size][size][4] = {0};
+    simd_f64 cur_simd[size][size][size][4]            = {0};
+    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+
+    // test data
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      for (int jz = 0; jz < size; jz++) {
+        for (int jy = 0; jy < size; jy++) {
+          for (int jx = 0; jx < size; jx++) {
+            for (int k = 0; k < 4; k++) {
+              cur[ip][jz][jy][jx][k] = rand(engine);
+            }
+          }
+        }
+      }
+    }
+    for (int jz = 0; jz < size; jz++) {
+      for (int jy = 0; jy < size; jy++) {
+        for (int jx = 0; jx < size; jx++) {
+          for (int k = 0; k < 4; k++) {
+            cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
+          }
+        }
+      }
+    }
+
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      append_current3d<4>(uj1, iz0, iy0, ix0, cur[ip], q);
+    }
+
+    // SIMD version
+    append_current3d<4>(uj2, iz0, iy0, ix0, cur_simd, q);
+
+    // compare scalar and SIMD results
+    bool status = true;
+    for (int iz = 0; iz < Nz; iz++) {
+      for (int iy = 0; iy < Ny; iy++) {
+        for (int ix = 0; ix < Nx; ix++) {
+          for (int k = 0; k < 4; k++) {
+            status = status & (std::abs(uj1(iz, iy, ix, k) - uj2(iz, iy, ix, k) < eps));
+          }
+        }
+      }
+    }
+
+    REQUIRE(status == true);
+  }
+}
+
 TEST_CASE("Interpolation 3D")
 {
   const int N = 100;

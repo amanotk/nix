@@ -24,10 +24,13 @@ template <typename T_float>
 static auto digitize(T_float x, T_float xmin, T_float rdx)
 {
   using namespace simd;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (std::is_floating_point_v<T_float>) {
+  if constexpr (is_scalar) {
     return static_cast<int>(floor((x - xmin) * rdx));
-  } else if constexpr (std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>) {
+  } else if constexpr (is_vector) {
     return xsimd::to_int(xsimd::floor((x - xmin) * rdx));
   }
 }
@@ -37,10 +40,13 @@ template <typename T_float>
 static auto sign(T_float x)
 {
   using namespace simd;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (std::is_floating_point_v<T_float>) {
+  if constexpr (is_scalar) {
     return copysign(1.0, x);
-  } else if constexpr (std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>) {
+  } else if constexpr (is_vector) {
     return xsimd::copysign(T_float(1.0), x);
   }
 }
@@ -50,10 +56,13 @@ template <typename T_float>
 static auto min(T_float x, T_float y)
 {
   using namespace simd;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (std::is_floating_point_v<T_float>) {
+  if constexpr (is_scalar) {
     return std::min(x, y);
-  } else if constexpr (std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>) {
+  } else if constexpr (is_vector) {
     return xsimd::min(x, y);
   }
 }
@@ -63,10 +72,13 @@ template <typename T_float>
 static auto max(T_float x, T_float y)
 {
   using namespace simd;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (std::is_floating_point_v<T_float>) {
+  if constexpr (is_scalar) {
     return std::max(x, y);
-  } else if constexpr (std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>) {
+  } else if constexpr (is_vector) {
     return xsimd::max(x, y);
   }
 }
@@ -76,10 +88,13 @@ template <typename T_float>
 static auto abs(T_float x)
 {
   using namespace simd;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (std::is_floating_point_v<T_float>) {
+  if constexpr (is_scalar) {
     return std::abs(x);
-  } else if constexpr (std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>) {
+  } else if constexpr (is_vector) {
     return xsimd::abs(x);
   }
 }
@@ -89,10 +104,13 @@ template <typename T_float, typename T_bool>
 static auto ifthenelse(T_bool cond, T_float x, T_float y)
 {
   using namespace simd;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (std::is_floating_point_v<T_float>) {
+  if constexpr (is_scalar) {
     return cond ? x : y;
-  } else if constexpr (std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>) {
+  } else if constexpr (is_vector) {
     return xsimd::select(cond, x, y);
   }
 }
@@ -109,10 +127,13 @@ template <typename T_float>
 static auto lorentz_factor(T_float ux, T_float uy, T_float uz, T_float rc)
 {
   using namespace simd;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (std::is_floating_point_v<T_float>) {
+  if constexpr (is_scalar) {
     return sqrt(1 + (ux * ux + uy * uy + uz * uz) * rc * rc);
-  } else if constexpr (std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>) {
+  } else if constexpr (is_vector) {
     return xsimd::sqrt(1 + (ux * ux + uy * uy + uz * uz) * rc * rc);
   }
 }
@@ -411,6 +432,8 @@ static void shape_wt4(T_float x, T_float X, T_float rdx, T_float dt, T_float rdt
 template <int Order, typename T_float>
 static void shape(T_float x, T_float X, T_float rdx, T_float s[Order + 1])
 {
+  static_assert(Order >= 1 && Order <= 4, "Order must be 1, 2, 3, or 4");
+
   if constexpr (Order == 1) {
     shape1(x, X, rdx, s);
   } else if constexpr (Order == 2) {
@@ -443,6 +466,8 @@ template <int Order, typename T_float>
 static void shape_wt(T_float x, T_float X, T_float rdx, T_float dt, T_float rdt,
                      T_float s[Order + 1])
 {
+  static_assert(Order >= 1 && Order <= 4, "Order must be 1, 2, 3, or 4");
+
   if constexpr (Order == 1) {
     shape_wt1(x, X, rdx, dt, rdt, s);
   } else if constexpr (Order == 2) {
@@ -544,7 +569,7 @@ static void esirkepov3d_jz(T_float dzdt, T_float ss[2][3][N], T_float current[N]
   }
 }
 
-/// shift weights after movement for Esirkepov scheme
+/// shift weights after movement for Esirkepov scheme (needed for vectorization)
 template <int Order, typename T_int, typename T_float>
 static void esirkepov3d_shift_weights_after_movement(T_int shift[3], T_float ss[3][Order + 3])
 {
@@ -553,14 +578,54 @@ static void esirkepov3d_shift_weights_after_movement(T_int shift[3], T_float ss[
   for (int dir = 0; dir < 3; dir++) {
     // forward
     for (int ii = 0; ii < Order + 2; ii++) {
-      auto cond      = xsimd::batch_bool_cast<value_type>(shift[dir] < 0);
+      auto cond   = xsimd::batch_bool_cast<value_type>(shift[dir] < 0);
       ss[dir][ii] = xsimd::select(cond, ss[dir][ii + 1], ss[dir][ii]);
     }
     // backward
     for (int ii = Order + 2; ii > 0; ii--) {
-      auto cond      = xsimd::batch_bool_cast<value_type>(shift[dir] > 0);
+      auto cond   = xsimd::batch_bool_cast<value_type>(shift[dir] > 0);
       ss[dir][ii] = xsimd::select(cond, ss[dir][ii - 1], ss[dir][ii]);
     }
+  }
+}
+
+template <int Order, typename T_array, typename T_int, typename T_float>
+static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
+                             T_float current[Order + 3][Order + 3][Order + 3][4], float64 q)
+{
+  using namespace simd;
+  constexpr int  size      = Order + 3;
+  constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  constexpr bool is_sorted = std::is_integral_v<T_int>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
+
+  if constexpr (is_scalar == true) {
+    // naive scalar implementation
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          uj(iz, iy, ix, 0) += q * current[jz][jy][jx][0];
+          uj(iz, iy, ix, 1) += q * current[jz][jy][jx][1];
+          uj(iz, iy, ix, 2) += q * current[jz][jy][jx][2];
+          uj(iz, iy, ix, 3) += q * current[jz][jy][jx][3];
+        }
+      }
+    }
+  } else if constexpr (is_vector == true && is_sorted == true) {
+    // all particle contributions are added to the same grid point
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          uj(iz, iy, ix, 0) += q * xsimd::reduce_add(current[jz][jy][jx][0]);
+          uj(iz, iy, ix, 1) += q * xsimd::reduce_add(current[jz][jy][jx][1]);
+          uj(iz, iy, ix, 2) += q * xsimd::reduce_add(current[jz][jy][jx][2]);
+          uj(iz, iy, ix, 3) += q * xsimd::reduce_add(current[jz][jy][jx][3]);
+        }
+      }
+    }
+  } else if constexpr (is_vector == true && is_sorted == false) {
+    // particle contributions are added to different grid points
   }
 }
 
