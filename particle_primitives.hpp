@@ -19,6 +19,22 @@ using simd_i32 = xsimd::batch<nix::typedefs::int32>;
 using simd_i64 = xsimd::batch<nix::typedefs::int64>;
 } // namespace simd
 
+/// utility to get stride of array for a given dimension
+template <typename T_array>
+static auto stride(T_array& array, int dim)
+{
+  constexpr bool has_stride_with_dim =
+      std::is_invocable<decltype(&T_array::stride), T_array, int>::value;
+  constexpr bool has_stride_without_dim =
+      std::is_invocable<decltype(&T_array::stride), T_array>::value;
+
+  if constexpr (has_stride_with_dim == true) {
+    return array.stride(dim);
+  } else if constexpr (has_stride_without_dim == true) {
+    return array.stride()[dim];
+  }
+}
+
 /// digitize for calculating grid index for particles
 template <typename T_float>
 static auto digitize(T_float x, T_float xmin, T_float rdx)
@@ -674,27 +690,57 @@ static void esirkepov3d(T_float dxdt, T_float dydt, T_float dzdt, T_float ss[2][
 /// @param[in] wx  weight in x direction
 /// @param[in] dt  time step (multiplied to the returned electromagnetic field)
 ///
-template <int Order, typename Array>
-static float64 interpolate3d(const Array& eb, int iz0, int iy0, int ix0, int ik,
-                             const float64 wz[Order + 1], const float64 wy[Order + 1],
-                             const float64 wx[Order + 1], const float64 dt)
+template <int Order, typename T_array, typename T_int, typename T_float>
+static auto interpolate3d(T_array& eb, T_int iz0, T_int iy0, T_int ix0, T_int ik,
+                          T_float wz[Order + 2], T_float wy[Order + 2], T_float wx[Order + 2],
+                          float64 dt)
 {
-  constexpr int size = Order + 1;
+  using namespace simd;
+  constexpr int  size      = Order + 2;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  constexpr bool is_sorted = std::is_integral_v<T_int>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  float64 result_z = 0;
-  for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
-    float64 result_y = 0;
-    for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
-      float64 result_x = 0;
-      for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-        result_x += eb(iz, iy, ix, ik) * wx[jx];
+  if constexpr (is_sorted == true) {
+    // scalar or vector with sorted particles
+    T_float result_z = 0;
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      T_float result_y = 0;
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        T_float result_x = 0;
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          result_x += eb(iz, iy, ix, ik) * wx[jx];
+        }
+        result_y += result_x * wy[jy];
       }
-      result_y += result_x * wy[jy];
+      result_z += result_y * wz[jz];
     }
-    result_z += result_y * wz[jz];
-  }
 
-  return result_z * dt;
+    return result_z * dt;
+  } else {
+    auto stride0 = stride(eb, 0);
+    auto stride1 = stride(eb, 1);
+    auto stride2 = stride(eb, 2);
+    auto stride3 = stride(eb, 3);
+
+    T_float result_z = 0;
+    for (int jz = 0; jz < size; jz++) {
+      T_int   index_z  = (iz0 + jz) * stride0;
+      T_float result_y = 0;
+      for (int jy = 0; jy < size; jy++) {
+        T_int   index_y  = index_z + (iy0 + jy) * stride1;
+        T_float result_x = 0;
+        for (int jx = 0; jx < size; jx++) {
+          T_int index_x = index_y + (ix0 + jx) * stride2;
+          result_x += simd_f64::gather(eb.data(), index_x + ik * stride3) * wx[jx];
+        }
+        result_y += result_x * wy[jy];
+      }
+      result_z += result_y * wz[jz];
+    }
+    return result_z;
+  }
 }
 
 } // namespace primitives

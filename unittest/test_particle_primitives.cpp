@@ -50,8 +50,12 @@ template <int Order, typename T_array>
 bool test_append_current3d_xsimd(T_array& uj, T_array& vj, int iz0, int iy0, int ix0, float64 q,
                                  const float64 epsilon);
 
-template <int Order>
-bool test_interpolate3d(int N);
+template <int Order, typename T_array>
+bool test_interpolate3d_scalar(T_array eb, int iz0, int iy0, int ix0, float64 delt,
+                               float64 epsilon);
+
+template <int Order, typename T_array>
+bool test_interpolate3d_xsimd(T_array eb, int iz0, int iy0, int ix0, float64 delt, float64 epsilon);
 
 //
 // test cases
@@ -968,35 +972,68 @@ TEST_CASE("Current append to global array 3D")
 
 TEST_CASE("Interpolation 3D")
 {
-  const int N = 100;
+  const int     Nz   = 16;
+  const int     Ny   = 16;
+  const int     Nx   = 16;
+  const float64 delt = 0.5;
+  const float64 eps  = 1.0e-14;
+
+  // field array
+  std::vector<float64> eb_data(Nz * Ny * Nx * 6);
+  auto                 eb = stdex::mdspan(eb_data.data(), Nz, Ny, Nx, 6);
+  std::iota(eb_data.begin(), eb_data.end(), 0);
 
   //
   // first order
   //
-  SECTION("First-order interpolation")
+  SECTION("First-order interpolation : scalar")
   {
-    REQUIRE(test_interpolate3d<1>(N) == true);
+    REQUIRE(test_interpolate3d_scalar<1>(eb, 2, 2, 2, delt, eps) == true);
+    REQUIRE(test_interpolate3d_scalar<1>(eb, 2, 4, 8, delt, eps) == true);
+  }
+  SECTION("First-order interpolation : xsimd")
+  {
+    REQUIRE(test_interpolate3d_xsimd<1>(eb, 2, 2, 2, delt, eps) == true);
+    REQUIRE(test_interpolate3d_xsimd<1>(eb, 2, 4, 8, delt, eps) == true);
   }
   //
   // second order
   //
-  SECTION("Second-order interpolation")
+  SECTION("Second-order interpolation : scalar")
   {
-    REQUIRE(test_interpolate3d<2>(N) == true);
+    REQUIRE(test_interpolate3d_scalar<2>(eb, 2, 2, 2, delt, eps) == true);
+    REQUIRE(test_interpolate3d_scalar<2>(eb, 2, 4, 8, delt, eps) == true);
+  }
+  SECTION("Second-order interpolation : xsimd")
+  {
+    REQUIRE(test_interpolate3d_xsimd<2>(eb, 2, 2, 2, delt, eps) == true);
+    REQUIRE(test_interpolate3d_xsimd<2>(eb, 2, 4, 8, delt, eps) == true);
   }
   //
   // third order
   //
-  SECTION("Third-order interpolation")
+  SECTION("Third-order interpolation : scalar")
   {
-    REQUIRE(test_interpolate3d<3>(N) == true);
+    REQUIRE(test_interpolate3d_scalar<3>(eb, 2, 2, 2, delt, eps) == true);
+    REQUIRE(test_interpolate3d_scalar<3>(eb, 2, 4, 8, delt, eps) == true);
+  }
+  SECTION("Third-order interpolation : xsimd")
+  {
+    REQUIRE(test_interpolate3d_xsimd<3>(eb, 2, 2, 2, delt, eps) == true);
+    REQUIRE(test_interpolate3d_xsimd<3>(eb, 2, 4, 8, delt, eps) == true);
   }
   //
   // fourth order
   //
-  SECTION("Fourth-order interpolation")
+  SECTION("Fourth-order interpolation : scalar")
   {
-    REQUIRE(test_interpolate3d<4>(N) == true);
+    REQUIRE(test_interpolate3d_scalar<4>(eb, 2, 2, 2, delt, eps) == true);
+    REQUIRE(test_interpolate3d_scalar<4>(eb, 2, 4, 8, delt, eps) == true);
+  }
+  SECTION("Fourth-order interpolation : xsimd")
+  {
+    REQUIRE(test_interpolate3d_xsimd<4>(eb, 2, 2, 2, delt, eps) == true);
+    REQUIRE(test_interpolate3d_xsimd<4>(eb, 2, 4, 8, delt, eps) == true);
   }
 }
 
@@ -1411,67 +1448,136 @@ bool test_append_current3d_xsimd(T_array& uj, T_array& vj, int iz0, int iy0, int
   return status;
 }
 
-template <int Order>
-bool test_interpolate3d(int N)
+template <int Order, typename T_array>
+bool test_interpolate3d_scalar(T_array eb, int iz0, int iy0, int ix0, float64 delt, float64 epsilon)
 {
-  constexpr int size = Order + 1;
-
-  const float64 epsilon = 1.0e-14;
-
-  float64 eb_data[size * size * size * 6];
-  auto    eb = stdex::mdspan(eb_data, size, size, size, 6);
+  constexpr int size = Order + 2;
 
   std::random_device seed;
   std::mt19937_64    engine(seed());
+  uniform_rand       rand(0.0, +1.0);
 
-  // initialize field
+  // test data
+  std::vector<float64> result1(6);
+  std::vector<float64> result2(6);
+  std::vector<float64> wx_data(size);
+  std::vector<float64> wy_data(size);
+  std::vector<float64> wz_data(size);
+  std::transform(wx_data.begin(), wx_data.end(), wx_data.begin(),
+                 [&](float64) { return rand(engine); });
+  std::transform(wy_data.begin(), wy_data.end(), wy_data.begin(),
+                 [&](float64) { return rand(engine); });
+  std::transform(wz_data.begin(), wz_data.end(), wz_data.begin(),
+                 [&](float64) { return rand(engine); });
+
+  // scalar version
   {
-    uniform_rand rand(-1.0, +1.0);
+    float64* wx = wx_data.data();
+    float64* wy = wy_data.data();
+    float64* wz = wz_data.data();
 
-    for (int iz = 0; iz < size; iz++) {
-      for (int iy = 0; iy < size; iy++) {
-        for (int ix = 0; ix < size; ix++) {
+    for (int ik = 0; ik < 6; ik++) {
+      result1[ik] = interpolate3d<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, delt);
+    }
+  }
+
+  // naive calculation
+  {
+    float64* wx = wx_data.data();
+    float64* wy = wy_data.data();
+    float64* wz = wz_data.data();
+
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
           for (int ik = 0; ik < 6; ik++) {
-            eb(iz, iy, ix, ik) = rand(engine);
+            result2[ik] += eb(iz, iy, ix, ik) * wz[jz] * wy[jy] * wx[jx] * delt;
           }
         }
       }
     }
   }
 
-  // interpolation with random weights
+  // compare results
   bool status = true;
+  for (int i = 0; i < result1.size(); i++) {
+    float64 err = std::abs(result1[i] - result2[i]);
+    status      = status & (err <= std::abs(result1[1]) * epsilon);
+  }
 
+  return status;
+}
+
+template <int Order, typename T_array>
+bool test_interpolate3d_xsimd(T_array eb, int iz0, int iy0, int ix0, float64 delt, float64 epsilon)
+{
+  using simd::simd_f64;
+  using simd::simd_i64;
+  constexpr int size = Order + 2;
+
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(0.0, +1.0);
+
+  // test data
+  std::vector<float64> result1(simd_f64::size * 6);
+  std::vector<float64> result2(simd_f64::size * 6);
+  std::vector<float64> wx_data(size * simd_f64::size);
+  std::vector<float64> wy_data(size * simd_f64::size);
+  std::vector<float64> wz_data(size * simd_f64::size);
+  std::transform(wx_data.begin(), wx_data.end(), wx_data.begin(),
+                 [&](float64) { return rand(engine); });
+  std::transform(wy_data.begin(), wy_data.end(), wy_data.begin(),
+                 [&](float64) { return rand(engine); });
+  std::transform(wz_data.begin(), wz_data.end(), wz_data.begin(),
+                 [&](float64) { return rand(engine); });
+
+  // SIMD version
   {
-    float64      wx[size] = {0};
-    float64      wy[size] = {0};
-    float64      wz[size] = {0};
-    float64      dt       = 0.5;
-    uniform_rand rand(0.0, +1.0);
+    simd_f64 wx_simd[size];
+    simd_f64 wy_simd[size];
+    simd_f64 wz_simd[size];
 
-    for (int i = 0; i < N; i++) {
-      for (int j = 0; j < size; j++) {
-        wx[j] = rand(engine);
-        wy[j] = rand(engine);
-        wz[j] = rand(engine);
-      }
+    // load weights
+    for (int i = 0; i < size; i++) {
+      wx_simd[i] = xsimd::load_unaligned(wx_data.data() + i * simd_f64::size);
+      wy_simd[i] = xsimd::load_unaligned(wy_data.data() + i * simd_f64::size);
+      wz_simd[i] = xsimd::load_unaligned(wz_data.data() + i * simd_f64::size);
+    }
 
-      for (int ik = 0; ik < 6; ik++) {
-        // interpolation
-        float64 val1 = interpolate3d<Order>(eb, 0, 0, 0, ik, wz, wy, wx, dt);
+    for (int ik = 0; ik < 6; ik++) {
+      // interpolate
+      simd_f64 val = interpolate3d<Order>(eb, iz0, iy0, ix0, ik, wz_simd, wy_simd, wx_simd, delt);
+      // store
+      val.store_unaligned(result1.data() + ik * simd_f64::size);
+    }
+  }
 
-        float64 val2 = 0;
-        for (int jz = 0; jz < size; jz++) {
-          for (int jy = 0; jy < size; jy++) {
-            for (int jx = 0; jx < size; jx++) {
-              val2 += eb(jz, jy, jx, ik) * wz[jz] * wy[jy] * wx[jx] * dt;
-            }
-          }
+  // scalar version
+  {
+    float64 wx[size];
+    float64 wy[size];
+    float64 wz[size];
+
+    for (int ik = 0; ik < 6; ik++) {
+      for (int ip = 0; ip < simd_f64::size; ip++) {
+        for (int i = 0; i < size; i++) {
+          wx[i] = wx_data[i * simd_f64::size + ip];
+          wy[i] = wy_data[i * simd_f64::size + ip];
+          wz[i] = wz_data[i * simd_f64::size + ip];
         }
-
-        status = status & (std::abs(val1 - val2) < std::max(epsilon, epsilon * std::abs(val1)));
+        // interpolate and store
+        result2[ik * simd_f64::size + ip] =
+            interpolate3d<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, delt);
       }
     }
+  }
+
+  // compare SIMD and scalar results
+  bool status = true;
+  for (int i = 0; i < result1.size(); i++) {
+    float64 err = std::abs(result1[i] - result2[i]);
+    status      = status & (err <= std::abs(result1[1]) * epsilon);
   }
 
   return status;
