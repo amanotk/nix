@@ -22,19 +22,33 @@ void set_random_particle(Array2D& xu, float64 delh, float64 delv);
 
 template <int N>
 bool test_charge_continuity(const float64 delt, const float64 delh, const float64 rho[N][N][N],
-                            const float64 cur[N][N][N][4], const float64 epsilon = 1.0e-14);
+                            const float64 cur[N][N][N][4], const float64 epsilon);
 
 template <int Order>
-bool test_esirkepov3d(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
-                      float64       rho[Order + 3][Order + 3][Order + 3],
-                      float64       cur[Order + 3][Order + 3][Order + 3][4],
-                      const float64 epsilon = 1.0e-14);
+bool esirkepov3d_scalar(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
+                        float64 rho[Order + 3][Order + 3][Order + 3],
+                        float64 cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon);
 
 template <int Order, typename T_float>
-bool test_esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7], T_float xv[7],
-                            T_float       rho[Order + 3][Order + 3][Order + 3],
-                            T_float       cur[Order + 3][Order + 3][Order + 3][4],
-                            const float64 epsilon = 1.0e-14);
+bool esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7], T_float xv[7],
+                       T_float rho[Order + 3][Order + 3][Order + 3],
+                       T_float cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon);
+
+template <int Order, typename T_array>
+bool test_esirkepov3d_scalar(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
+                             const float64 epsilon);
+
+template <int Order, typename T_array>
+bool test_esirkepov3d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
+                            const float64 epsilon);
+
+template <int Order, typename T_array>
+bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, float64 q,
+                                  const float64 epsilon);
+
+template <int Order, typename T_array>
+bool test_append_current3d_xsimd(T_array& uj, T_array& vj, int iz0, int iy0, int ix0, float64 q,
+                                 const float64 epsilon);
 
 template <int Order>
 bool test_interpolate3d(int N);
@@ -97,10 +111,13 @@ TEST_CASE("sign")
 
   SECTION("scalar")
   {
-    REQUIRE(std::abs(sign(+0.0) - 1) < epsilon);
-    REQUIRE(std::abs(sign(-0.0) + 1) < epsilon);
-    REQUIRE(std::abs(sign(+1.0) - 1) < epsilon);
-    REQUIRE(std::abs(sign(-1.0) + 1) < epsilon);
+    bool status = true;
+    status      = status & (std::abs(sign(+0.0) - 1) < epsilon);
+    status      = status & (std::abs(sign(-0.0) + 1) < epsilon);
+    status      = status & (std::abs(sign(+1.0) - 1) < epsilon);
+    status      = status & (std::abs(sign(-1.0) + 1) < epsilon);
+
+    REQUIRE(status == true);
   }
   SECTION("xsimd")
   {
@@ -827,11 +844,11 @@ TEST_CASE("Fourth-order shape function for WT scheme")
 
 TEST_CASE("Esirkepov scheme in 3D")
 {
-  const int     Np   = 1000;
+  const int     Np   = 1024;
   const float64 delt = GENERATE(0.5, 1.0, 2.0);
   const float64 delh = GENERATE(0.5, 1.0, 2.0);
   const float64 delv = delh / delt;
-  const float64 eps  = 1.0e-14;
+  const float64 eps  = 1.0e-13;
 
   float64 xv_data[Np * 7];
   float64 xu_data[Np * 7];
@@ -843,390 +860,46 @@ TEST_CASE("Esirkepov scheme in 3D")
   //
   // first order
   //
-  SECTION("First-order Esirkepov scheme for individual particles")
+  SECTION("First-order Esirkepov scheme : scalar")
   {
-    const int size    = 4;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    for (int ip = 0; ip < Np; ip++) {
-      float64 cur[size][size][size][4] = {0};
-      float64 rho[size][size][size]    = {0};
-
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      status1 = status1 & test_esirkepov3d<1>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-      status2 = status2 & test_charge_continuity(delt, delh, rho, cur, eps);
-    }
-
-    REQUIRE(status1); // charge density
-    REQUIRE(status2); // charge continuity
+    REQUIRE(test_esirkepov3d_scalar<1>(xu, xv, Np, delt, delh, eps) == true);
   }
-  SECTION("First-order Esirkepov scheme for group of particles : scalar")
+  SECTION("First-order Esirkepov scheme : xsimd")
   {
-    const int size    = 4;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    float64 cur[size][size][size][4] = {0};
-    float64 rho[size][size][size]    = {0};
-
-    for (int ip = 0; ip < Np; ip++) {
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      status1 = status1 & test_esirkepov3d<1>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-    }
-    status2 = status2 & test_charge_continuity(delt, delh, rho, cur, eps);
-
-    REQUIRE(status1); // charge density
-    REQUIRE(status2); // charge continuity
-  }
-  SECTION("First-order Esirkepov scheme for group of particles : xsimd")
-  {
-    using simd::simd_f64;
-    using simd::simd_i64;
-
-    const int size    = 4;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    float64  cur[size][size][size][4]      = {0};
-    float64  rho[size][size][size]         = {0};
-    simd_f64 cur_simd[size][size][size][4] = {0};
-    simd_f64 rho_simd[size][size][size]    = {0};
-    simd_f64 delt_simd                     = delt;
-    simd_f64 delh_simd                     = delh;
-    simd_f64 xu_simd[7];
-    simd_f64 xv_simd[7];
-
-    // load data
-    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
-    for (int k = 0; k < 7; k++) {
-      xv_simd[k] = simd_f64::gather(&xv(0, k), index_simd);
-      xu_simd[k] = simd_f64::gather(&xu(0, k), index_simd);
-    }
-
-    // SIMD version
-    status1 = status1 & test_esirkepov3d_xsimd<1>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
-                                                  cur_simd, eps);
-
-    // scalar version
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      test_esirkepov3d<1>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-    }
-
-    // compare scalar and SIMD results
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
-        for (int k = 0; k < size; k++) {
-          for (int l = 0; l < 4; l++) {
-            float64 cur_sum = xsimd::reduce_add(cur_simd[i][j][k][l]);
-            status2         = status2 & (std::abs(cur[i][j][k][l] - cur_sum) < eps);
-          }
-          float64 rho_sum = xsimd::reduce_add(rho_simd[i][j][k]);
-          status2         = status2 & (std::abs(rho[i][j][k] - rho_sum) < eps);
-        }
-      }
-    }
-
-    REQUIRE(status1); // xsimd version
-    REQUIRE(status2); // comparison between xsimd and scalar
+    REQUIRE(test_esirkepov3d_xsimd<1>(xu, xv, Np, delt, delh, eps) == true);
   }
   //
   // second order
   //
-  SECTION("Second-order Esirkepov scheme for individual particles")
+  SECTION("Second-order Esirkepov scheme : scalar")
   {
-    const int size    = 5;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    for (int ip = 0; ip < Np; ip++) {
-      float64 cur[size][size][size][4] = {0};
-      float64 rho[size][size][size]    = {0};
-
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      status1 = status1 & test_esirkepov3d<2>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-      status2 = status2 & test_charge_continuity(delt, delh, rho, cur, eps);
-    }
-
-    REQUIRE(status1); // charge density
-    REQUIRE(status2); // charge continuity
+    REQUIRE(test_esirkepov3d_scalar<2>(xu, xv, Np, delt, delh, eps) == true);
   }
-  SECTION("Second-order Esirkepov scheme for group of particles : scalar")
+  SECTION("Second-order Esirkepov scheme : xsimd")
   {
-    const int size    = 5;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    float64 cur[size][size][size][4] = {0};
-    float64 rho[size][size][size]    = {0};
-
-    for (int ip = 0; ip < Np; ip++) {
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      status1 = status1 & test_esirkepov3d<2>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-    }
-    status2 = status2 & test_charge_continuity(delt, delh, rho, cur, eps);
-
-    REQUIRE(status1); // charge density
-    REQUIRE(status2); // charge continuity
-  }
-  SECTION("Second-order Esirkepov scheme for group of particles : xsimd")
-  {
-    using simd::simd_f64;
-    using simd::simd_i64;
-
-    const int size    = 5;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    float64  cur[size][size][size][4]      = {0};
-    float64  rho[size][size][size]         = {0};
-    simd_f64 cur_simd[size][size][size][4] = {0};
-    simd_f64 rho_simd[size][size][size]    = {0};
-    simd_f64 delt_simd                     = delt;
-    simd_f64 delh_simd                     = delh;
-    simd_f64 xu_simd[7];
-    simd_f64 xv_simd[7];
-
-    // load data
-    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
-    for (int k = 0; k < 7; k++) {
-      xv_simd[k] = simd_f64::gather(&xv(0, k), index_simd);
-      xu_simd[k] = simd_f64::gather(&xu(0, k), index_simd);
-    }
-
-    // SIMD version
-    status1 = status1 & test_esirkepov3d_xsimd<2>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
-                                                  cur_simd, eps);
-
-    // scalar version
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      test_esirkepov3d<2>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-    }
-
-    // compare scalar and SIMD results
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
-        for (int k = 0; k < size; k++) {
-          for (int l = 0; l < 4; l++) {
-            float64 cur_sum = xsimd::reduce_add(cur_simd[i][j][k][l]);
-            status2         = status2 & (std::abs(cur[i][j][k][l] - cur_sum) < eps);
-          }
-          float64 rho_sum = xsimd::reduce_add(rho_simd[i][j][k]);
-          status2         = status2 & (std::abs(rho[i][j][k] - rho_sum) < eps);
-        }
-      }
-    }
-
-    REQUIRE(status1); // xsimd version
-    REQUIRE(status2); // comparison between xsimd and scalar
+    REQUIRE(test_esirkepov3d_xsimd<2>(xu, xv, Np, delt, delh, eps) == true);
   }
   //
   // third order
   //
-  SECTION("Third-order Esirkepov scheme for individual particles")
+  SECTION("Third-order Esirkepov scheme : scalar")
   {
-    const int size    = 6;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    for (int ip = 0; ip < Np; ip++) {
-      float64 cur[size][size][size][4] = {0};
-      float64 rho[size][size][size]    = {0};
-
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      status1 = status1 & test_esirkepov3d<3>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-      status2 = status2 & test_charge_continuity(delt, delh, rho, cur, eps);
-    }
-
-    REQUIRE(status1); // charge density
-    REQUIRE(status2); // charge continuity
+    REQUIRE(test_esirkepov3d_scalar<3>(xu, xv, Np, delt, delh, eps) == true);
   }
-  SECTION("Third-order Esirkepov scheme for group of particles : scalar")
+  SECTION("Third-order Esirkepov scheme : xsimd")
   {
-    const int size    = 6;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    float64 cur[size][size][size][4] = {0};
-    float64 rho[size][size][size]    = {0};
-
-    for (int ip = 0; ip < Np; ip++) {
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      status1 = status1 & test_esirkepov3d<3>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-    }
-    status2 = status2 & test_charge_continuity(delt, delh, rho, cur, eps);
-
-    REQUIRE(status1); // charge density
-    REQUIRE(status2); // charge continuity
-  }
-  SECTION("Third-order Esirkepov scheme for group of particles : xsimd")
-  {
-    using simd::simd_f64;
-    using simd::simd_i64;
-
-    const int size    = 6;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    float64  cur[size][size][size][4]      = {0};
-    float64  rho[size][size][size]         = {0};
-    simd_f64 cur_simd[size][size][size][4] = {0};
-    simd_f64 rho_simd[size][size][size]    = {0};
-    simd_f64 delt_simd                     = delt;
-    simd_f64 delh_simd                     = delh;
-    simd_f64 xu_simd[7];
-    simd_f64 xv_simd[7];
-
-    // load data
-    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
-    for (int k = 0; k < 7; k++) {
-      xv_simd[k] = simd_f64::gather(&xv(0, k), index_simd);
-      xu_simd[k] = simd_f64::gather(&xu(0, k), index_simd);
-    }
-
-    // SIMD version
-    status1 = status1 & test_esirkepov3d_xsimd<3>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
-                                                  cur_simd, eps);
-
-    // scalar version
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      test_esirkepov3d<3>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-    }
-
-    // compare scalar and SIMD results
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
-        for (int k = 0; k < size; k++) {
-          for (int l = 0; l < 4; l++) {
-            float64 cur_sum = xsimd::reduce_add(cur_simd[i][j][k][l]);
-            status2         = status2 & (std::abs(cur[i][j][k][l] - cur_sum) < eps);
-          }
-          float64 rho_sum = xsimd::reduce_add(rho_simd[i][j][k]);
-          status2         = status2 & (std::abs(rho[i][j][k] - rho_sum) < eps);
-        }
-      }
-    }
-
-    REQUIRE(status1); // xsimd version
-    REQUIRE(status2); // comparison between xsimd and scalar
+    REQUIRE(test_esirkepov3d_xsimd<3>(xu, xv, Np, delt, delh, eps) == true);
   }
   //
   // forth order
   //
-  SECTION("Fourth-order Esirkepov scheme for individual particles")
+  SECTION("Fourth-order Esirkepov scheme : scalar")
   {
-    const int size    = 7;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    for (int ip = 0; ip < Np; ip++) {
-      float64 cur[size][size][size][4] = {0};
-      float64 rho[size][size][size]    = {0};
-
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      status1 = status1 & test_esirkepov3d<4>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-      status2 = status2 & test_charge_continuity(delt, delh, rho, cur, eps);
-    }
-
-    REQUIRE(status1); // charge density
-    REQUIRE(status2); // charge continuity
+    REQUIRE(test_esirkepov3d_scalar<4>(xu, xv, Np, delt, delh, eps) == true);
   }
-  SECTION("Fourth-order Esirkepov scheme for group of particles : scalar")
+  SECTION("Fourth-order Esirkepov scheme : xsimd")
   {
-    const int size    = 7;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    float64 cur[size][size][size][4] = {0};
-    float64 rho[size][size][size]    = {0};
-
-    for (int ip = 0; ip < Np; ip++) {
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      status1 = status1 & test_esirkepov3d<4>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-    }
-    status2 = status2 & test_charge_continuity(delt, delh, rho, cur, eps);
-
-    REQUIRE(status1); // charge density
-    REQUIRE(status2); // charge continuity
-  }
-  SECTION("Fourth-order Esirkepov scheme for group of particles : xsimd")
-  {
-    using simd::simd_f64;
-    using simd::simd_i64;
-
-    const int size    = 7;
-    bool      status1 = true;
-    bool      status2 = true;
-
-    float64  cur[size][size][size][4]      = {0};
-    float64  rho[size][size][size]         = {0};
-    simd_f64 cur_simd[size][size][size][4] = {0};
-    simd_f64 rho_simd[size][size][size]    = {0};
-    simd_f64 delt_simd                     = delt;
-    simd_f64 delh_simd                     = delh;
-    simd_f64 xu_simd[7];
-    simd_f64 xv_simd[7];
-
-    // load data
-    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
-    for (int k = 0; k < 7; k++) {
-      xv_simd[k] = simd_f64::gather(&xv(0, k), index_simd);
-      xu_simd[k] = simd_f64::gather(&xu(0, k), index_simd);
-    }
-
-    // SIMD version
-    status1 = status1 & test_esirkepov3d_xsimd<4>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
-                                                  cur_simd, eps);
-
-    // scalar version
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      float64* xv_ptr = &xv(ip, 0);
-      float64* xu_ptr = &xu(ip, 0);
-
-      test_esirkepov3d<4>(delt, delh, xu_ptr, xv_ptr, rho, cur, eps);
-    }
-
-    // compare scalar and SIMD results
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
-        for (int k = 0; k < size; k++) {
-          for (int l = 0; l < 4; l++) {
-            float64 cur_sum = xsimd::reduce_add(cur_simd[i][j][k][l]);
-            status2         = status2 & (std::abs(cur[i][j][k][l] - cur_sum) < eps);
-          }
-          float64 rho_sum = xsimd::reduce_add(rho_simd[i][j][k]);
-          status2         = status2 & (std::abs(rho[i][j][k] - rho_sum) < eps);
-        }
-      }
-    }
-
-    REQUIRE(status1); // xsimd version
-    REQUIRE(status2); // comparison between xsimd and scalar
+    REQUIRE(test_esirkepov3d_xsimd<4>(xu, xv, Np, delt, delh, eps) == true);
   }
 }
 
@@ -1243,405 +916,53 @@ TEST_CASE("Current append to global array 3D")
   auto                 uj1 = stdex::mdspan(uj_data1.data(), Nz, Ny, Nx, 4);
   auto                 uj2 = stdex::mdspan(uj_data2.data(), Nz, Ny, Nx, 4);
 
-  std::random_device seed;
-  std::mt19937_64    engine(seed());
-  uniform_rand       rand(-1, +1);
-
   //
   // first order
   //
   SECTION("First-order current append to global array : scalar")
   {
-    const int size = 4;
-    const int iz0  = 2;
-    const int iy0  = 4;
-    const int ix0  = 8;
-
-    float64 cur[size][size][size][4] = {0};
-
-    // test data
-    for (int jz = 0; jz < size; jz++) {
-      for (int jy = 0; jy < size; jy++) {
-        for (int jx = 0; jx < size; jx++) {
-          for (int k = 0; k < 4; k++) {
-            cur[jz][jy][jx][k] = k + 1;
-          }
-        }
-      }
-    }
-
-    // append
-    append_current3d<1>(uj1, iz0, iy0, ix0, cur, q);
-
-    // check
-    bool status = true;
-    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
-      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
-        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-          for (int k = 0; k < 4; k++) {
-            status = status & (std::abs(uj1(iz, iy, ix, k) - q * (k + 1)) < eps);
-          }
-        }
-      }
-    }
-
-    REQUIRE(status == true);
+    REQUIRE(test_append_current3d_scalar<1>(uj1, 2, 2, 2, q, eps) == true);
+    REQUIRE(test_append_current3d_scalar<1>(uj2, 2, 4, 8, q, eps) == true);
   }
   SECTION("First-order current append to global array : xsimd with scalar index")
   {
-    using simd::simd_f64;
-    using simd::simd_i64;
-
-    const int size   = 4;
-    const int iz0    = 2;
-    const int iy0    = 4;
-    const int ix0    = 8;
-    const int stride = size * size * size * 4;
-
-    float64  cur[simd_f64::size][size][size][size][4] = {0};
-    simd_f64 cur_simd[size][size][size][4]            = {0};
-    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
-
-    // test data
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      for (int jz = 0; jz < size; jz++) {
-        for (int jy = 0; jy < size; jy++) {
-          for (int jx = 0; jx < size; jx++) {
-            for (int k = 0; k < 4; k++) {
-              cur[ip][jz][jy][jx][k] = rand(engine);
-            }
-          }
-        }
-      }
-    }
-    for (int jz = 0; jz < size; jz++) {
-      for (int jy = 0; jy < size; jy++) {
-        for (int jx = 0; jx < size; jx++) {
-          for (int k = 0; k < 4; k++) {
-            cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
-          }
-        }
-      }
-    }
-
-    // scalar version
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      append_current3d<1>(uj1, iz0, iy0, ix0, cur[ip], q);
-    }
-
-    // SIMD version
-    append_current3d<1>(uj2, iz0, iy0, ix0, cur_simd, q);
-
-    // compare scalar and SIMD results
-    bool status = true;
-    for (int iz = 0; iz < Nz; iz++) {
-      for (int iy = 0; iy < Ny; iy++) {
-        for (int ix = 0; ix < Nx; ix++) {
-          for (int k = 0; k < 4; k++) {
-            status = status & (std::abs(uj1(iz, iy, ix, k) - uj2(iz, iy, ix, k) < eps));
-          }
-        }
-      }
-    }
-
-    REQUIRE(status == true);
+    REQUIRE(test_append_current3d_xsimd<1>(uj1, uj2, 2, 4, 8, q, eps) == true);
   }
   //
   // second order
   //
   SECTION("Second-order current append to global array : scalar")
   {
-    const int size = 5;
-    const int iz0  = 2;
-    const int iy0  = 4;
-    const int ix0  = 8;
-
-    float64 cur[size][size][size][4] = {0};
-
-    // test data
-    for (int jz = 0; jz < size; jz++) {
-      for (int jy = 0; jy < size; jy++) {
-        for (int jx = 0; jx < size; jx++) {
-          for (int k = 0; k < 4; k++) {
-            cur[jz][jy][jx][k] = k + 1;
-          }
-        }
-      }
-    }
-
-    // append
-    append_current3d<2>(uj1, iz0, iy0, ix0, cur, q);
-
-    // check
-    bool status = true;
-    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
-      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
-        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-          for (int k = 0; k < 4; k++) {
-            status = status & (std::abs(uj1(iz, iy, ix, k) - q * (k + 1)) < eps);
-          }
-        }
-      }
-    }
-
-    REQUIRE(status == true);
+    REQUIRE(test_append_current3d_scalar<2>(uj1, 2, 2, 2, q, eps) == true);
+    REQUIRE(test_append_current3d_scalar<2>(uj2, 2, 4, 8, q, eps) == true);
   }
   SECTION("Second-order current append to global array : xsimd with scalar index")
   {
-    using simd::simd_f64;
-    using simd::simd_i64;
-
-    const int size   = 5;
-    const int iz0    = 2;
-    const int iy0    = 4;
-    const int ix0    = 8;
-    const int stride = size * size * size * 4;
-
-    float64  cur[simd_f64::size][size][size][size][4] = {0};
-    simd_f64 cur_simd[size][size][size][4]            = {0};
-    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
-
-    // test data
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      for (int jz = 0; jz < size; jz++) {
-        for (int jy = 0; jy < size; jy++) {
-          for (int jx = 0; jx < size; jx++) {
-            for (int k = 0; k < 4; k++) {
-              cur[ip][jz][jy][jx][k] = rand(engine);
-            }
-          }
-        }
-      }
-    }
-    for (int jz = 0; jz < size; jz++) {
-      for (int jy = 0; jy < size; jy++) {
-        for (int jx = 0; jx < size; jx++) {
-          for (int k = 0; k < 4; k++) {
-            cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
-          }
-        }
-      }
-    }
-
-    // scalar version
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      append_current3d<2>(uj1, iz0, iy0, ix0, cur[ip], q);
-    }
-
-    // SIMD version
-    append_current3d<2>(uj2, iz0, iy0, ix0, cur_simd, q);
-
-    // compare scalar and SIMD results
-    bool status = true;
-    for (int iz = 0; iz < Nz; iz++) {
-      for (int iy = 0; iy < Ny; iy++) {
-        for (int ix = 0; ix < Nx; ix++) {
-          for (int k = 0; k < 4; k++) {
-            status = status & (std::abs(uj1(iz, iy, ix, k) - uj2(iz, iy, ix, k) < eps));
-          }
-        }
-      }
-    }
-
-    REQUIRE(status == true);
+    REQUIRE(test_append_current3d_xsimd<2>(uj1, uj2, 2, 4, 8, q, eps) == true);
   }
   //
   // third order
   //
   SECTION("Third-order current append to global array : scalar")
   {
-    const int size = 6;
-    const int iz0  = 2;
-    const int iy0  = 4;
-    const int ix0  = 8;
-
-    float64 cur[size][size][size][4] = {0};
-
-    // test data
-    for (int jz = 0; jz < size; jz++) {
-      for (int jy = 0; jy < size; jy++) {
-        for (int jx = 0; jx < size; jx++) {
-          for (int k = 0; k < 4; k++) {
-            cur[jz][jy][jx][k] = k + 1;
-          }
-        }
-      }
-    }
-
-    // append
-    append_current3d<3>(uj1, iz0, iy0, ix0, cur, q);
-
-    // check
-    bool status = true;
-    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
-      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
-        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-          for (int k = 0; k < 4; k++) {
-            status = status & (std::abs(uj1(iz, iy, ix, k) - q * (k + 1)) < eps);
-          }
-        }
-      }
-    }
-
-    REQUIRE(status == true);
+    REQUIRE(test_append_current3d_scalar<3>(uj1, 2, 2, 2, q, eps) == true);
+    REQUIRE(test_append_current3d_scalar<3>(uj2, 2, 4, 8, q, eps) == true);
   }
   SECTION("Third-order current append to global array : xsimd with scalar index")
   {
-    using simd::simd_f64;
-    using simd::simd_i64;
-
-    const int size   = 6;
-    const int iz0    = 2;
-    const int iy0    = 4;
-    const int ix0    = 8;
-    const int stride = size * size * size * 4;
-
-    float64  cur[simd_f64::size][size][size][size][4] = {0};
-    simd_f64 cur_simd[size][size][size][4]            = {0};
-    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
-
-    // test data
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      for (int jz = 0; jz < size; jz++) {
-        for (int jy = 0; jy < size; jy++) {
-          for (int jx = 0; jx < size; jx++) {
-            for (int k = 0; k < 4; k++) {
-              cur[ip][jz][jy][jx][k] = rand(engine);
-            }
-          }
-        }
-      }
-    }
-    for (int jz = 0; jz < size; jz++) {
-      for (int jy = 0; jy < size; jy++) {
-        for (int jx = 0; jx < size; jx++) {
-          for (int k = 0; k < 4; k++) {
-            cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
-          }
-        }
-      }
-    }
-
-    // scalar version
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      append_current3d<3>(uj1, iz0, iy0, ix0, cur[ip], q);
-    }
-
-    // SIMD version
-    append_current3d<3>(uj2, iz0, iy0, ix0, cur_simd, q);
-
-    // compare scalar and SIMD results
-    bool status = true;
-    for (int iz = 0; iz < Nz; iz++) {
-      for (int iy = 0; iy < Ny; iy++) {
-        for (int ix = 0; ix < Nx; ix++) {
-          for (int k = 0; k < 4; k++) {
-            status = status & (std::abs(uj1(iz, iy, ix, k) - uj2(iz, iy, ix, k) < eps));
-          }
-        }
-      }
-    }
-
-    REQUIRE(status == true);
+    REQUIRE(test_append_current3d_xsimd<3>(uj1, uj2, 2, 4, 8, q, eps) == true);
   }
   //
   // fourth order
   //
   SECTION("Fourth-order current append to global array : scalar")
   {
-    const int size = 7;
-    const int iz0  = 2;
-    const int iy0  = 4;
-    const int ix0  = 8;
-
-    float64 cur[size][size][size][4] = {0};
-
-    // test data
-    for (int jz = 0; jz < size; jz++) {
-      for (int jy = 0; jy < size; jy++) {
-        for (int jx = 0; jx < size; jx++) {
-          for (int k = 0; k < 4; k++) {
-            cur[jz][jy][jx][k] = k + 1;
-          }
-        }
-      }
-    }
-
-    // append
-    append_current3d<4>(uj1, iz0, iy0, ix0, cur, q);
-
-    // check
-    bool status = true;
-    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
-      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
-        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-          for (int k = 0; k < 4; k++) {
-            status = status & (std::abs(uj1(iz, iy, ix, k) - q * (k + 1)) < eps);
-          }
-        }
-      }
-    }
-
-    REQUIRE(status == true);
+    REQUIRE(test_append_current3d_scalar<4>(uj1, 2, 2, 2, q, eps) == true);
+    REQUIRE(test_append_current3d_scalar<4>(uj2, 2, 4, 8, q, eps) == true);
   }
   SECTION("Fourth-order current append to global array : xsimd with scalar index")
   {
-    using simd::simd_f64;
-    using simd::simd_i64;
-
-    const int size   = 7;
-    const int iz0    = 2;
-    const int iy0    = 4;
-    const int ix0    = 8;
-    const int stride = size * size * size * 4;
-
-    float64  cur[simd_f64::size][size][size][size][4] = {0};
-    simd_f64 cur_simd[size][size][size][4]            = {0};
-    simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
-
-    // test data
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      for (int jz = 0; jz < size; jz++) {
-        for (int jy = 0; jy < size; jy++) {
-          for (int jx = 0; jx < size; jx++) {
-            for (int k = 0; k < 4; k++) {
-              cur[ip][jz][jy][jx][k] = rand(engine);
-            }
-          }
-        }
-      }
-    }
-    for (int jz = 0; jz < size; jz++) {
-      for (int jy = 0; jy < size; jy++) {
-        for (int jx = 0; jx < size; jx++) {
-          for (int k = 0; k < 4; k++) {
-            cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
-          }
-        }
-      }
-    }
-
-    // scalar version
-    for (int ip = 0; ip < simd_f64::size; ip++) {
-      append_current3d<4>(uj1, iz0, iy0, ix0, cur[ip], q);
-    }
-
-    // SIMD version
-    append_current3d<4>(uj2, iz0, iy0, ix0, cur_simd, q);
-
-    // compare scalar and SIMD results
-    bool status = true;
-    for (int iz = 0; iz < Nz; iz++) {
-      for (int iy = 0; iy < Ny; iy++) {
-        for (int ix = 0; ix < Nx; ix++) {
-          for (int k = 0; k < 4; k++) {
-            status = status & (std::abs(uj1(iz, iy, ix, k) - uj2(iz, iy, ix, k) < eps));
-          }
-        }
-      }
-    }
-
-    REQUIRE(status == true);
+    REQUIRE(test_append_current3d_xsimd<4>(uj1, uj2, 2, 4, 8, q, eps) == true);
   }
 }
 
@@ -1738,9 +1059,9 @@ bool test_charge_continuity(const float64 delt, const float64 delh, const float6
 }
 
 template <int Order>
-bool test_esirkepov3d(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
-                      float64 rho[Order + 3][Order + 3][Order + 3],
-                      float64 cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon)
+bool esirkepov3d_scalar(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
+                        float64 rho[Order + 3][Order + 3][Order + 3],
+                        float64 cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon)
 {
   const float64 rdh  = 1 / delh;
   const float64 dhdt = delh / delt;
@@ -1815,9 +1136,9 @@ bool test_esirkepov3d(const float64 delt, const float64 delh, float64 xu[7], flo
 }
 
 template <int Order, typename T_float>
-bool test_esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7], T_float xv[7],
-                            T_float rho[Order + 3][Order + 3][Order + 3],
-                            T_float cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon)
+bool esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7], T_float xv[7],
+                       T_float rho[Order + 3][Order + 3][Order + 3],
+                       T_float cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon)
 {
   const T_float zero = 0;
   const T_float rdh  = 1 / delh;
@@ -1843,6 +1164,7 @@ bool test_esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7
   auto ix0 = digitize(xv[0], zero, rdh);
   auto iy0 = digitize(xv[1], zero, rdh);
   auto iz0 = digitize(xv[2], zero, rdh);
+
   shape<Order>(xv[0], xsimd::to_float(ix0) * delh, rdh, &ss[0][0][1]);
   shape<Order>(xv[1], xsimd::to_float(iy0) * delh, rdh, &ss[0][1][1]);
   shape<Order>(xv[2], xsimd::to_float(iz0) * delh, rdh, &ss[0][2][1]);
@@ -1865,6 +1187,7 @@ bool test_esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7
   auto ix1 = digitize(xu[0], zero, rdh);
   auto iy1 = digitize(xu[1], zero, rdh);
   auto iz1 = digitize(xu[2], zero, rdh);
+
   shape<Order>(xu[0], xsimd::to_float(ix1) * delh, rdh, &ss[1][0][1]);
   shape<Order>(xu[1], xsimd::to_float(iy1) * delh, rdh, &ss[1][1][1]);
   shape<Order>(xu[2], xsimd::to_float(iz1) * delh, rdh, &ss[1][2][1]);
@@ -1898,6 +1221,191 @@ bool test_esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7
 
     // charge density increases exactly by one
     status = status & (std::abs(rho2 - (rho0 + 1)) < epsilon * std::abs(rho2));
+  }
+
+  return status;
+}
+
+template <int Order, typename T_array>
+bool test_esirkepov3d_scalar(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
+                             const float64 epsilon)
+{
+  const int size    = Order + 3;
+  bool      status1 = true;
+  bool      status2 = true;
+
+  float64 cur[size][size][size][4] = {0};
+  float64 rho[size][size][size]    = {0};
+
+  for (int ip = 0; ip < Np; ip++) {
+    float64* xu_ptr = &xu(ip, 0);
+    float64* xv_ptr = &xv(ip, 0);
+
+    status1 = status1 & esirkepov3d_scalar<Order>(delt, delh, xu_ptr, xv_ptr, rho, cur, epsilon);
+  }
+  status2 = status2 & test_charge_continuity(delt, delh, rho, cur, epsilon);
+
+  return status1 & status2;
+}
+
+template <int Order, typename T_array>
+bool test_esirkepov3d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
+                            const float64 epsilon)
+{
+  using simd::simd_f64;
+  using simd::simd_i64;
+
+  const int size    = Order + 3;
+  bool      status1 = true;
+  bool      status2 = true;
+
+  float64  cur[size][size][size][4]      = {0};
+  float64  rho[size][size][size]         = {0};
+  simd_f64 cur_simd[size][size][size][4] = {0};
+  simd_f64 rho_simd[size][size][size]    = {0};
+  simd_f64 delt_simd                     = delt;
+  simd_f64 delh_simd                     = delh;
+  simd_f64 xu_simd[7];
+  simd_f64 xv_simd[7];
+  simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
+
+  // SIMD version
+  for (int ip = 0; ip < Np - Np % simd_f64::size; ip += simd_f64::size) {
+    //  load data
+    for (int k = 0; k < 7; k++) {
+      xu_simd[k] = simd_f64::gather(&xu(ip, k), index_simd);
+      xv_simd[k] = simd_f64::gather(&xv(ip, k), index_simd);
+    }
+
+    status1 = status1 & esirkepov3d_xsimd<Order>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
+                                                 cur_simd, epsilon);
+  }
+
+  // scalar version
+  for (int ip = 0; ip < Np - Np % simd_f64::size; ip++) {
+    float64* xu_ptr = &xu(ip, 0);
+    float64* xv_ptr = &xv(ip, 0);
+
+    status1 = status1 & esirkepov3d_scalar<Order>(delt, delh, xu_ptr, xv_ptr, rho, cur, epsilon);
+  }
+
+  // compare scalar and SIMD results
+  for (int i = 0; i < size; i++) {
+    for (int j = 0; j < size; j++) {
+      for (int k = 0; k < size; k++) {
+        for (int l = 0; l < 4; l++) {
+          float64 cur_sum = xsimd::reduce_add(cur_simd[i][j][k][l]);
+          float64 cur_err = std::abs(cur[i][j][k][l] - cur_sum);
+          status2 = status2 & ((cur_err <= epsilon) || (cur_err <= std::abs(cur_sum) * epsilon));
+        }
+        float64 rho_sum = xsimd::reduce_add(rho_simd[i][j][k]);
+        float64 rho_err = std::abs(rho[i][j][k] - rho_sum);
+        status2 = status2 & ((rho_err <= epsilon) || (rho_err <= std::abs(rho_sum) * epsilon));
+      }
+    }
+  }
+
+  return status1 & status2;
+}
+
+template <int Order, typename T_array>
+bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, float64 q,
+                                  const float64 epsilon)
+{
+  const int size = Order + 3;
+
+  float64 cur[size][size][size][4] = {0};
+
+  // test data
+  for (int jz = 0; jz < size; jz++) {
+    for (int jy = 0; jy < size; jy++) {
+      for (int jx = 0; jx < size; jx++) {
+        for (int k = 0; k < 4; k++) {
+          cur[jz][jy][jx][k] = k + 1;
+        }
+      }
+    }
+  }
+
+  // append
+  append_current3d<Order>(uj, iz0, iy0, ix0, cur, q);
+
+  // check
+  bool status = true;
+  for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+    for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+      for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+        for (int k = 0; k < 4; k++) {
+          status = status & (std::abs(uj(iz, iy, ix, k) - q * (k + 1)) < epsilon);
+        }
+      }
+    }
+  }
+
+  return status;
+}
+
+template <int Order, typename T_array>
+bool test_append_current3d_xsimd(T_array& uj, T_array& vj, int iz0, int iy0, int ix0, float64 q,
+                                 const float64 epsilon)
+{
+  using simd::simd_f64;
+  using simd::simd_i64;
+
+  const int size   = Order + 3;
+  const int stride = size * size * size * 4;
+  const int Nz     = uj.extent(0);
+  const int Ny     = uj.extent(1);
+  const int Nx     = uj.extent(2);
+
+  float64  cur[simd_f64::size][size][size][size][4] = {0};
+  simd_f64 cur_simd[size][size][size][4]            = {0};
+  simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(-1, +1);
+
+  // test data
+  for (int ip = 0; ip < simd_f64::size; ip++) {
+    for (int jz = 0; jz < size; jz++) {
+      for (int jy = 0; jy < size; jy++) {
+        for (int jx = 0; jx < size; jx++) {
+          for (int k = 0; k < 4; k++) {
+            cur[ip][jz][jy][jx][k] = rand(engine);
+          }
+        }
+      }
+    }
+  }
+  for (int jz = 0; jz < size; jz++) {
+    for (int jy = 0; jy < size; jy++) {
+      for (int jx = 0; jx < size; jx++) {
+        for (int k = 0; k < 4; k++) {
+          cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
+        }
+      }
+    }
+  }
+
+  // scalar version
+  for (int ip = 0; ip < simd_f64::size; ip++) {
+    append_current3d<Order>(uj, iz0, iy0, ix0, cur[ip], q);
+  }
+
+  // SIMD version
+  append_current3d<Order>(vj, iz0, iy0, ix0, cur_simd, q);
+
+  // compare scalar and SIMD results
+  bool status = true;
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int k = 0; k < 4; k++) {
+          status = status & (std::abs(uj(iz, iy, ix, k) - vj(iz, iy, ix, k) < epsilon));
+        }
+      }
+    }
   }
 
   return status;
