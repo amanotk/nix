@@ -54,8 +54,9 @@ template <int Order, typename T_array>
 bool test_interpolate3d_scalar(T_array eb, int iz0, int iy0, int ix0, float64 delt,
                                float64 epsilon);
 
-template <int Order, typename T_array>
-bool test_interpolate3d_xsimd(T_array eb, int iz0, int iy0, int ix0, float64 delt, float64 epsilon);
+template <int Order, typename T_array, typename T_int>
+bool test_interpolate3d_xsimd(T_array eb, T_int iz0, T_int iy0, T_int ix0, float64 delt,
+                              float64 epsilon);
 
 //
 // test cases
@@ -978,10 +979,20 @@ TEST_CASE("Interpolation 3D")
   const float64 delt = 0.5;
   const float64 eps  = 1.0e-14;
 
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(0.0, +1.0);
+
   // field array
   std::vector<float64> eb_data(Nz * Ny * Nx * 6);
   auto                 eb = stdex::mdspan(eb_data.data(), Nz, Ny, Nx, 6);
-  std::iota(eb_data.begin(), eb_data.end(), 0);
+  std::transform(eb_data.begin(), eb_data.end(), eb_data.begin(),
+                 [&](float64 x) { return rand(engine); });
+
+  // vector index
+  std::vector<int64> iz0_data = {2, 3, 4, 5, 2, 3, 4, 5};
+  std::vector<int64> iy0_data = {2, 2, 2, 2, 2, 2, 2, 2};
+  std::vector<int64> ix0_data = {5, 4, 3, 2, 5, 4, 3, 2};
 
   //
   // first order
@@ -993,8 +1004,16 @@ TEST_CASE("Interpolation 3D")
   }
   SECTION("First-order interpolation : xsimd")
   {
+    // scalar index
     REQUIRE(test_interpolate3d_xsimd<1>(eb, 2, 2, 2, delt, eps) == true);
     REQUIRE(test_interpolate3d_xsimd<1>(eb, 2, 4, 8, delt, eps) == true);
+
+    // vector index
+    using simd::simd_i64;
+    simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
+    simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
+    simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
+    REQUIRE(test_interpolate3d_xsimd<1>(eb, iz0, iy0, ix0, delt, eps) == true);
   }
   //
   // second order
@@ -1006,8 +1025,16 @@ TEST_CASE("Interpolation 3D")
   }
   SECTION("Second-order interpolation : xsimd")
   {
+    // scalar index
     REQUIRE(test_interpolate3d_xsimd<2>(eb, 2, 2, 2, delt, eps) == true);
     REQUIRE(test_interpolate3d_xsimd<2>(eb, 2, 4, 8, delt, eps) == true);
+
+    // vector index
+    using simd::simd_i64;
+    simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
+    simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
+    simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
+    REQUIRE(test_interpolate3d_xsimd<2>(eb, iz0, iy0, ix0, delt, eps) == true);
   }
   //
   // third order
@@ -1019,8 +1046,16 @@ TEST_CASE("Interpolation 3D")
   }
   SECTION("Third-order interpolation : xsimd")
   {
+    // scalar index
     REQUIRE(test_interpolate3d_xsimd<3>(eb, 2, 2, 2, delt, eps) == true);
     REQUIRE(test_interpolate3d_xsimd<3>(eb, 2, 4, 8, delt, eps) == true);
+
+    // vector index
+    using simd::simd_i64;
+    simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
+    simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
+    simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
+    REQUIRE(test_interpolate3d_xsimd<3>(eb, iz0, iy0, ix0, delt, eps) == true);
   }
   //
   // fourth order
@@ -1032,8 +1067,16 @@ TEST_CASE("Interpolation 3D")
   }
   SECTION("Fourth-order interpolation : xsimd")
   {
+    // scalar index
     REQUIRE(test_interpolate3d_xsimd<4>(eb, 2, 2, 2, delt, eps) == true);
     REQUIRE(test_interpolate3d_xsimd<4>(eb, 2, 4, 8, delt, eps) == true);
+
+    // vector index
+    using simd::simd_i64;
+    simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
+    simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
+    simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
+    REQUIRE(test_interpolate3d_xsimd<4>(eb, iz0, iy0, ix0, delt, eps) == true);
   }
 }
 
@@ -1508,12 +1551,34 @@ bool test_interpolate3d_scalar(T_array eb, int iz0, int iy0, int ix0, float64 de
   return status;
 }
 
-template <int Order, typename T_array>
-bool test_interpolate3d_xsimd(T_array eb, int iz0, int iy0, int ix0, float64 delt, float64 epsilon)
+template <int Order, typename T_array, typename T_int>
+bool test_interpolate3d_xsimd(T_array eb, T_int iz0, T_int iy0, T_int ix0, float64 delt,
+                              float64 epsilon)
 {
   using simd::simd_f64;
   using simd::simd_i64;
   constexpr int size = Order + 2;
+  static_assert(std::is_integral_v<T_int> || std::is_same_v<T_int, simd_i64>,
+                "T_int must be either int or an appropriate SIMD type");
+
+  // index for scalar version
+  int iz[simd_f64::size];
+  int iy[simd_f64::size];
+  int ix[simd_f64::size];
+
+  if constexpr (std::is_integral_v<T_int>) {
+    // scalar index
+    for (int i = 0; i < simd_f64::size; i++) {
+      iz[i] = iz0;
+      iy[i] = iy0;
+      ix[i] = ix0;
+    }
+  } else if constexpr (std::is_same_v<T_int, simd_i64>) {
+    // vector index
+    iz0.store_unaligned(iz);
+    iy0.store_unaligned(iy);
+    ix0.store_unaligned(ix);
+  }
 
   std::random_device seed;
   std::mt19937_64    engine(seed());
@@ -1568,7 +1633,7 @@ bool test_interpolate3d_xsimd(T_array eb, int iz0, int iy0, int ix0, float64 del
         }
         // interpolate and store
         result2[ik * simd_f64::size + ip] =
-            interpolate3d<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, delt);
+            interpolate3d<Order>(eb, iz[ip], iy[ip], ix[ip], ik, wz, wy, wx, delt);
       }
     }
   }

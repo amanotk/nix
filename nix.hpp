@@ -25,10 +25,10 @@
 #include <set>
 #include <string>
 #include <sys/time.h>
+#include <type_traits>
 #include <vector>
 
 #include <mpi.h>
-
 #include <nlohmann/json.hpp>
 
 #define NIX_NAMESPACE_BEGIN                                                                        \
@@ -163,6 +163,36 @@ inline std::string format_step(int step)
 {
   return tfm::format("%08d", step);
 }
+
+// clang-format off
+template <typename T, typename = void>
+struct is_mdspan : std::false_type {};
+
+// determine if T is a mdspan type
+template <typename T>
+struct is_mdspan<T, std::void_t
+  <
+    decltype(std::declval<T>().data_handle()),   // data pointer
+    decltype(std::declval<T>().size()),          // total size
+    decltype(std::declval<T>().stride(0)),       // stride of dimension 0
+    decltype(std::declval<T>().extents().rank()) // number of dimensions
+  >> : std::true_type {
+};
+
+template <typename T, typename = void>
+struct is_xtensor : std::false_type {};
+
+// determine if T is a xtensor type
+template <typename T>
+struct is_xtensor<T, std::void_t
+  <
+    decltype(std::declval<T>().data()),       // data pointer
+    decltype(std::declval<T>().size()),       // total size
+    decltype(std::declval<T>().strides()[0]), // stride of dimension 0
+    decltype(std::declval<T>().dimension())   // number of dimensions
+  >> : std::true_type {
+};
+// clang-format on
 
 NIX_NAMESPACE_END
 
