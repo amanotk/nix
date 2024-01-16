@@ -1539,7 +1539,7 @@ bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0,
     for (int iy = 0; iy < Ny; iy++) {
       for (int ix = 0; ix < Nx; ix++) {
         for (int k = 0; k < 4; k++) {
-          status = status & (std::abs(uj(iz, iy, ix, k) - vj(iz, iy, ix, k) < epsilon));
+          status = status & (std::abs(uj(iz, iy, ix, k) - vj(iz, iy, ix, k)) < epsilon);
         }
       }
     }

@@ -672,8 +672,8 @@ static void append_current3d_impl_8(float64* ptr, T_int offset[8], T_float cur[4
 {
   static_assert(T_float::size == 8);
 
-  const auto mask = (xsimd::detail::make_sequence_as_batch<T_float> < 4);
-  const auto zero = T_float(0);
+  const T_float zero = 0;
+  const auto    mask = (xsimd::detail::make_sequence_as_batch<T_float>() < 4);
 
   T_float data[8], temp;
 
