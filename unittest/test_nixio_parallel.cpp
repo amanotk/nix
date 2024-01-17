@@ -118,8 +118,10 @@ TEST_CASE("ReadSingle")
   init_array_ordered(N, f32a);
   init_array_ordered(N, f64a);
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   // write to file
-  {
+  if (get_thisrank() == 0) {
     std::ofstream ofs(filename, std::ios::out | std::ios::binary);
     ofs.write(reinterpret_cast<char*>(i32a), sizeof(int32_t) * N);
     ofs.write(reinterpret_cast<char*>(i64a), sizeof(int64_t) * N);
@@ -173,6 +175,8 @@ TEST_CASE("WriteSingle")
   init_array_ordered(N, f32a);
   init_array_ordered(N, f64a);
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   // write to file
   {
     MPI_File    fh;
@@ -193,7 +197,7 @@ TEST_CASE("WriteSingle")
   MPI_Barrier(MPI_COMM_WORLD);
 
   // read and check results
-  {
+  if (get_thisrank() == 0) {
     int32_t in_i32a[N];
     int64_t in_i64a[N];
     float32 in_f32a[N];
@@ -210,10 +214,8 @@ TEST_CASE("WriteSingle")
     REQUIRE(is_array_equal(N, i64a, in_i64a));
     REQUIRE(is_array_equal(N, f32a, in_f32a));
     REQUIRE(is_array_equal(N, f64a, in_f64a));
-  }
 
-  // delete
-  if (get_thisrank() == 0) {
+    // delete
     std::remove(filename);
   }
   MPI_Barrier(MPI_COMM_WORLD);
@@ -229,8 +231,10 @@ TEST_CASE("ReadContiguous")
   init_array_ordered(N, f32a);
   init_array_ordered(N, f64a);
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   // write to file
-  {
+  if (get_thisrank() == 0) {
     std::ofstream ofs(filename, std::ios::out | std::ios::binary);
     ofs.write(reinterpret_cast<char*>(i32a), sizeof(int32_t) * N);
     ofs.write(reinterpret_cast<char*>(i64a), sizeof(int64_t) * N);
@@ -297,6 +301,8 @@ TEST_CASE("WriteContiguous")
   init_array_ordered(N, f32a);
   init_array_ordered(N, f64a);
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   // write to file
   {
     MPI_File    fh;
@@ -331,7 +337,7 @@ TEST_CASE("WriteContiguous")
   MPI_Barrier(MPI_COMM_WORLD);
 
   // read and check results
-  {
+  if (get_thisrank() == 0) {
     int32_t in_i32a[N];
     int64_t in_i64a[N];
     float32 in_f32a[N];
@@ -348,10 +354,8 @@ TEST_CASE("WriteContiguous")
     REQUIRE(is_array_equal(N, i64a, in_i64a));
     REQUIRE(is_array_equal(N, f32a, in_f32a));
     REQUIRE(is_array_equal(N, f64a, in_f64a));
-  }
 
-  // delete
-  if (get_thisrank() == 0) {
+    // delete
     std::remove(filename);
   }
   MPI_Barrier(MPI_COMM_WORLD);
@@ -367,8 +371,10 @@ TEST_CASE("ReadContiguousAt")
   init_array_ordered(N, f32a);
   init_array_ordered(N, f64a);
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   // write to file
-  {
+  if (get_thisrank() == 0) {
     std::ofstream ofs(filename, std::ios::out | std::ios::binary);
     ofs.write(reinterpret_cast<char*>(i32a), sizeof(int32_t) * N);
     ofs.write(reinterpret_cast<char*>(i64a), sizeof(int64_t) * N);
@@ -442,6 +448,8 @@ TEST_CASE("WriteContiguousAt")
   init_array_ordered(N, f32a);
   init_array_ordered(N, f64a);
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   // write to file
   {
     MPI_File    fh;
@@ -483,7 +491,7 @@ TEST_CASE("WriteContiguousAt")
   MPI_Barrier(MPI_COMM_WORLD);
 
   // read and check results
-  {
+  if (get_thisrank() == 0) {
     int32_t in_i32a[N];
     int64_t in_i64a[N];
     float32 in_f32a[N];
@@ -500,10 +508,8 @@ TEST_CASE("WriteContiguousAt")
     REQUIRE(is_array_equal(N, i64a, in_i64a));
     REQUIRE(is_array_equal(N, f32a, in_f32a));
     REQUIRE(is_array_equal(N, f64a, in_f64a));
-  }
 
-  // delete
-  if (get_thisrank() == 0) {
+    // delete
     std::remove(filename);
   }
   MPI_Barrier(MPI_COMM_WORLD);
@@ -530,8 +536,10 @@ TEST_CASE("ReadSubarray")
   offset[1] = lshape[1] * coord[1];
   offset[2] = lshape[2] * coord[2];
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   // write to file
-  {
+  if (get_thisrank() == 0) {
     std::ofstream ofs(filename, std::ios::out | std::ios::binary);
     ofs.write(reinterpret_cast<char*>(i32a), sizeof(int32_t) * N);
     ofs.write(reinterpret_cast<char*>(i64a), sizeof(int64_t) * N);
@@ -618,6 +626,8 @@ TEST_CASE("WriteSubarray")
   offset[1] = lshape[1] * coord[1];
   offset[2] = lshape[2] * coord[2];
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   // write to file
   {
     MPI_File    fh;
@@ -658,7 +668,7 @@ TEST_CASE("WriteSubarray")
   MPI_Barrier(MPI_COMM_WORLD);
 
   // read and check results
-  {
+  if (get_thisrank() == 0) {
     int32_t in_i32a[N];
     int64_t in_i64a[N];
     float32 in_f32a[N];
@@ -675,10 +685,8 @@ TEST_CASE("WriteSubarray")
     REQUIRE(is_array_equal(N, xt_i64a.data(), in_i64a));
     REQUIRE(is_array_equal(N, xt_f32a.data(), in_f32a));
     REQUIRE(is_array_equal(N, xt_f64a.data(), in_f64a));
-  }
 
-  // delete
-  if (get_thisrank() == 0) {
+    // delete
     std::remove(filename);
   }
   MPI_Barrier(MPI_COMM_WORLD);
