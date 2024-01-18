@@ -612,28 +612,28 @@ static void esirkepov3d_shift_weights_after_movement(T_int shift[3], T_float ss[
 }
 
 template <typename T_int, typename T_float>
-static void append_current3d_impl_1(float64* ptr, T_int offset[1], T_float cur[4])
+static void append_current3d_impl_1(float64* ptr, T_int offset[1], T_float cur[4], float64 q)
 {
   static_assert(T_float::size == 1);
 
-  xsimd::store_aligned(ptr + offset[0] + 0, cur[0]);
-  xsimd::store_aligned(ptr + offset[0] + 1, cur[1]);
-  xsimd::store_aligned(ptr + offset[0] + 2, cur[2]);
-  xsimd::store_aligned(ptr + offset[0] + 3, cur[3]);
+  xsimd::store_aligned(ptr + offset[0] + 0, q * cur[0]);
+  xsimd::store_aligned(ptr + offset[0] + 1, q * cur[1]);
+  xsimd::store_aligned(ptr + offset[0] + 2, q * cur[2]);
+  xsimd::store_aligned(ptr + offset[0] + 3, q * cur[3]);
 }
 
 template <typename T_int, typename T_float>
-static void append_current3d_impl_2(float64* ptr, T_int offset[2], T_float cur[4])
+static void append_current3d_impl_2(float64* ptr, T_int offset[2], T_float cur[4], float64 q)
 {
   static_assert(T_float::size == 2);
 
   T_float data[4];
 
   // transpose
-  data[0] = xsimd::zip_lo(cur[0], cur[1]);
-  data[1] = xsimd::zip_lo(cur[2], cur[3]);
-  data[2] = xsimd::zip_hi(cur[0], cur[1]);
-  data[3] = xsimd::zip_hi(cur[2], cur[3]);
+  data[0] = q * xsimd::zip_lo(cur[0], cur[1]);
+  data[1] = q * xsimd::zip_lo(cur[2], cur[3]);
+  data[2] = q * xsimd::zip_hi(cur[0], cur[1]);
+  data[3] = q * xsimd::zip_hi(cur[2], cur[3]);
 
   // particle 0
   data[0] += xsimd::load_aligned(ptr + offset[0] + 0);
@@ -648,7 +648,7 @@ static void append_current3d_impl_2(float64* ptr, T_int offset[2], T_float cur[4
 }
 
 template <typename T_int, typename T_float>
-static void append_current3d_impl_4(float64* ptr, T_int offset[4], T_float cur[4])
+static void append_current3d_impl_4(float64* ptr, T_int offset[4], T_float cur[4], float64 q)
 {
   static_assert(T_float::size == 4);
 
@@ -659,10 +659,10 @@ static void append_current3d_impl_4(float64* ptr, T_int offset[4], T_float cur[4
   auto p1 = xsimd::zip_hi(cur[0], cur[2]);
   auto p2 = xsimd::zip_lo(cur[1], cur[3]);
   auto p3 = xsimd::zip_hi(cur[1], cur[3]);
-  data[0] = xsimd::zip_lo(p0, p2);
-  data[1] = xsimd::zip_hi(p0, p2);
-  data[2] = xsimd::zip_lo(p1, p3);
-  data[3] = xsimd::zip_hi(p1, p3);
+  data[0] = q * xsimd::zip_lo(p0, p2);
+  data[1] = q * xsimd::zip_hi(p0, p2);
+  data[2] = q * xsimd::zip_lo(p1, p3);
+  data[3] = q * xsimd::zip_hi(p1, p3);
 
   // particle 0
   data[0] += xsimd::load_aligned(ptr + offset[0]);
@@ -679,7 +679,7 @@ static void append_current3d_impl_4(float64* ptr, T_int offset[4], T_float cur[4
 }
 
 template <typename T_int, typename T_float>
-static void append_current3d_impl_8(float64* ptr, T_int offset[8], T_float cur[4])
+static void append_current3d_impl_8(float64* ptr, T_int offset[8], T_float cur[4], float64 q)
 {
   static_assert(T_float::size == 8);
 
@@ -693,10 +693,10 @@ static void append_current3d_impl_8(float64* ptr, T_int offset[8], T_float cur[4
   auto p1 = xsimd::zip_hi(cur[0], cur[2]);
   auto p2 = xsimd::zip_lo(cur[1], cur[3]);
   auto p3 = xsimd::zip_hi(cur[1], cur[3]);
-  auto q0 = xsimd::zip_lo(p0, p2);
-  auto q1 = xsimd::zip_hi(p0, p2);
-  auto q2 = xsimd::zip_lo(p1, p3);
-  auto q3 = xsimd::zip_hi(p1, p3);
+  auto q0 = q * xsimd::zip_lo(p0, p2);
+  auto q1 = q * xsimd::zip_hi(p0, p2);
+  auto q2 = q * xsimd::zip_lo(p1, p3);
+  auto q3 = q * xsimd::zip_hi(p1, p3);
   data[0] = xsimd::select(mask, q0, zero);
   data[1] = xsimd::select(mask, xsimd::rotate_right<4>(q0), zero);
   data[2] = xsimd::select(mask, q1, zero);
@@ -786,13 +786,13 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
           // call specialized function for a specific SIMD vector size
           xsimd::store_aligned(offset, iz * stride_z + iy * stride_y + ix * stride_x);
           if constexpr (T_float::size == 1) {
-            append_current3d_impl_1(pointer, offset, current[jz][jy][jx]);
+            append_current3d_impl_1(pointer, offset, current[jz][jy][jx], q);
           } else if constexpr (T_float::size == 2) {
-            append_current3d_impl_2(pointer, offset, current[jz][jy][jx]);
+            append_current3d_impl_2(pointer, offset, current[jz][jy][jx], q);
           } else if constexpr (T_float::size == 4) {
-            append_current3d_impl_4(pointer, offset, current[jz][jy][jx]);
+            append_current3d_impl_4(pointer, offset, current[jz][jy][jx], q);
           } else if constexpr (T_float::size == 8) {
-            append_current3d_impl_8(pointer, offset, current[jz][jy][jx]);
+            append_current3d_impl_8(pointer, offset, current[jz][jy][jx], q);
           } else {
             static_assert([] { return false; }(), "Invalid vector size");
           }
