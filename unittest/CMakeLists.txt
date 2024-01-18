@@ -1,7 +1,3 @@
-# default configuration
-cmake_minimum_required(VERSION 3.10)
-include(../common.cmake OPTIONAL)
-
 # project
 set(PROJECT_NAME "unittest")
 project(${PROJECT_NAME} CXX)

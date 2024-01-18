@@ -1,13 +1,16 @@
-# default configuration
-cmake_minimum_required(VERSION 3.10)
-include(common.cmake OPTIONAL)
+cmake_minimum_required(VERSION 3.14)
+set(CMAKE_CXX_STANDARD 17)
 
 # project
 project(nix CXX)
 
-# package
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# filesystem
 find_package(Filesystem REQUIRED)
+
+# xsimd for xtensor
+add_compile_definitions(XTENSOR_USE_XSIMD)
 
 # build static library
 add_library(nix STATIC balancer.cpp nixio.cpp sfc.cpp)
