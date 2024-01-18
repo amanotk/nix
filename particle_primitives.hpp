@@ -834,6 +834,83 @@ static void esirkepov3d(T_float dxdt, T_float dydt, T_float dzdt, T_float ss[2][
   esirkepov3d_jz<Order + 3>(dzdt, ss, current);
 }
 
+template <int Order, typename T_array>
+static auto interpolate3d_impl_scalar(T_array& eb, int iz0, int iy0, int ix0, int ik,
+                                      float64 wz[Order + 2], float64 wy[Order + 2],
+                                      float64 wx[Order + 2], float64 dt)
+{
+  // Notice for the loop length (Order + 1) instead of (Order + 2)
+  float64 result_z = 0;
+  for (int jz = 0, iz = iz0; jz < Order + 1; jz++, iz++) {
+    float64 result_y = 0;
+    for (int jy = 0, iy = iy0; jy < Order + 1; jy++, iy++) {
+      float64 result_x = 0;
+      for (int jx = 0, ix = ix0; jx < Order + 1; jx++, ix++) {
+        result_x += eb(iz, iy, ix, ik) * wx[jx];
+      }
+      result_y += result_x * wy[jy];
+    }
+    result_z += result_y * wz[jz];
+  }
+
+  return result_z * dt;
+}
+
+template <int Order, typename T_array, typename T_int, typename T_float>
+static auto interpolate3d_impl_vector_unsorted(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
+                                               T_float wz[Order + 2], T_float wy[Order + 2],
+                                               T_float wx[Order + 2], float64 dt)
+{
+  using namespace simd;
+
+  auto stride_z = get_stride(eb, 0);
+  auto stride_y = get_stride(eb, 1);
+  auto stride_x = get_stride(eb, 2);
+  auto stride_c = get_stride(eb, 3);
+  auto pointer  = get_data_pointer(eb);
+
+  // Notice for the loop length (Order + 1) instead of (Order + 2)
+  T_float result_z = 0;
+  for (int jz = 0; jz < Order + 1; jz++) {
+    T_int   index_z  = (iz0 + jz) * stride_z;
+    T_float result_y = 0;
+    for (int jy = 0; jy < Order + 1; jy++) {
+      T_int   index_y  = (iy0 + jy) * stride_y + index_z;
+      T_float result_x = 0;
+      for (int jx = 0; jx < Order + 1; jx++) {
+        T_int index_x = (ix0 + jx) * stride_x + index_y;
+        T_int index   = index_x + ik * stride_c;
+        result_x += simd_f64::gather(pointer, index) * wx[jx];
+      }
+      result_y += result_x * wy[jy];
+    }
+    result_z += result_y * wz[jz];
+  }
+
+  return result_z * dt;
+}
+
+template <int Order, typename T_array, typename T_float>
+static auto interpolate3d_impl_vector_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
+                                             T_float wz[Order + 2], T_float wy[Order + 2],
+                                             T_float wx[Order + 2], float64 dt)
+{
+  T_float result_z = 0;
+  for (int jz = 0, iz = iz0; jz < Order + 2; jz++, iz++) {
+    T_float result_y = 0;
+    for (int jy = 0, iy = iy0; jy < Order + 2; jy++, iy++) {
+      T_float result_x = 0;
+      for (int jx = 0, ix = ix0; jx < Order + 2; jx++, ix++) {
+        result_x += eb(iz, iy, ix, ik) * wx[jx];
+      }
+      result_y += result_x * wy[jy];
+    }
+    result_z += result_y * wz[jz];
+  }
+
+  return result_z * dt;
+}
+
 ///
 /// @brief calculate electromagnetic field at particle position by interpolation
 ///
@@ -853,57 +930,18 @@ static auto interpolate3d(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
                           float64 dt)
 {
   using namespace simd;
-  constexpr int  size      = Order + 2;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
   constexpr bool is_sorted = std::is_integral_v<T_int>;
-  static_assert(is_sorted || is_vector, "vector weights are required for vector index");
 
-  if constexpr (is_sorted == true) {
-    //
-    // scalar or vector with sorted particles
-    //
-    T_float result_z = 0;
-    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
-      T_float result_y = 0;
-      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
-        T_float result_x = 0;
-        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-          result_x += eb(iz, iy, ix, ik) * wx[jx];
-        }
-        result_y += result_x * wy[jy];
-      }
-      result_z += result_y * wz[jz];
-    }
-
-    return result_z * dt;
-  } else if constexpr (is_vector == true) {
-    //
-    // vector with unsorted particles
-    //
-    auto stride_z = get_stride(eb, 0);
-    auto stride_y = get_stride(eb, 1);
-    auto stride_x = get_stride(eb, 2);
-    auto stride_c = get_stride(eb, 3);
-    auto pointer  = get_data_pointer(eb);
-
-    T_float result_z = 0;
-    for (int jz = 0; jz < size; jz++) {
-      T_int   iz       = iz0 + jz;
-      T_float result_y = 0;
-      for (int jy = 0; jy < size; jy++) {
-        T_int   iy       = iy0 + jy;
-        T_float result_x = 0;
-        for (int jx = 0; jx < size; jx++) {
-          T_int ix    = ix0 + jx;
-          T_int index = iz * stride_z + iy * stride_y + ix * stride_x + ik * stride_c;
-          result_x += simd_f64::gather(pointer, index) * wx[jx];
-        }
-        result_y += result_x * wy[jy];
-      }
-      result_z += result_y * wz[jz];
-    }
-
-    return result_z * dt;
+  if constexpr (is_scalar == true) {
+    return interpolate3d_impl_scalar<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
+  } else if constexpr (is_vector == true && is_sorted == false) {
+    return interpolate3d_impl_vector_unsorted<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
+  } else if constexpr (is_vector == true && is_sorted == true) {
+    return interpolate3d_impl_vector_sorted<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
+  } else {
+    static_assert([] { return false; }(), "Invalid template parameters");
   }
 }
 

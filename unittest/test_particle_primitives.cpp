@@ -1587,9 +1587,9 @@ bool test_interpolate3d_scalar(T_array eb, int iz0, int iy0, int ix0, float64 de
     float64* wy = wy_data.data();
     float64* wz = wz_data.data();
 
-    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
-      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
-        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+    for (int jz = 0, iz = iz0; jz < Order + 1; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < Order + 1; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < Order + 1; jx++, ix++) {
           for (int ik = 0; ik < 6; ik++) {
             result2[ik] += eb(iz, iy, ix, ik) * wz[jz] * wy[jy] * wx[jx] * delt;
           }
@@ -1647,12 +1647,18 @@ bool test_interpolate3d_xsimd(T_array eb, T_int iz0, T_int iy0, T_int ix0, float
   std::vector<float64> wx_data(size * simd_f64::size);
   std::vector<float64> wy_data(size * simd_f64::size);
   std::vector<float64> wz_data(size * simd_f64::size);
-  std::transform(wx_data.begin(), wx_data.end(), wx_data.begin(),
-                 [&](float64) { return rand(engine); });
-  std::transform(wy_data.begin(), wy_data.end(), wy_data.begin(),
-                 [&](float64) { return rand(engine); });
-  std::transform(wz_data.begin(), wz_data.end(), wz_data.begin(),
-                 [&](float64) { return rand(engine); });
+
+  for (int i = 0; i < simd_f64::size; i++) {
+    for (int j = 0; j < Order + 1; j++) {
+      wx_data[i + j * simd_f64::size] = rand(engine);
+      wy_data[i + j * simd_f64::size] = rand(engine);
+      wz_data[i + j * simd_f64::size] = rand(engine);
+    }
+    // Note: trick for compatibility for scalar and sorted vector versions
+    wx_data[i + (Order + 1) * simd_f64::size] = 0;
+    wy_data[i + (Order + 1) * simd_f64::size] = 0;
+    wz_data[i + (Order + 1) * simd_f64::size] = 0;
+  }
 
   // SIMD version
   {
