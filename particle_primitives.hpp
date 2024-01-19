@@ -41,6 +41,36 @@ static auto get_stride(T_array& array, int dim)
   }
 }
 
+template <typename T_float>
+static auto to_int(T_float x)
+{
+  using namespace simd;
+  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
+
+  if constexpr (is_scalar) {
+    return static_cast<int>(x);
+  } else if constexpr (is_vector) {
+    return xsimd::to_int(x);
+  }
+}
+
+template <typename T_int>
+static auto to_float(T_int x)
+{
+  using namespace simd;
+  constexpr bool is_scalar = std::is_integral_v<T_int>;
+  constexpr bool is_vector = std::is_same_v<T_int, simd_i32> || std::is_same_v<T_int, simd_i64>;
+  static_assert(is_scalar || is_vector, "Only scalar or vector of integer is allowed");
+
+  if constexpr (is_scalar) {
+    return static_cast<float64>(x);
+  } else if constexpr (is_vector) {
+    return xsimd::to_float(x);
+  }
+}
+
 /// digitize for calculating grid index for particles
 template <typename T_float>
 static auto digitize(T_float x, T_float xmin, T_float rdx)
@@ -527,7 +557,7 @@ static void esirkepov3d_ds(T_float ss[2][3][N])
 
 /// calculation of Jx for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_jx(T_float dxdt, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void esirkepov3d_jx(float64 dxdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -549,7 +579,7 @@ static void esirkepov3d_jx(T_float dxdt, T_float ss[2][3][N], T_float current[N]
 
 /// calculation of Jy for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_jy(T_float dydt, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void esirkepov3d_jy(float64 dydt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -571,7 +601,7 @@ static void esirkepov3d_jy(T_float dydt, T_float ss[2][3][N], T_float current[N]
 
 /// calculation of Jz for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_jz(T_float dzdt, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void esirkepov3d_jz(float64 dzdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -595,18 +625,35 @@ static void esirkepov3d_jz(T_float dzdt, T_float ss[2][3][N], T_float current[N]
 template <int Order, typename T_int, typename T_float>
 static void esirkepov3d_shift_weights_after_movement(T_int shift[3], T_float ss[3][Order + 3])
 {
-  using value_type = typename T_float::value_type;
+  using namespace simd;
+  constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
-  for (int dir = 0; dir < 3; dir++) {
-    // forward
-    for (int ii = 0; ii < Order + 2; ii++) {
-      auto cond   = xsimd::batch_bool_cast<value_type>(shift[dir] < 0);
-      ss[dir][ii] = xsimd::select(cond, ss[dir][ii + 1], ss[dir][ii]);
+  if constexpr (is_scalar == true) {
+    for (int dir = 0; dir < 3; dir++) {
+      // forward
+      for (int ii = 0; ii < Order + 2; ii++) {
+        ss[dir][ii] = shift[dir] < 0 ? ss[dir][ii + 1] : ss[dir][ii];
+      }
+      // backward
+      for (int ii = Order + 2; ii > 0; ii--) {
+        ss[dir][ii] = shift[dir] > 0 ? ss[dir][ii - 1] : ss[dir][ii];
+      }
     }
-    // backward
-    for (int ii = Order + 2; ii > 0; ii--) {
-      auto cond   = xsimd::batch_bool_cast<value_type>(shift[dir] > 0);
-      ss[dir][ii] = xsimd::select(cond, ss[dir][ii - 1], ss[dir][ii]);
+  } else if constexpr (is_vector == true) {
+    using value_type = typename T_float::value_type;
+
+    for (int dir = 0; dir < 3; dir++) {
+      // forward
+      for (int ii = 0; ii < Order + 2; ii++) {
+        auto cond   = xsimd::batch_bool_cast<value_type>(shift[dir] < 0);
+        ss[dir][ii] = xsimd::select(cond, ss[dir][ii + 1], ss[dir][ii]);
+      }
+      // backward
+      for (int ii = Order + 2; ii > 0; ii--) {
+        auto cond   = xsimd::batch_bool_cast<value_type>(shift[dir] > 0);
+        ss[dir][ii] = xsimd::select(cond, ss[dir][ii - 1], ss[dir][ii]);
+      }
     }
   }
 }
@@ -819,7 +866,7 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
 /// @param[in,out] current array of local current
 ///
 template <int Order, typename T_float>
-static void esirkepov3d(T_float dxdt, T_float dydt, T_float dzdt, T_float ss[2][3][Order + 3],
+static void esirkepov3d(float64 dxdt, float64 dydt, float64 dzdt, T_float ss[2][3][Order + 3],
                         T_float current[Order + 3][Order + 3][Order + 3][4])
 {
   // calculate rho
@@ -859,7 +906,7 @@ static auto interpolate3d_impl_scalar(T_array& eb, int iz0, int iy0, int ix0, in
 template <int Order, typename T_array, typename T_int, typename T_float>
 static auto interpolate3d_impl_vector_unsorted(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
                                                T_float wz[Order + 2], T_float wy[Order + 2],
-                                               T_float wx[Order + 2], float64 dt)
+                                               T_float wx[Order + 2], T_float dt)
 {
   using namespace simd;
 
@@ -893,7 +940,7 @@ static auto interpolate3d_impl_vector_unsorted(T_array& eb, T_int iz0, T_int iy0
 template <int Order, typename T_array, typename T_float>
 static auto interpolate3d_impl_vector_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
                                              T_float wz[Order + 2], T_float wy[Order + 2],
-                                             T_float wx[Order + 2], float64 dt)
+                                             T_float wx[Order + 2], T_float dt)
 {
   T_float result_z = 0;
   for (int jz = 0, iz = iz0; jz < Order + 2; jz++, iz++) {
@@ -927,7 +974,7 @@ static auto interpolate3d_impl_vector_sorted(T_array& eb, int iz0, int iy0, int 
 template <int Order, typename T_array, typename T_int, typename T_float>
 static auto interpolate3d(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
                           T_float wz[Order + 2], T_float wy[Order + 2], T_float wx[Order + 2],
-                          float64 dt)
+                          T_float dt)
 {
   using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;

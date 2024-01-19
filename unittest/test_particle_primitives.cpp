@@ -30,7 +30,7 @@ bool esirkepov3d_scalar(const float64 delt, const float64 delh, float64 xu[7], f
                         float64 cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon);
 
 template <int Order, typename T_float>
-bool esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7], T_float xv[7],
+bool esirkepov3d_xsimd(const float64 delt, const float delh64, T_float xu[7], T_float xv[7],
                        T_float rho[Order + 3][Order + 3][Order + 3],
                        T_float cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon);
 
@@ -1254,13 +1254,13 @@ bool esirkepov3d_scalar(const float64 delt, const float64 delh, float64 xu[7], f
 }
 
 template <int Order, typename T_float>
-bool esirkepov3d_xsimd(const T_float delt, const T_float delh, T_float xu[7], T_float xv[7],
+bool esirkepov3d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_float xv[7],
                        T_float rho[Order + 3][Order + 3][Order + 3],
                        T_float cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon)
 {
   const T_float zero = 0;
   const T_float rdh  = 1 / delh;
-  const T_float dhdt = delh / delt;
+  const float64 dhdt = delh / delt;
 
   bool    status  = true;
   T_float rhosum0 = 0;
@@ -1381,8 +1381,6 @@ bool test_esirkepov3d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt
   float64  rho[size][size][size]         = {0};
   simd_f64 cur_simd[size][size][size][4] = {0};
   simd_f64 rho_simd[size][size][size]    = {0};
-  simd_f64 delt_simd                     = delt;
-  simd_f64 delh_simd                     = delh;
   simd_f64 xu_simd[7];
   simd_f64 xv_simd[7];
   simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
@@ -1395,8 +1393,8 @@ bool test_esirkepov3d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt
       xv_simd[k] = simd_f64::gather(&xv(ip, k), index_simd);
     }
 
-    status1 = status1 & esirkepov3d_xsimd<Order>(delt_simd, delh_simd, xu_simd, xv_simd, rho_simd,
-                                                 cur_simd, epsilon);
+    status1 = status1 &
+              esirkepov3d_xsimd<Order>(delt, delh, xu_simd, xv_simd, rho_simd, cur_simd, epsilon);
   }
 
   // scalar version
@@ -1662,6 +1660,7 @@ bool test_interpolate3d_xsimd(T_array eb, T_int iz0, T_int iy0, T_int ix0, float
 
   // SIMD version
   {
+    simd_f64 dt_simd = delt;
     simd_f64 wx_simd[size];
     simd_f64 wy_simd[size];
     simd_f64 wz_simd[size];
@@ -1675,7 +1674,8 @@ bool test_interpolate3d_xsimd(T_array eb, T_int iz0, T_int iy0, T_int ix0, float
 
     for (int ik = 0; ik < 6; ik++) {
       // interpolate
-      simd_f64 val = interpolate3d<Order>(eb, iz0, iy0, ix0, ik, wz_simd, wy_simd, wx_simd, delt);
+      simd_f64 val =
+          interpolate3d<Order>(eb, iz0, iy0, ix0, ik, wz_simd, wy_simd, wx_simd, dt_simd);
       // store
       val.store_unaligned(result1.data() + ik * simd_f64::size);
     }
