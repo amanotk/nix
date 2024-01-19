@@ -47,12 +47,13 @@ static auto to_int(T_float x)
   using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (is_scalar) {
+  if constexpr (is_scalar == true) {
     return static_cast<int>(x);
-  } else if constexpr (is_vector) {
+  } else if constexpr (is_vector == true) {
     return xsimd::to_int(x);
+  } else {
+    static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
@@ -62,12 +63,13 @@ static auto to_float(T_int x)
   using namespace simd;
   constexpr bool is_scalar = std::is_integral_v<T_int>;
   constexpr bool is_vector = std::is_same_v<T_int, simd_i32> || std::is_same_v<T_int, simd_i64>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of integer is allowed");
 
-  if constexpr (is_scalar) {
+  if constexpr (is_scalar == true) {
     return static_cast<float64>(x);
-  } else if constexpr (is_vector) {
+  } else if constexpr (is_vector == true) {
     return xsimd::to_float(x);
+  } else {
+    static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
@@ -78,12 +80,13 @@ static auto digitize(T_float x, T_float xmin, T_float rdx)
   using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (is_scalar) {
+  if constexpr (is_scalar == true) {
     return static_cast<int>(floor((x - xmin) * rdx));
-  } else if constexpr (is_vector) {
+  } else if constexpr (is_vector == true) {
     return xsimd::to_int(xsimd::floor((x - xmin) * rdx));
+  } else {
+    static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
@@ -94,12 +97,13 @@ static auto sign(T_float x)
   using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (is_scalar) {
+  if constexpr (is_scalar == true) {
     return copysign(1.0, x);
-  } else if constexpr (is_vector) {
+  } else if constexpr (is_vector == true) {
     return xsimd::copysign(T_float(1.0), x);
+  } else {
+    static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
@@ -110,12 +114,13 @@ static auto min(T_float x, T_float y)
   using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (is_scalar) {
+  if constexpr (is_scalar == true) {
     return std::min(x, y);
-  } else if constexpr (is_vector) {
+  } else if constexpr (is_vector == true) {
     return xsimd::min(x, y);
+  } else {
+    static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
@@ -126,12 +131,13 @@ static auto max(T_float x, T_float y)
   using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (is_scalar) {
+  if constexpr (is_scalar == true) {
     return std::max(x, y);
-  } else if constexpr (is_vector) {
+  } else if constexpr (is_vector == true) {
     return xsimd::max(x, y);
+  } else {
+    static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
@@ -142,12 +148,13 @@ static auto abs(T_float x)
   using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (is_scalar) {
+  if constexpr (is_scalar == true) {
     return std::abs(x);
-  } else if constexpr (is_vector) {
+  } else if constexpr (is_vector == true) {
     return xsimd::abs(x);
+  } else {
+    static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
@@ -158,12 +165,13 @@ static auto ifthenelse(T_bool cond, T_float x, T_float y)
   using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (is_scalar) {
+  if constexpr (is_scalar == true) {
     return cond ? x : y;
-  } else if constexpr (is_vector) {
+  } else if constexpr (is_vector == true) {
     return xsimd::select(cond, x, y);
+  } else {
+    static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
@@ -181,12 +189,13 @@ static auto lorentz_factor(T_float ux, T_float uy, T_float uz, T_float rc)
   using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
-  if constexpr (is_scalar) {
+  if constexpr (is_scalar == true) {
     return sqrt(1 + (ux * ux + uy * uy + uz * uz) * rc * rc);
-  } else if constexpr (is_vector) {
+  } else if constexpr (is_vector == true) {
     return xsimd::sqrt(1 + (ux * ux + uy * uy + uz * uz) * rc * rc);
+  } else {
+    static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
@@ -631,13 +640,16 @@ static void esirkepov3d_shift_weights_after_movement(T_int shift[3], T_float ss[
 
   if constexpr (is_scalar == true) {
     for (int dir = 0; dir < 3; dir++) {
-      // forward
-      for (int ii = 0; ii < Order + 2; ii++) {
-        ss[dir][ii] = shift[dir] < 0 ? ss[dir][ii + 1] : ss[dir][ii];
-      }
-      // backward
-      for (int ii = Order + 2; ii > 0; ii--) {
-        ss[dir][ii] = shift[dir] > 0 ? ss[dir][ii - 1] : ss[dir][ii];
+      if (shift[dir] < 0) {
+        // forward
+        for (int ii = 0; ii < Order + 2; ii++) {
+          ss[dir][ii] = ss[dir][ii + 1];
+        }
+      } else if (shift[dir] > 0) {
+        // backward
+        for (int ii = Order + 2; ii > 0; ii--) {
+          ss[dir][ii] = ss[dir][ii - 1];
+        }
       }
     }
   } else if constexpr (is_vector == true) {
@@ -702,14 +714,14 @@ static void append_current3d_impl_4(float64* ptr, T_int offset[4], T_float cur[4
   T_float data[4];
 
   // transpose
-  auto p0 = xsimd::zip_lo(cur[0], cur[2]);
-  auto p1 = xsimd::zip_hi(cur[0], cur[2]);
-  auto p2 = xsimd::zip_lo(cur[1], cur[3]);
-  auto p3 = xsimd::zip_hi(cur[1], cur[3]);
-  data[0] = q * xsimd::zip_lo(p0, p2);
-  data[1] = q * xsimd::zip_hi(p0, p2);
-  data[2] = q * xsimd::zip_lo(p1, p3);
-  data[3] = q * xsimd::zip_hi(p1, p3);
+  auto p0 = q * xsimd::zip_lo(cur[0], cur[2]);
+  auto p1 = q * xsimd::zip_hi(cur[0], cur[2]);
+  auto p2 = q * xsimd::zip_lo(cur[1], cur[3]);
+  auto p3 = q * xsimd::zip_hi(cur[1], cur[3]);
+  data[0] = xsimd::zip_lo(p0, p2);
+  data[1] = xsimd::zip_hi(p0, p2);
+  data[2] = xsimd::zip_lo(p1, p3);
+  data[3] = xsimd::zip_hi(p1, p3);
 
   // particle 0
   data[0] += xsimd::load_aligned(ptr + offset[0]);
@@ -736,14 +748,14 @@ static void append_current3d_impl_8(float64* ptr, T_int offset[8], T_float cur[4
   T_float data[8];
 
   // transpose
-  auto p0 = xsimd::zip_lo(cur[0], cur[2]);
-  auto p1 = xsimd::zip_hi(cur[0], cur[2]);
-  auto p2 = xsimd::zip_lo(cur[1], cur[3]);
-  auto p3 = xsimd::zip_hi(cur[1], cur[3]);
-  auto q0 = q * xsimd::zip_lo(p0, p2);
-  auto q1 = q * xsimd::zip_hi(p0, p2);
-  auto q2 = q * xsimd::zip_lo(p1, p3);
-  auto q3 = q * xsimd::zip_hi(p1, p3);
+  auto p0 = q * xsimd::zip_lo(cur[0], cur[2]);
+  auto p1 = q * xsimd::zip_hi(cur[0], cur[2]);
+  auto p2 = q * xsimd::zip_lo(cur[1], cur[3]);
+  auto p3 = q * xsimd::zip_hi(cur[1], cur[3]);
+  auto q0 = xsimd::zip_lo(p0, p2);
+  auto q1 = xsimd::zip_hi(p0, p2);
+  auto q2 = xsimd::zip_lo(p1, p3);
+  auto q3 = xsimd::zip_hi(p1, p3);
   data[0] = xsimd::select(mask, q0, zero);
   data[1] = xsimd::select(mask, xsimd::rotate_right<4>(q0), zero);
   data[2] = xsimd::select(mask, q1, zero);
@@ -788,7 +800,6 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
   constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
   constexpr bool is_sorted = std::is_integral_v<T_int>;
-  static_assert(is_scalar || is_vector, "Only scalar or vector of floating point is allowed");
 
   if constexpr (is_scalar == true) {
     // naive scalar implementation
@@ -846,6 +857,8 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
         }
       }
     }
+  } else {
+    static_assert([] { return false; }(), "Invalid combination of types");
   }
 }
 
