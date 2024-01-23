@@ -894,6 +894,32 @@ static void esirkepov3d(float64 dxdt, float64 dydt, float64 dzdt, T_float ss[2][
   esirkepov3d_jz<Order + 3>(dzdt, ss, current);
 }
 
+/// shift weights for interpolate3d (needed for vectorization)
+template <int Order, typename T_int, typename T_float>
+static void interpolate3d_shift_weights(T_int shift, T_float ww[Order + 2])
+{
+  using namespace simd;
+  constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+
+  if constexpr (is_scalar == true) {
+    if (shift > 0) {
+      for (int ii = Order + 1; ii > 0; ii--) {
+        ww[ii] = ww[ii - 1];
+      }
+      ww[0] = 0;
+    }
+  } else if constexpr (is_vector == true) {
+    using value_type = typename T_float::value_type;
+
+    for (int ii = Order + 1; ii > 0; ii--) {
+      auto cond = xsimd::batch_bool_cast<value_type>(shift > 0);
+      ww[ii]    = xsimd::select(cond, ww[ii - 1], ww[ii]);
+    }
+    ww[0] = 0;
+  }
+}
+
 template <int Order, typename T_array>
 static auto interpolate3d_impl_scalar(T_array& eb, int iz0, int iy0, int ix0, int ik,
                                       float64 wz[Order + 2], float64 wy[Order + 2],

@@ -558,79 +558,10 @@ DEFINE_MEMBER(void, set_mpi_communicator)(int mode, int iz, int iy, int ix, MPI_
 
 DEFINE_MEMBER(void, count_particle)(ParticlePtr particle, int Lbp, int Ubp, bool reset)
 {
-  int     stride[3] = {0};
-  int     xrange[2] = {0};
-  int     yrange[2] = {0};
-  int     zrange[2] = {0};
-  float64 rdh[3]    = {0};
-
-  if (require_sort) {
-    //
-    // full sorting
-    //
-    stride[0] = dims[2] * dims[1];
-    stride[1] = dims[2];
-    stride[2] = 1;
-    zrange[0] = 0;
-    zrange[1] = dims[0] - 1;
-    yrange[0] = 0;
-    yrange[1] = dims[1] - 1;
-    xrange[0] = 0;
-    xrange[1] = dims[2] - 1;
-    rdh[0]    = 1 / delz;
-    rdh[1]    = 1 / dely;
-    rdh[2]    = 1 / delx;
-  } else {
-    //
-    // no sorting (assume only a single cell in the chunk)
-    //
-    stride[0] = 1;
-    stride[1] = 1;
-    stride[2] = 1;
-    zrange[0] = 0;
-    zrange[1] = 0;
-    yrange[0] = 0;
-    yrange[1] = 0;
-    xrange[0] = 0;
-    xrange[1] = 0;
-    rdh[0]    = 1 / zlim[2];
-    rdh[1]    = 1 / ylim[2];
-    rdh[2]    = 1 / xlim[2];
-  }
-
-  // reset count
-  if (reset) {
-    particle->reset_count();
-  }
-
-  //
-  // count particles
-  //
-  const int out_of_bounds = particle->Ng;
-
-  // loop over particles
-  auto& xu = particle->xu;
-  for (int ip = Lbp; ip <= Ubp; ip++) {
-    int iz = digitize(xu(ip, 2), zlim[0], rdh[0]);
-    int iy = digitize(xu(ip, 1), ylim[0], rdh[1]);
-    int ix = digitize(xu(ip, 0), xlim[0], rdh[2]);
-    int ii = iz * stride[0] + iy * stride[1] + ix * stride[2];
-
-    // take care out-of-bounds particles
-    ii = (iz < zrange[0] || iz > zrange[1]) ? out_of_bounds : ii;
-    ii = (iy < yrange[0] || iy > yrange[1]) ? out_of_bounds : ii;
-    ii = (ix < xrange[0] || ix > xrange[1]) ? out_of_bounds : ii;
-
-    particle->increment(ip, ii);
-  }
 }
 
 DEFINE_MEMBER(void, sort_particle)(ParticleVec& particle)
 {
-  for (int is = 0; is < particle.size(); is++) {
-    count_particle(particle[is], 0, particle[is]->Np - 1, true);
-    particle[is]->sort();
-  }
 }
 
 DEFINE_MEMBER(void, inject_particle)(ParticleVec& particle)
