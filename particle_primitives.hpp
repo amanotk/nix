@@ -657,14 +657,14 @@ static void esirkepov3d_shift_weights_after_movement(T_int shift[3], T_float ss[
 
     for (int dir = 0; dir < 3; dir++) {
       // forward
+      auto cond_f = xsimd::batch_bool_cast<value_type>(shift[dir] < 0);
       for (int ii = 0; ii < Order + 2; ii++) {
-        auto cond   = xsimd::batch_bool_cast<value_type>(shift[dir] < 0);
-        ss[dir][ii] = xsimd::select(cond, ss[dir][ii + 1], ss[dir][ii]);
+        ss[dir][ii] = xsimd::select(cond_f, ss[dir][ii + 1], ss[dir][ii]);
       }
       // backward
+      auto cond_b = xsimd::batch_bool_cast<value_type>(shift[dir] > 0);
       for (int ii = Order + 2; ii > 0; ii--) {
-        auto cond   = xsimd::batch_bool_cast<value_type>(shift[dir] > 0);
-        ss[dir][ii] = xsimd::select(cond, ss[dir][ii - 1], ss[dir][ii]);
+        ss[dir][ii] = xsimd::select(cond_b, ss[dir][ii - 1], ss[dir][ii]);
       }
     }
   }
@@ -912,11 +912,13 @@ static void interpolate3d_shift_weights(T_int shift, T_float ww[Order + 2])
   } else if constexpr (is_vector == true) {
     using value_type = typename T_float::value_type;
 
+    auto cond = xsimd::batch_bool_cast<value_type>(shift > 0);
     for (int ii = Order + 1; ii > 0; ii--) {
-      auto cond = xsimd::batch_bool_cast<value_type>(shift > 0);
-      ww[ii]    = xsimd::select(cond, ww[ii - 1], ww[ii]);
+      ww[ii] = xsimd::select(cond, ww[ii - 1], ww[ii]);
     }
-    ww[0] = 0;
+    ww[0] = xsimd::select(cond, T_float(0), ww[0]);
+  } else {
+    static_assert([] { return false; }(), "Invalid combination of types");
   }
 }
 
@@ -925,13 +927,12 @@ static auto interpolate3d_impl_scalar(T_array& eb, int iz0, int iy0, int ix0, in
                                       float64 wz[Order + 2], float64 wy[Order + 2],
                                       float64 wx[Order + 2], float64 dt)
 {
-  // Notice for the loop length (Order + 1) instead of (Order + 2)
   float64 result_z = 0;
-  for (int jz = 0, iz = iz0; jz < Order + 1; jz++, iz++) {
+  for (int jz = 0, iz = iz0; jz < Order + 2; jz++, iz++) {
     float64 result_y = 0;
-    for (int jy = 0, iy = iy0; jy < Order + 1; jy++, iy++) {
+    for (int jy = 0, iy = iy0; jy < Order + 2; jy++, iy++) {
       float64 result_x = 0;
-      for (int jx = 0, ix = ix0; jx < Order + 1; jx++, ix++) {
+      for (int jx = 0, ix = ix0; jx < Order + 2; jx++, ix++) {
         result_x += eb(iz, iy, ix, ik) * wx[jx];
       }
       result_y += result_x * wy[jy];
