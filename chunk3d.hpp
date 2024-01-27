@@ -146,7 +146,6 @@ public:
   static const int boundary_margin = Nb;
 
 protected:
-  bool require_sort; ///< sort flag
   int  gdims[3];     ///< global number of grids
   int  offset[3];    ///< global index offset
   int  Lbx;          ///< lower bound in x
@@ -388,7 +387,7 @@ protected:
 
 DEFINE_MEMBER(, Chunk3D)
 (const int dims[3], int id)
-    : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0), require_sort(true)
+    : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0)
 {
   size_t Nz = this->dims[0] + 2 * Nb;
   size_t Ny = this->dims[1] + 2 * Nb;
