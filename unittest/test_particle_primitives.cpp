@@ -34,6 +34,9 @@ bool esirkepov3d_xsimd(const float64 delt, const float delh64, T_float xu[7], T_
                        T_float rho[Order + 3][Order + 3][Order + 3],
                        T_float cur[Order + 3][Order + 3][Order + 3][4], const float64 epsilon);
 
+template <int Order, typename T_int>
+bool test_esirkepov3d_shift_weights(T_int shift[3], float64 ww[Order + 3]);
+
 template <int Order, typename T_array>
 bool test_esirkepov3d_scalar(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
                              const float64 epsilon);
@@ -49,6 +52,9 @@ bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, float6
 template <int Order, typename T_array, typename T_int>
 bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0, T_int ix0,
                                  float64 q, const float64 epsilon);
+
+template <int Order, typename T_int>
+bool test_interpolate3d_shift_weights(T_int shift, float64 ww[Order + 2]);
 
 template <int Order, typename T_array>
 bool test_interpolate3d_scalar(T_array eb, int iz0, int iy0, int ix0, float64 delt,
@@ -847,6 +853,82 @@ TEST_CASE("Fourth-order shape function for WT scheme")
   }
 }
 
+TEST_CASE("Esirkepov shift weights")
+{
+  using simd::simd_f64;
+  using simd::simd_i64;
+
+  std::random_device              rd;
+  std::mt19937                    gen(rd());
+  std::uniform_int_distribution<> rand(0, 2);
+
+  // initialize shift for vector version
+  int64    shift[simd_i64::size][3];
+  simd_i64 shift_simd[3];
+
+  for (int i = 0; i < simd_i64::size; i++) {
+    shift[i][0] = rand(gen) - 1;
+    shift[i][1] = rand(gen) - 1;
+    shift[i][2] = rand(gen) - 1;
+  }
+  shift_simd[0] = xsimd::load_unaligned(shift[0]);
+  shift_simd[1] = xsimd::load_unaligned(shift[1]);
+  shift_simd[2] = xsimd::load_unaligned(shift[2]);
+
+  SECTION("First-order")
+  {
+    const int size     = 4;
+    float64   ww[size] = {0.0, 0.5, 0.5, 0.0};
+
+    // scalar
+    REQUIRE(test_esirkepov3d_shift_weights<1>(std::array<int, 3>{+1, -1, 0}.data(), ww) == true);
+    REQUIRE(test_esirkepov3d_shift_weights<1>(std::array<int, 3>{0, +1, +1}.data(), ww) == true);
+    REQUIRE(test_esirkepov3d_shift_weights<1>(std::array<int, 3>{+1, 0, -1}.data(), ww) == true);
+
+    // vector
+    REQUIRE(test_esirkepov3d_shift_weights<1>(shift_simd, ww) == true);
+  }
+  SECTION("Second-order")
+  {
+    const int size     = 5;
+    float64   ww[size] = {0.0, 0.2, 0.6, 0.2, 0.0};
+
+    // scalar
+    REQUIRE(test_esirkepov3d_shift_weights<2>(std::array<int, 3>{+1, -1, 0}.data(), ww) == true);
+    REQUIRE(test_esirkepov3d_shift_weights<2>(std::array<int, 3>{0, +1, +1}.data(), ww) == true);
+    REQUIRE(test_esirkepov3d_shift_weights<2>(std::array<int, 3>{+1, 0, -1}.data(), ww) == true);
+
+    // vector
+    REQUIRE(test_esirkepov3d_shift_weights<2>(shift_simd, ww) == true);
+  }
+  SECTION("Third-order")
+  {
+    const int size     = 6;
+    float64   ww[size] = {0.0, 0.1, 0.4, 0.4, 0.1, 0.0};
+
+    // scalar
+    REQUIRE(test_esirkepov3d_shift_weights<3>(std::array<int, 3>{+1, -1, 0}.data(), ww) == true);
+    REQUIRE(test_esirkepov3d_shift_weights<3>(std::array<int, 3>{0, +1, +1}.data(), ww) == true);
+    REQUIRE(test_esirkepov3d_shift_weights<3>(std::array<int, 3>{+1, 0, -1}.data(), ww) == true);
+
+    // vector
+    REQUIRE(test_esirkepov3d_shift_weights<3>(shift_simd, ww) == true);
+  }
+  SECTION("Fourth-order")
+  {
+    const int size     = 7;
+    float64   ww[size] = {0.0, 0.1, 0.2, 0.4, 0.2, 0.1, 0.0};
+
+    // scalar
+    REQUIRE(test_esirkepov3d_shift_weights<4>(std::array<int, 3>{+1, -1, 0}.data(), ww) == true);
+    REQUIRE(test_esirkepov3d_shift_weights<4>(std::array<int, 3>{0, +1, +1}.data(), ww) == true);
+    REQUIRE(test_esirkepov3d_shift_weights<4>(std::array<int, 3>{+1, 0, -1}.data(), ww) == true);
+
+    // vector
+    REQUIRE(test_esirkepov3d_shift_weights<4>(shift_simd, ww) == true);
+  }
+}
+
 TEST_CASE("Esirkepov scheme in 3D")
 {
   const int     Np   = 1024;
@@ -1006,6 +1088,74 @@ TEST_CASE("Current append to global array 3D")
     simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
     simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
     REQUIRE(test_append_current3d_xsimd<4>(uj1, uj2, iz0, iy0, ix0, q, eps) == true);
+  }
+}
+
+TEST_CASE("Interpolation 3D shift weights")
+{
+  using simd::simd_f64;
+  using simd::simd_i64;
+
+  std::random_device              rd;
+  std::mt19937                    gen(rd());
+  std::uniform_int_distribution<> rand(0, 2);
+
+  // initialize shift for vector version
+  int64    shift[simd_i64::size];
+  simd_i64 shift_simd;
+
+  for (int i = 0; i < simd_i64::size; i++) {
+    shift[i] = rand(gen) - 1;
+  }
+  shift_simd = xsimd::load_unaligned(shift);
+
+  SECTION("First-order")
+  {
+    const int size     = 3;
+    float64   ww[size] = {0.5, 0.5, 0.0};
+
+    // scalar
+    REQUIRE(test_interpolate3d_shift_weights<1>(0, ww) == true);
+    REQUIRE(test_interpolate3d_shift_weights<1>(1, ww) == true);
+
+    // vector
+    REQUIRE(test_interpolate3d_shift_weights<1>(shift_simd, ww) == true);
+  }
+  SECTION("Second-order")
+  {
+    const int size     = 4;
+    float64   ww[size] = {0.2, 0.6, 0.2, 0.0};
+
+    // scalar
+    REQUIRE(test_interpolate3d_shift_weights<2>(0, ww) == true);
+    REQUIRE(test_interpolate3d_shift_weights<2>(1, ww) == true);
+
+    // vector
+    REQUIRE(test_interpolate3d_shift_weights<2>(shift_simd, ww) == true);
+  }
+  SECTION("Third-order")
+  {
+    const int size     = 5;
+    float64   ww[size] = {0.1, 0.4, 0.4, 0.1, 0.0};
+
+    // scalar
+    REQUIRE(test_interpolate3d_shift_weights<3>(0, ww) == true);
+    REQUIRE(test_interpolate3d_shift_weights<3>(1, ww) == true);
+
+    // vector
+    REQUIRE(test_interpolate3d_shift_weights<3>(shift_simd, ww) == true);
+  }
+  SECTION("Fourth-order")
+  {
+    const int size     = 6;
+    float64   ww[size] = {0.1, 0.2, 0.4, 0.2, 0.1, 0.0};
+
+    // scalar
+    REQUIRE(test_interpolate3d_shift_weights<4>(0, ww) == true);
+    REQUIRE(test_interpolate3d_shift_weights<4>(1, ww) == true);
+
+    // vector
+    REQUIRE(test_interpolate3d_shift_weights<4>(shift_simd, ww) == true);
   }
 }
 
@@ -1314,7 +1464,7 @@ bool esirkepov3d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_
   // in-place shift of ss[1] according to particle movement
   //
   xsimd::batch<int64_t> shift[3] = {ix1 - ix0, iy1 - iy0, iz1 - iz0};
-  esirkepov3d_shift_weights_after_movement<Order>(shift, ss[1]);
+  esirkepov3d_shift_weights<Order>(shift, ss[1]);
 
   // calculate charge and current density
   esirkepov3d<Order>(dhdt, dhdt, dhdt, ss, cur);
@@ -1342,6 +1492,84 @@ bool esirkepov3d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_
   }
 
   return status;
+}
+
+template <int Order, typename T_int>
+bool test_esirkepov3d_shift_weights(T_int shift[3], float64 ww[Order + 3])
+{
+  using namespace simd;
+  constexpr bool is_scalar = std::is_integral_v<T_int>;
+  const int      size      = Order + 3;
+
+  if constexpr (is_scalar == true) {
+    //
+    // scalar version
+    //
+    float64 ss[3][size];
+    for (int dir = 0; dir < 3; dir++) {
+      for (int i = 0; i < size; i++) {
+        ss[dir][i] = ww[i];
+      }
+    }
+
+    // shift
+    esirkepov3d_shift_weights<Order>(shift, ss);
+
+    // check
+    bool status = true;
+    for (int dir = 0; dir < 3; dir++) {
+      if (shift[dir] == 0) {
+        for (int i = 0; i < size; i++) {
+          status = status & (ss[dir][i] == ww[i]);
+        }
+      } else if (shift[dir] < 0) {
+        for (int i = 0; i < size - 1; i++) {
+          status = status & (ss[dir][i] == ww[i + 1]);
+        }
+      } else if (shift[dir] > 0) {
+        for (int i = 1; i < size; i++) {
+          status = status & (ss[dir][i] == ww[i - 1]);
+        }
+      }
+    }
+
+    return status;
+  } else {
+    //
+    // vector version
+    //
+    simd_f64 ss[3][size];
+    for (int dir = 0; dir < 3; dir++) {
+      for (int i = 0; i < size; i++) {
+        ss[dir][i] = ww[i];
+      }
+    }
+
+    // shift
+    esirkepov3d_shift_weights<Order>(shift, ss);
+
+    // check
+    bool status = true;
+    for (int j = 0; j < simd_f64::size; j++) {
+      for (int dir = 0; dir < 3; dir++) {
+        if (shift[dir].get(j) == 0) {
+          for (int i = 0; i < size; i++) {
+            status = status & (ss[dir][i].get(j) == ww[i]);
+          }
+        } else if (shift[dir].get(j) < 0) {
+          for (int i = 0; i < size - 1; i++) {
+            status = status & (ss[dir][i].get(j) == ww[i + 1]);
+          }
+        } else if (shift[dir].get(j) > 0) {
+          for (int i = 1; i < size; i++) {
+            status = status & (ss[dir][i].get(j) == ww[i - 1]);
+          }
+        }
+      }
+    }
+
+    return status;
+  }
 }
 
 template <int Order, typename T_array>
@@ -1546,6 +1774,70 @@ bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0,
   return status;
 }
 
+template <int Order, typename T_int>
+bool test_interpolate3d_shift_weights(T_int shift, float64 ww[Order + 2])
+{
+  using namespace simd;
+  constexpr bool is_scalar = std::is_integral_v<T_int>;
+  const float64  epsilon   = 1.0e-14;
+
+  if constexpr (is_scalar == true) {
+    //
+    // scalar version
+    //
+    float64 vv[Order + 2];
+    for (int i = 0; i < Order + 2; i++) {
+      vv[i] = ww[i];
+    }
+
+    interpolate3d_shift_weights<Order>(shift, vv);
+
+    // check
+    bool status = true;
+
+    if (shift > 0) {
+      status = status & (std::abs(vv[0]) < epsilon);
+      for (int i = 1; i < Order + 2; i++) {
+        status = status & (std::abs(vv[i] - ww[i - 1]) < epsilon);
+      }
+    } else {
+      for (int i = 0; i < Order + 2; i++) {
+        status = status & (std::abs(vv[i] - ww[i]) < epsilon);
+      }
+    }
+
+    return status;
+  } else {
+    //
+    // vector version
+    //
+    simd_f64 vv[Order + 2];
+    for (int i = 0; i < Order + 2; i++) {
+      vv[i] = ww[i];
+    }
+
+    interpolate3d_shift_weights<Order>(shift, vv);
+
+    // check
+    bool status = true;
+
+    for (int j = 0; j < simd_f64::size; j++) {
+      if (shift.get(j) > 0) {
+        status = status & (std::abs(vv[0].get(j)) < epsilon);
+        for (int i = 1; i < Order + 2; i++) {
+          status = status & (std::abs(vv[i].get(j) - ww[i - 1]) < epsilon);
+        }
+      } else {
+        for (int i = 0; i < Order + 2; i++) {
+          status = status & (std::abs(vv[i].get(j) - ww[i]) < epsilon);
+        }
+      }
+    }
+
+    return status;
+  }
+}
+
 template <int Order, typename T_array>
 bool test_interpolate3d_scalar(T_array eb, int iz0, int iy0, int ix0, float64 delt, float64 epsilon)
 {
@@ -1585,9 +1877,9 @@ bool test_interpolate3d_scalar(T_array eb, int iz0, int iy0, int ix0, float64 de
     float64* wy = wy_data.data();
     float64* wz = wz_data.data();
 
-    for (int jz = 0, iz = iz0; jz < Order + 1; jz++, iz++) {
-      for (int jy = 0, iy = iy0; jy < Order + 1; jy++, iy++) {
-        for (int jx = 0, ix = ix0; jx < Order + 1; jx++, ix++) {
+    for (int jz = 0, iz = iz0; jz < Order + 2; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < Order + 2; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < Order + 2; jx++, ix++) {
           for (int ik = 0; ik < 6; ik++) {
             result2[ik] += eb(iz, iy, ix, ik) * wz[jz] * wy[jy] * wx[jx] * delt;
           }

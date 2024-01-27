@@ -41,6 +41,7 @@ static auto get_stride(T_array& array, int dim)
   }
 }
 
+/// convert to integer (scalar or vector)
 template <typename T_float>
 static auto to_int(T_float x)
 {
@@ -57,6 +58,7 @@ static auto to_int(T_float x)
   }
 }
 
+/// convert to floating point (scalar or vector)
 template <typename T_int>
 static auto to_float(T_int x)
 {
@@ -175,14 +177,7 @@ static auto ifthenelse(T_bool cond, T_float x, T_float y)
   }
 }
 
-///
-/// @brief return Lorentz factor
-///
-/// @param[in] ux X-component of four velocity
-/// @param[in] uy Y-component of four velocity
-/// @param[in] uz Z-component of four velocity
-/// @param[in] rc 1/c
-///
+/// return Lorentz factor for given four velocity and rc = 1/c
 template <typename T_float>
 static auto lorentz_factor(T_float ux, T_float uy, T_float uz, T_float rc)
 {
@@ -199,13 +194,7 @@ static auto lorentz_factor(T_float ux, T_float uy, T_float uz, T_float rc)
   }
 }
 
-///
-/// @brief Boris pusher for equation of motion
-///
-/// @param[in,out] ux, uy, uz  Velocity in x, y, z directions
-/// @param[in]     ex, ey, ez  Electric field in x, y, z directions multiplied by time step
-/// @param[in]     bx, by, bz  Magnetic field in x, y, z directions multiplied by time step
-///
+/// Boris pusher for equation of motion
 template <typename T_float>
 static void push_boris(T_float& ux, T_float& uy, T_float& uz, T_float ex, T_float ey, T_float ez,
                        T_float bx, T_float by, T_float bz)
@@ -632,7 +621,7 @@ static void esirkepov3d_jz(float64 dzdt, T_float ss[2][3][N], T_float current[N]
 
 /// shift weights after movement for Esirkepov scheme (needed for vectorization)
 template <int Order, typename T_int, typename T_float>
-static void esirkepov3d_shift_weights_after_movement(T_int shift[3], T_float ss[3][Order + 3])
+static void esirkepov3d_shift_weights(T_int shift[3], T_float ss[3][Order + 3])
 {
   using namespace simd;
   constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
@@ -670,127 +659,117 @@ static void esirkepov3d_shift_weights_after_movement(T_int shift[3], T_float ss[
   }
 }
 
+/// implementations of append_current3d for different vector sizes
 template <typename T_int, typename T_float>
-static void append_current3d_impl_1(float64* ptr, T_int offset[1], T_float cur[4], float64 q)
+static void append_current3d_impl(float64* ptr, T_int offset[1], T_float cur[4], float64 q)
 {
-  static_assert(T_float::size == 1);
+  if constexpr (T_float::size == 1) {
+    // implementation of vector size 1
+    xsimd::store_aligned(ptr + offset[0] + 0, q * cur[0]);
+    xsimd::store_aligned(ptr + offset[0] + 1, q * cur[1]);
+    xsimd::store_aligned(ptr + offset[0] + 2, q * cur[2]);
+    xsimd::store_aligned(ptr + offset[0] + 3, q * cur[3]);
+  } else if constexpr (T_float::size == 2) {
+    // implementation of vector size 2
+    T_float data[4];
 
-  xsimd::store_aligned(ptr + offset[0] + 0, q * cur[0]);
-  xsimd::store_aligned(ptr + offset[0] + 1, q * cur[1]);
-  xsimd::store_aligned(ptr + offset[0] + 2, q * cur[2]);
-  xsimd::store_aligned(ptr + offset[0] + 3, q * cur[3]);
+    // transpose
+    data[0] = q * xsimd::zip_lo(cur[0], cur[1]);
+    data[1] = q * xsimd::zip_lo(cur[2], cur[3]);
+    data[2] = q * xsimd::zip_hi(cur[0], cur[1]);
+    data[3] = q * xsimd::zip_hi(cur[2], cur[3]);
+
+    // particle 0
+    data[0] += xsimd::load_aligned(ptr + offset[0] + 0);
+    xsimd::store_aligned(ptr + offset[0] + 0, data[0]);
+    data[1] += xsimd::load_aligned(ptr + offset[0] + 2);
+    xsimd::store_aligned(ptr + offset[0] + 2, data[1]);
+    // particle 1
+    data[2] += xsimd::load_aligned(ptr + offset[1] + 0);
+    xsimd::store_aligned(ptr + offset[1] + 0, data[2]);
+    data[3] += xsimd::load_aligned(ptr + offset[1] + 2);
+    xsimd::store_aligned(ptr + offset[1] + 2, data[3]);
+  } else if constexpr (T_float::size == 4) {
+    // implementation of vector size 4
+    T_float data[4];
+
+    // transpose
+    auto p0 = q * xsimd::zip_lo(cur[0], cur[2]);
+    auto p1 = q * xsimd::zip_hi(cur[0], cur[2]);
+    auto p2 = q * xsimd::zip_lo(cur[1], cur[3]);
+    auto p3 = q * xsimd::zip_hi(cur[1], cur[3]);
+    data[0] = xsimd::zip_lo(p0, p2);
+    data[1] = xsimd::zip_hi(p0, p2);
+    data[2] = xsimd::zip_lo(p1, p3);
+    data[3] = xsimd::zip_hi(p1, p3);
+
+    // particle 0
+    data[0] += xsimd::load_aligned(ptr + offset[0]);
+    xsimd::store_aligned(ptr + offset[0], data[0]);
+    // particle 1
+    data[1] += xsimd::load_aligned(ptr + offset[1]);
+    xsimd::store_aligned(ptr + offset[1], data[1]);
+    // particle 2
+    data[2] += xsimd::load_aligned(ptr + offset[2]);
+    xsimd::store_aligned(ptr + offset[2], data[2]);
+    // particle 3
+    data[3] += xsimd::load_aligned(ptr + offset[3]);
+    xsimd::store_aligned(ptr + offset[3], data[3]);
+  } else if constexpr (T_float::size == 8) {
+    // implementation of vector size 8
+    const T_float zero = 0;
+    const auto    mask = (xsimd::detail::make_sequence_as_batch<T_float>() < 4);
+
+    T_float data[8];
+
+    // transpose
+    auto p0 = q * xsimd::zip_lo(cur[0], cur[2]);
+    auto p1 = q * xsimd::zip_hi(cur[0], cur[2]);
+    auto p2 = q * xsimd::zip_lo(cur[1], cur[3]);
+    auto p3 = q * xsimd::zip_hi(cur[1], cur[3]);
+    auto q0 = xsimd::zip_lo(p0, p2);
+    auto q1 = xsimd::zip_hi(p0, p2);
+    auto q2 = xsimd::zip_lo(p1, p3);
+    auto q3 = xsimd::zip_hi(p1, p3);
+    data[0] = xsimd::select(mask, q0, zero);
+    data[1] = xsimd::select(mask, xsimd::rotate_right<4>(q0), zero);
+    data[2] = xsimd::select(mask, q1, zero);
+    data[3] = xsimd::select(mask, xsimd::rotate_right<4>(q1), zero);
+    data[4] = xsimd::select(mask, q2, zero);
+    data[5] = xsimd::select(mask, xsimd::rotate_right<4>(q2), zero);
+    data[6] = xsimd::select(mask, q3, zero);
+    data[7] = xsimd::select(mask, xsimd::rotate_right<4>(q3), zero);
+
+    // particle 0
+    data[0] += xsimd::load_aligned(ptr + offset[0]);
+    xsimd::store_aligned(ptr + offset[0], data[0]);
+    // particle 1
+    data[1] += xsimd::load_aligned(ptr + offset[1]);
+    xsimd::store_aligned(ptr + offset[1], data[1]);
+    // particle 2
+    data[2] += xsimd::load_aligned(ptr + offset[2]);
+    xsimd::store_aligned(ptr + offset[2], data[2]);
+    // particle 3
+    data[3] += xsimd::load_aligned(ptr + offset[3]);
+    xsimd::store_aligned(ptr + offset[3], data[3]);
+    // particle 4
+    data[4] += xsimd::load_aligned(ptr + offset[4]);
+    xsimd::store_aligned(ptr + offset[4], data[4]);
+    // particle 5
+    data[5] += xsimd::load_aligned(ptr + offset[5]);
+    xsimd::store_aligned(ptr + offset[5], data[5]);
+    // particle 6
+    data[6] += xsimd::load_aligned(ptr + offset[6]);
+    xsimd::store_aligned(ptr + offset[6], data[6]);
+    // particle 7
+    data[7] += xsimd::load_aligned(ptr + offset[7]);
+    xsimd::store_aligned(ptr + offset[7], data[7]);
+  } else {
+    static_assert([] { return false; }(), "Invalid vector size");
+  }
 }
 
-template <typename T_int, typename T_float>
-static void append_current3d_impl_2(float64* ptr, T_int offset[2], T_float cur[4], float64 q)
-{
-  static_assert(T_float::size == 2);
-
-  T_float data[4];
-
-  // transpose
-  data[0] = q * xsimd::zip_lo(cur[0], cur[1]);
-  data[1] = q * xsimd::zip_lo(cur[2], cur[3]);
-  data[2] = q * xsimd::zip_hi(cur[0], cur[1]);
-  data[3] = q * xsimd::zip_hi(cur[2], cur[3]);
-
-  // particle 0
-  data[0] += xsimd::load_aligned(ptr + offset[0] + 0);
-  xsimd::store_aligned(ptr + offset[0] + 0, data[0]);
-  data[1] += xsimd::load_aligned(ptr + offset[0] + 2);
-  xsimd::store_aligned(ptr + offset[0] + 2, data[1]);
-  // particle 1
-  data[2] += xsimd::load_aligned(ptr + offset[1] + 0);
-  xsimd::store_aligned(ptr + offset[1] + 0, data[2]);
-  data[3] += xsimd::load_aligned(ptr + offset[1] + 2);
-  xsimd::store_aligned(ptr + offset[1] + 2, data[3]);
-}
-
-template <typename T_int, typename T_float>
-static void append_current3d_impl_4(float64* ptr, T_int offset[4], T_float cur[4], float64 q)
-{
-  static_assert(T_float::size == 4);
-
-  T_float data[4];
-
-  // transpose
-  auto p0 = q * xsimd::zip_lo(cur[0], cur[2]);
-  auto p1 = q * xsimd::zip_hi(cur[0], cur[2]);
-  auto p2 = q * xsimd::zip_lo(cur[1], cur[3]);
-  auto p3 = q * xsimd::zip_hi(cur[1], cur[3]);
-  data[0] = xsimd::zip_lo(p0, p2);
-  data[1] = xsimd::zip_hi(p0, p2);
-  data[2] = xsimd::zip_lo(p1, p3);
-  data[3] = xsimd::zip_hi(p1, p3);
-
-  // particle 0
-  data[0] += xsimd::load_aligned(ptr + offset[0]);
-  xsimd::store_aligned(ptr + offset[0], data[0]);
-  // particle 1
-  data[1] += xsimd::load_aligned(ptr + offset[1]);
-  xsimd::store_aligned(ptr + offset[1], data[1]);
-  // particle 2
-  data[2] += xsimd::load_aligned(ptr + offset[2]);
-  xsimd::store_aligned(ptr + offset[2], data[2]);
-  // particle 3
-  data[3] += xsimd::load_aligned(ptr + offset[3]);
-  xsimd::store_aligned(ptr + offset[3], data[3]);
-}
-
-template <typename T_int, typename T_float>
-static void append_current3d_impl_8(float64* ptr, T_int offset[8], T_float cur[4], float64 q)
-{
-  static_assert(T_float::size == 8);
-
-  const T_float zero = 0;
-  const auto    mask = (xsimd::detail::make_sequence_as_batch<T_float>() < 4);
-
-  T_float data[8];
-
-  // transpose
-  auto p0 = q * xsimd::zip_lo(cur[0], cur[2]);
-  auto p1 = q * xsimd::zip_hi(cur[0], cur[2]);
-  auto p2 = q * xsimd::zip_lo(cur[1], cur[3]);
-  auto p3 = q * xsimd::zip_hi(cur[1], cur[3]);
-  auto q0 = xsimd::zip_lo(p0, p2);
-  auto q1 = xsimd::zip_hi(p0, p2);
-  auto q2 = xsimd::zip_lo(p1, p3);
-  auto q3 = xsimd::zip_hi(p1, p3);
-  data[0] = xsimd::select(mask, q0, zero);
-  data[1] = xsimd::select(mask, xsimd::rotate_right<4>(q0), zero);
-  data[2] = xsimd::select(mask, q1, zero);
-  data[3] = xsimd::select(mask, xsimd::rotate_right<4>(q1), zero);
-  data[4] = xsimd::select(mask, q2, zero);
-  data[5] = xsimd::select(mask, xsimd::rotate_right<4>(q2), zero);
-  data[6] = xsimd::select(mask, q3, zero);
-  data[7] = xsimd::select(mask, xsimd::rotate_right<4>(q3), zero);
-
-  // particle 0
-  data[0] += xsimd::load_aligned(ptr + offset[0]);
-  xsimd::store_aligned(ptr + offset[0], data[0]);
-  // particle 1
-  data[1] += xsimd::load_aligned(ptr + offset[1]);
-  xsimd::store_aligned(ptr + offset[1], data[1]);
-  // particle 2
-  data[2] += xsimd::load_aligned(ptr + offset[2]);
-  xsimd::store_aligned(ptr + offset[2], data[2]);
-  // particle 3
-  data[3] += xsimd::load_aligned(ptr + offset[3]);
-  xsimd::store_aligned(ptr + offset[3], data[3]);
-  // particle 4
-  data[4] += xsimd::load_aligned(ptr + offset[4]);
-  xsimd::store_aligned(ptr + offset[4], data[4]);
-  // particle 5
-  data[5] += xsimd::load_aligned(ptr + offset[5]);
-  xsimd::store_aligned(ptr + offset[5], data[5]);
-  // particle 6
-  data[6] += xsimd::load_aligned(ptr + offset[6]);
-  xsimd::store_aligned(ptr + offset[6], data[6]);
-  // particle 7
-  data[7] += xsimd::load_aligned(ptr + offset[7]);
-  xsimd::store_aligned(ptr + offset[7], data[7]);
-}
-
+/// append local curent contribution to global current array
 template <int Order, typename T_array, typename T_int, typename T_float>
 static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
                              T_float current[Order + 3][Order + 3][Order + 3][4], float64 q)
@@ -841,19 +820,8 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
         T_int iy = iy0 + jy;
         for (int jx = 0; jx < size; jx++) {
           T_int ix = ix0 + jx;
-          // call specialized function for a specific SIMD vector size
           xsimd::store_aligned(offset, iz * stride_z + iy * stride_y + ix * stride_x);
-          if constexpr (T_float::size == 1) {
-            append_current3d_impl_1(pointer, offset, current[jz][jy][jx], q);
-          } else if constexpr (T_float::size == 2) {
-            append_current3d_impl_2(pointer, offset, current[jz][jy][jx], q);
-          } else if constexpr (T_float::size == 4) {
-            append_current3d_impl_4(pointer, offset, current[jz][jy][jx], q);
-          } else if constexpr (T_float::size == 8) {
-            append_current3d_impl_8(pointer, offset, current[jz][jy][jx], q);
-          } else {
-            static_assert([] { return false; }(), "Invalid vector size");
-          }
+          append_current3d_impl(pointer, offset, current[jz][jy][jx], q);
         }
       }
     }
@@ -922,31 +890,11 @@ static void interpolate3d_shift_weights(T_int shift, T_float ww[Order + 2])
   }
 }
 
-template <int Order, typename T_array>
-static auto interpolate3d_impl_scalar(T_array& eb, int iz0, int iy0, int ix0, int ik,
-                                      float64 wz[Order + 2], float64 wy[Order + 2],
-                                      float64 wx[Order + 2], float64 dt)
-{
-  float64 result_z = 0;
-  for (int jz = 0, iz = iz0; jz < Order + 2; jz++, iz++) {
-    float64 result_y = 0;
-    for (int jy = 0, iy = iy0; jy < Order + 2; jy++, iy++) {
-      float64 result_x = 0;
-      for (int jx = 0, ix = ix0; jx < Order + 2; jx++, ix++) {
-        result_x += eb(iz, iy, ix, ik) * wx[jx];
-      }
-      result_y += result_x * wy[jy];
-    }
-    result_z += result_y * wz[jz];
-  }
-
-  return result_z * dt;
-}
-
+/// implementation of interpolate3d for unsorted index
 template <int Order, typename T_array, typename T_int, typename T_float>
-static auto interpolate3d_impl_vector_unsorted(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
-                                               T_float wz[Order + 2], T_float wy[Order + 2],
-                                               T_float wx[Order + 2], T_float dt)
+static auto interpolate3d_impl_unsorted(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
+                                        T_float wz[Order + 2], T_float wy[Order + 2],
+                                        T_float wx[Order + 2], T_float dt)
 {
   using namespace simd;
 
@@ -977,10 +925,11 @@ static auto interpolate3d_impl_vector_unsorted(T_array& eb, T_int iz0, T_int iy0
   return result_z * dt;
 }
 
+/// implementations of interpolate3d for sorted index
 template <int Order, typename T_array, typename T_float>
-static auto interpolate3d_impl_vector_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
-                                             T_float wz[Order + 2], T_float wy[Order + 2],
-                                             T_float wx[Order + 2], T_float dt)
+static auto interpolate3d_impl_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
+                                      T_float wz[Order + 2], T_float wy[Order + 2],
+                                      T_float wx[Order + 2], T_float dt)
 {
   T_float result_z = 0;
   for (int jz = 0, iz = iz0; jz < Order + 2; jz++, iz++) {
@@ -1016,19 +965,14 @@ static auto interpolate3d(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
                           T_float wz[Order + 2], T_float wy[Order + 2], T_float wx[Order + 2],
                           T_float dt)
 {
-  using namespace simd;
-  constexpr bool is_scalar = std::is_floating_point_v<T_float>;
-  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
   constexpr bool is_sorted = std::is_integral_v<T_int>;
 
-  if constexpr (is_scalar == true) {
-    return interpolate3d_impl_scalar<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
-  } else if constexpr (is_vector == true && is_sorted == false) {
-    return interpolate3d_impl_vector_unsorted<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
-  } else if constexpr (is_vector == true && is_sorted == true) {
-    return interpolate3d_impl_vector_sorted<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
+  if constexpr (is_sorted == true) {
+    // both scalar and vector implementation for scalar index
+    return interpolate3d_impl_sorted<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
   } else {
-    static_assert([] { return false; }(), "Invalid template parameters");
+    // vector implementation for vector index
+    return interpolate3d_impl_unsorted<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
   }
 }
 
