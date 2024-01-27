@@ -890,6 +890,28 @@ static void interpolate3d_shift_weights(T_int shift, T_float ww[Order + 2])
   }
 }
 
+/// implementations of interpolate3d for sorted index
+template <int Order, typename T_array, typename T_float>
+static auto interpolate3d_impl_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
+                                      T_float wz[Order + 2], T_float wy[Order + 2],
+                                      T_float wx[Order + 2], T_float dt)
+{
+  T_float result_z = 0;
+  for (int jz = 0, iz = iz0; jz < Order + 2; jz++, iz++) {
+    T_float result_y = 0;
+    for (int jy = 0, iy = iy0; jy < Order + 2; jy++, iy++) {
+      T_float result_x = 0;
+      for (int jx = 0, ix = ix0; jx < Order + 2; jx++, ix++) {
+        result_x += eb(iz, iy, ix, ik) * wx[jx];
+      }
+      result_y += result_x * wy[jy];
+    }
+    result_z += result_y * wz[jz];
+  }
+
+  return result_z * dt;
+}
+
 /// implementation of interpolate3d for unsorted index
 template <int Order, typename T_array, typename T_int, typename T_float>
 static auto interpolate3d_impl_unsorted(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
@@ -904,40 +926,17 @@ static auto interpolate3d_impl_unsorted(T_array& eb, T_int iz0, T_int iy0, T_int
   auto stride_c = get_stride(eb, 3);
   auto pointer  = get_data_pointer(eb);
 
-  // Notice for the loop length (Order + 1) instead of (Order + 2)
   T_float result_z = 0;
-  for (int jz = 0; jz < Order + 1; jz++) {
+  for (int jz = 0; jz < Order + 2; jz++) {
     T_int   index_z  = (iz0 + jz) * stride_z;
     T_float result_y = 0;
-    for (int jy = 0; jy < Order + 1; jy++) {
+    for (int jy = 0; jy < Order + 2; jy++) {
       T_int   index_y  = (iy0 + jy) * stride_y + index_z;
       T_float result_x = 0;
-      for (int jx = 0; jx < Order + 1; jx++) {
+      for (int jx = 0; jx < Order + 2; jx++) {
         T_int index_x = (ix0 + jx) * stride_x + index_y;
         T_int index   = index_x + ik * stride_c;
         result_x += simd_f64::gather(pointer, index) * wx[jx];
-      }
-      result_y += result_x * wy[jy];
-    }
-    result_z += result_y * wz[jz];
-  }
-
-  return result_z * dt;
-}
-
-/// implementations of interpolate3d for sorted index
-template <int Order, typename T_array, typename T_float>
-static auto interpolate3d_impl_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
-                                      T_float wz[Order + 2], T_float wy[Order + 2],
-                                      T_float wx[Order + 2], T_float dt)
-{
-  T_float result_z = 0;
-  for (int jz = 0, iz = iz0; jz < Order + 2; jz++, iz++) {
-    T_float result_y = 0;
-    for (int jy = 0, iy = iy0; jy < Order + 2; jy++, iy++) {
-      T_float result_x = 0;
-      for (int jx = 0, ix = ix0; jx < Order + 2; jx++, ix++) {
-        result_x += eb(iz, iy, ix, ik) * wx[jx];
       }
       result_y += result_x * wy[jy];
     }
