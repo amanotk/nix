@@ -225,6 +225,11 @@ protected:
   void finalize_mpi();
 
   ///
+  /// @brief assert
+  ///
+  void assert_mpi(bool condition, std::string msg);
+
+  ///
   /// @brief initialize base directory
   ///
   void initialize_base_directory();
@@ -595,10 +600,17 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
 
 DEFINE_MEMBER(void, finalize_mpi)()
 {
-  // release stdout/stderr
   MpiStream::finalize();
-
   MPI_Finalize();
+}
+
+DEFINE_MEMBER(void, assert_mpi)(bool condition, std::string msg)
+{
+  if (condition == false) {
+    MpiStream::finalize();
+    ERROR << msg << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
 }
 
 DEFINE_MEMBER(void, initialize_debugprinting)()
@@ -705,7 +717,8 @@ DEFINE_MEMBER(void, setup_chunks_init)()
 
   // setup initial condition
   for (int i = 0; i < chunkvec.size(); i++) {
-    auto config = cfgparser->get_parameter();
+    auto config      = cfgparser->get_parameter();
+    config["option"] = cfgparser->get_application()["option"];
     chunkvec[i]->setup(config);
   }
 }
@@ -718,7 +731,7 @@ DEFINE_MEMBER(void, setup_chunks)()
     setup_chunks_init();
   }
 
-  assert(validate_chunks() == true);
+  assert_mpi(validate_chunks() == true, "invalid chunks after setup_chunks");
 }
 
 DEFINE_MEMBER(bool, validate_chunks)()
@@ -764,7 +777,7 @@ DEFINE_MEMBER(bool, rebalance)()
     chunkmap->set_rank_boundary(boundary);
     chunkvec.set_neighbors(chunkmap);
 
-    assert(validate_chunks() == true);
+    assert_mpi(validate_chunks() == true, "invalid chunks after rebalance");
 
     if (loglevel >= 1) {
       log["boundary"] = boundary;

@@ -38,7 +38,16 @@ public:
     std::ifstream ifs(filename.c_str());
     root = json::parse(ifs, nullptr, true, true);
 
-    return validate(root) == true;
+    bool status = validate(root);
+
+    if (status == true) {
+      // make sure that the option section exists
+      if (root["application"]["option"].is_null() == true) {
+        root["application"]["option"] = {};
+      }
+    }
+
+    return status;
   }
 
   void overwrite(json& object)
