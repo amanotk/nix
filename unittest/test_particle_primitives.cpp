@@ -46,12 +46,11 @@ bool test_esirkepov3d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt
                             const float64 epsilon);
 
 template <int Order, typename T_array>
-bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, float64 q,
-                                  const float64 epsilon);
+bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon);
 
 template <int Order, typename T_array, typename T_int>
 bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0, T_int ix0,
-                                 float64 q, const float64 epsilon);
+                                 const float64 epsilon);
 
 template <int Order, typename T_int>
 bool test_interpolate3d_shift_weights(T_int shift, float64 ww[Order + 2]);
@@ -1014,80 +1013,80 @@ TEST_CASE("Current append to global array 3D")
   //
   SECTION("First-order current append to global array : scalar")
   {
-    REQUIRE(test_append_current3d_scalar<1>(uj1, 2, 2, 2, q, eps) == true);
-    REQUIRE(test_append_current3d_scalar<1>(uj2, 2, 4, 8, q, eps) == true);
+    REQUIRE(test_append_current3d_scalar<1>(uj1, 2, 2, 2, eps) == true);
+    REQUIRE(test_append_current3d_scalar<1>(uj2, 2, 4, 8, eps) == true);
   }
   SECTION("First-order current append to global array : xsimd")
   {
     // scalar index
-    REQUIRE(test_append_current3d_xsimd<1>(uj1, uj2, 2, 4, 8, q, eps) == true);
+    REQUIRE(test_append_current3d_xsimd<1>(uj1, uj2, 2, 4, 8, eps) == true);
 
     // vector index
     using simd::simd_i64;
     simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
     simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
     simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
-    REQUIRE(test_append_current3d_xsimd<1>(uj1, uj2, iz0, iy0, ix0, q, eps) == true);
+    REQUIRE(test_append_current3d_xsimd<1>(uj1, uj2, iz0, iy0, ix0, eps) == true);
   }
   //
   // second order
   //
   SECTION("Second-order current append to global array : scalar")
   {
-    REQUIRE(test_append_current3d_scalar<2>(uj1, 2, 2, 2, q, eps) == true);
-    REQUIRE(test_append_current3d_scalar<2>(uj2, 2, 4, 8, q, eps) == true);
+    REQUIRE(test_append_current3d_scalar<2>(uj1, 2, 2, 2, eps) == true);
+    REQUIRE(test_append_current3d_scalar<2>(uj2, 2, 4, 8, eps) == true);
   }
   SECTION("Second-order current append to global array : xsimd")
   {
     // scalar index
-    REQUIRE(test_append_current3d_xsimd<2>(uj1, uj2, 2, 4, 8, q, eps) == true);
+    REQUIRE(test_append_current3d_xsimd<2>(uj1, uj2, 2, 4, 8, eps) == true);
 
     // vector index
     using simd::simd_i64;
     simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
     simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
     simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
-    REQUIRE(test_append_current3d_xsimd<2>(uj1, uj2, iz0, iy0, ix0, q, eps) == true);
+    REQUIRE(test_append_current3d_xsimd<2>(uj1, uj2, iz0, iy0, ix0, eps) == true);
   }
   //
   // third order
   //
   SECTION("Third-order current append to global array : scalar")
   {
-    REQUIRE(test_append_current3d_scalar<3>(uj1, 2, 2, 2, q, eps) == true);
-    REQUIRE(test_append_current3d_scalar<3>(uj2, 2, 4, 8, q, eps) == true);
+    REQUIRE(test_append_current3d_scalar<3>(uj1, 2, 2, 2, eps) == true);
+    REQUIRE(test_append_current3d_scalar<3>(uj2, 2, 4, 8, eps) == true);
   }
   SECTION("Third-order current append to global array : xsimd")
   {
     // scalar index
-    REQUIRE(test_append_current3d_xsimd<3>(uj1, uj2, 2, 4, 8, q, eps) == true);
+    REQUIRE(test_append_current3d_xsimd<3>(uj1, uj2, 2, 4, 8, eps) == true);
 
     // vector index
     using simd::simd_i64;
     simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
     simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
     simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
-    REQUIRE(test_append_current3d_xsimd<3>(uj1, uj2, iz0, iy0, ix0, q, eps) == true);
+    REQUIRE(test_append_current3d_xsimd<3>(uj1, uj2, iz0, iy0, ix0, eps) == true);
   }
   //
   // fourth order
   //
   SECTION("Fourth-order current append to global array : scalar")
   {
-    REQUIRE(test_append_current3d_scalar<4>(uj1, 2, 2, 2, q, eps) == true);
-    REQUIRE(test_append_current3d_scalar<4>(uj2, 2, 4, 8, q, eps) == true);
+    REQUIRE(test_append_current3d_scalar<4>(uj1, 2, 2, 2, eps) == true);
+    REQUIRE(test_append_current3d_scalar<4>(uj2, 2, 4, 8, eps) == true);
   }
   SECTION("Fourth-order current append to global array : xsimd")
   {
     // scalar index
-    REQUIRE(test_append_current3d_xsimd<4>(uj1, uj2, 2, 4, 8, q, eps) == true);
+    REQUIRE(test_append_current3d_xsimd<4>(uj1, uj2, 2, 4, 8, eps) == true);
 
     // vector index
     using simd::simd_i64;
     simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
     simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
     simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
-    REQUIRE(test_append_current3d_xsimd<4>(uj1, uj2, iz0, iy0, ix0, q, eps) == true);
+    REQUIRE(test_append_current3d_xsimd<4>(uj1, uj2, iz0, iy0, ix0, eps) == true);
   }
 }
 
@@ -1333,6 +1332,7 @@ bool esirkepov3d_scalar(const float64 delt, const float64 delh, float64 xu[7], f
 {
   const float64 rdh  = 1 / delh;
   const float64 dhdt = delh / delt;
+  const float64 qs   = 1;
 
   bool    status  = true;
   float64 rhosum0 = 0;
@@ -1383,7 +1383,7 @@ bool esirkepov3d_scalar(const float64 delt, const float64 delh, float64 xu[7], f
   shape<Order>(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0]);
 
   // calculate charge and current density
-  esirkepov3d<Order>(dhdt, dhdt, dhdt, ss, cur);
+  esirkepov3d<Order>(dhdt, dhdt, dhdt, qs, ss, cur);
 
   // check charge density
   for (int jz = 0; jz < Order + 3; jz++) {
@@ -1411,6 +1411,7 @@ bool esirkepov3d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_
   const T_float zero = 0;
   const T_float rdh  = 1 / delh;
   const float64 dhdt = delh / delt;
+  const T_float qs   = 1;
 
   bool    status  = true;
   T_float rhosum0 = 0;
@@ -1467,7 +1468,7 @@ bool esirkepov3d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_
   esirkepov3d_shift_weights<Order>(shift, ss[1]);
 
   // calculate charge and current density
-  esirkepov3d<Order>(dhdt, dhdt, dhdt, ss, cur);
+  esirkepov3d<Order>(dhdt, dhdt, dhdt, qs, ss, cur);
 
   // check charge density
   for (int jz = 0; jz < Order + 3; jz++) {
@@ -1653,8 +1654,7 @@ bool test_esirkepov3d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt
 }
 
 template <int Order, typename T_array>
-bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, float64 q,
-                                  const float64 epsilon)
+bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon)
 {
   const int size = Order + 3;
 
@@ -1672,7 +1672,7 @@ bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, float6
   }
 
   // append
-  append_current3d<Order>(uj, iz0, iy0, ix0, cur, q);
+  append_current3d<Order>(uj, iz0, iy0, ix0, cur);
 
   // check
   bool status = true;
@@ -1680,7 +1680,7 @@ bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, float6
     for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
       for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
         for (int k = 0; k < 4; k++) {
-          status = status & (std::abs(uj(iz, iy, ix, k) - q * (k + 1)) < epsilon);
+          status = status & (std::abs(uj(iz, iy, ix, k) - (k + 1)) < epsilon);
         }
       }
     }
@@ -1691,7 +1691,7 @@ bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, float6
 
 template <int Order, typename T_array, typename T_int>
 bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0, T_int ix0,
-                                 float64 q, const float64 epsilon)
+                                 const float64 epsilon)
 {
   using simd::simd_f64;
   using simd::simd_i64;
@@ -1752,11 +1752,11 @@ bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0,
   }
 
   // SIMD version
-  append_current3d<Order>(vj, iz0, iy0, ix0, cur_simd, q);
+  append_current3d<Order>(vj, iz0, iy0, ix0, cur_simd);
 
   // scalar version
   for (int ip = 0; ip < simd_f64::size; ip++) {
-    append_current3d<Order>(uj, iz[ip], iy[ip], ix[ip], cur[ip], q);
+    append_current3d<Order>(uj, iz[ip], iy[ip], ix[ip], cur[ip]);
   }
 
   // compare scalar and SIMD results

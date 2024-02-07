@@ -531,12 +531,12 @@ static void shape_wt(T_float x, T_float X, T_float rdx, T_float dt, T_float rdt,
 
 /// charge density calculation for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_rho(T_float ss[2][3][N], T_float current[N][N][N][4])
+static void esirkepov3d_rho(T_float qs, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   for (int jz = 0; jz < N; jz++) {
     for (int jy = 0; jy < N; jy++) {
       for (int jx = 0; jx < N; jx++) {
-        current[jz][jy][jx][0] += ss[1][0][jx] * ss[1][1][jy] * ss[1][2][jz];
+        current[jz][jy][jx][0] += qs * ss[1][0][jx] * ss[1][1][jy] * ss[1][2][jz];
       }
     }
   }
@@ -555,7 +555,7 @@ static void esirkepov3d_ds(T_float ss[2][3][N])
 
 /// calculation of Jx for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_jx(float64 dxdt, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void esirkepov3d_jx(T_float qdxdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -565,7 +565,7 @@ static void esirkepov3d_jx(float64 dxdt, T_float ss[2][3][N], T_float current[N]
       T_float ww = 0;
       T_float wx = -((1 * ss[0][1][jy] + A * ss[1][1][jy]) * ss[0][2][jz] +
                      (A * ss[0][1][jy] + B * ss[1][1][jy]) * ss[1][2][jz]) *
-                   dxdt;
+                   qdxdt;
 
       for (int jx = 0; jx < N - 1; jx++) {
         ww += ss[1][0][jx] * wx;
@@ -577,7 +577,7 @@ static void esirkepov3d_jx(float64 dxdt, T_float ss[2][3][N], T_float current[N]
 
 /// calculation of Jy for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_jy(float64 dydt, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void esirkepov3d_jy(T_float qdydt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -587,7 +587,7 @@ static void esirkepov3d_jy(float64 dydt, T_float ss[2][3][N], T_float current[N]
       T_float ww = 0;
       T_float wy = -((1 * ss[0][2][jz] + A * ss[1][2][jz]) * ss[0][0][jx] +
                      (A * ss[0][2][jz] + B * ss[1][2][jz]) * ss[1][0][jx]) *
-                   dydt;
+                   qdydt;
 
       for (int jy = 0; jy < N - 1; jy++) {
         ww += ss[1][1][jy] * wy;
@@ -599,7 +599,7 @@ static void esirkepov3d_jy(float64 dydt, T_float ss[2][3][N], T_float current[N]
 
 /// calculation of Jz for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_jz(float64 dzdt, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void esirkepov3d_jz(T_float qdzdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -609,7 +609,7 @@ static void esirkepov3d_jz(float64 dzdt, T_float ss[2][3][N], T_float current[N]
       T_float ww = 0;
       T_float wz = -((1 * ss[0][0][jx] + A * ss[1][0][jx]) * ss[0][1][jy] +
                      (A * ss[0][0][jx] + B * ss[1][0][jx]) * ss[1][1][jy]) *
-                   dzdt;
+                   qdzdt;
 
       for (int jz = 0; jz < N - 1; jz++) {
         ww += ss[1][2][jz] * wz;
@@ -661,23 +661,23 @@ static void esirkepov3d_shift_weights(T_int shift[3], T_float ss[3][Order + 3])
 
 /// implementations of append_current3d for different vector sizes
 template <typename T_int, typename T_float>
-static void append_current3d_impl(float64* ptr, T_int offset[1], T_float cur[4], float64 q)
+static void append_current3d_impl(float64* ptr, T_int offset[1], T_float cur[4])
 {
   if constexpr (T_float::size == 1) {
     // implementation of vector size 1
-    xsimd::store_aligned(ptr + offset[0] + 0, q * cur[0]);
-    xsimd::store_aligned(ptr + offset[0] + 1, q * cur[1]);
-    xsimd::store_aligned(ptr + offset[0] + 2, q * cur[2]);
-    xsimd::store_aligned(ptr + offset[0] + 3, q * cur[3]);
+    xsimd::store_aligned(ptr + offset[0] + 0, cur[0]);
+    xsimd::store_aligned(ptr + offset[0] + 1, cur[1]);
+    xsimd::store_aligned(ptr + offset[0] + 2, cur[2]);
+    xsimd::store_aligned(ptr + offset[0] + 3, cur[3]);
   } else if constexpr (T_float::size == 2) {
     // implementation of vector size 2
     T_float data[4];
 
     // transpose
-    data[0] = q * xsimd::zip_lo(cur[0], cur[1]);
-    data[1] = q * xsimd::zip_lo(cur[2], cur[3]);
-    data[2] = q * xsimd::zip_hi(cur[0], cur[1]);
-    data[3] = q * xsimd::zip_hi(cur[2], cur[3]);
+    data[0] = xsimd::zip_lo(cur[0], cur[1]);
+    data[1] = xsimd::zip_lo(cur[2], cur[3]);
+    data[2] = xsimd::zip_hi(cur[0], cur[1]);
+    data[3] = xsimd::zip_hi(cur[2], cur[3]);
 
     // particle 0
     data[0] += xsimd::load_aligned(ptr + offset[0] + 0);
@@ -694,10 +694,10 @@ static void append_current3d_impl(float64* ptr, T_int offset[1], T_float cur[4],
     T_float data[4];
 
     // transpose
-    auto p0 = q * xsimd::zip_lo(cur[0], cur[2]);
-    auto p1 = q * xsimd::zip_hi(cur[0], cur[2]);
-    auto p2 = q * xsimd::zip_lo(cur[1], cur[3]);
-    auto p3 = q * xsimd::zip_hi(cur[1], cur[3]);
+    auto p0 = xsimd::zip_lo(cur[0], cur[2]);
+    auto p1 = xsimd::zip_hi(cur[0], cur[2]);
+    auto p2 = xsimd::zip_lo(cur[1], cur[3]);
+    auto p3 = xsimd::zip_hi(cur[1], cur[3]);
     data[0] = xsimd::zip_lo(p0, p2);
     data[1] = xsimd::zip_hi(p0, p2);
     data[2] = xsimd::zip_lo(p1, p3);
@@ -723,10 +723,10 @@ static void append_current3d_impl(float64* ptr, T_int offset[1], T_float cur[4],
     T_float data[8];
 
     // transpose
-    auto p0 = q * xsimd::zip_lo(cur[0], cur[2]);
-    auto p1 = q * xsimd::zip_hi(cur[0], cur[2]);
-    auto p2 = q * xsimd::zip_lo(cur[1], cur[3]);
-    auto p3 = q * xsimd::zip_hi(cur[1], cur[3]);
+    auto p0 = xsimd::zip_lo(cur[0], cur[2]);
+    auto p1 = xsimd::zip_hi(cur[0], cur[2]);
+    auto p2 = xsimd::zip_lo(cur[1], cur[3]);
+    auto p3 = xsimd::zip_hi(cur[1], cur[3]);
     auto q0 = xsimd::zip_lo(p0, p2);
     auto q1 = xsimd::zip_hi(p0, p2);
     auto q2 = xsimd::zip_lo(p1, p3);
@@ -772,7 +772,7 @@ static void append_current3d_impl(float64* ptr, T_int offset[1], T_float cur[4],
 /// append local curent contribution to global current array
 template <int Order, typename T_array, typename T_int, typename T_float>
 static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
-                             T_float current[Order + 3][Order + 3][Order + 3][4], float64 q)
+                             T_float current[Order + 3][Order + 3][Order + 3][4])
 {
   using namespace simd;
   constexpr int  size      = Order + 3;
@@ -785,10 +785,10 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
     for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
       for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
         for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-          uj(iz, iy, ix, 0) += q * current[jz][jy][jx][0];
-          uj(iz, iy, ix, 1) += q * current[jz][jy][jx][1];
-          uj(iz, iy, ix, 2) += q * current[jz][jy][jx][2];
-          uj(iz, iy, ix, 3) += q * current[jz][jy][jx][3];
+          uj(iz, iy, ix, 0) += current[jz][jy][jx][0];
+          uj(iz, iy, ix, 1) += current[jz][jy][jx][1];
+          uj(iz, iy, ix, 2) += current[jz][jy][jx][2];
+          uj(iz, iy, ix, 3) += current[jz][jy][jx][3];
         }
       }
     }
@@ -797,10 +797,10 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
     for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
       for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
         for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-          uj(iz, iy, ix, 0) += q * xsimd::reduce_add(current[jz][jy][jx][0]);
-          uj(iz, iy, ix, 1) += q * xsimd::reduce_add(current[jz][jy][jx][1]);
-          uj(iz, iy, ix, 2) += q * xsimd::reduce_add(current[jz][jy][jx][2]);
-          uj(iz, iy, ix, 3) += q * xsimd::reduce_add(current[jz][jy][jx][3]);
+          uj(iz, iy, ix, 0) += xsimd::reduce_add(current[jz][jy][jx][0]);
+          uj(iz, iy, ix, 1) += xsimd::reduce_add(current[jz][jy][jx][1]);
+          uj(iz, iy, ix, 2) += xsimd::reduce_add(current[jz][jy][jx][2]);
+          uj(iz, iy, ix, 3) += xsimd::reduce_add(current[jz][jy][jx][3]);
         }
       }
     }
@@ -821,7 +821,7 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
         for (int jx = 0; jx < size; jx++) {
           T_int ix = ix0 + jx;
           xsimd::store_aligned(offset, iz * stride_z + iy * stride_y + ix * stride_x);
-          append_current3d_impl(pointer, offset, current[jz][jy][jx], q);
+          append_current3d_impl(pointer, offset, current[jz][jy][jx]);
         }
       }
     }
@@ -847,19 +847,20 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
 /// @param[in,out] current array of local current
 ///
 template <int Order, typename T_float>
-static void esirkepov3d(float64 dxdt, float64 dydt, float64 dzdt, T_float ss[2][3][Order + 3],
+static void esirkepov3d(float64 dxdt, float64 dydt, float64 dzdt, T_float qs,
+                        T_float ss[2][3][Order + 3],
                         T_float current[Order + 3][Order + 3][Order + 3][4])
 {
   // calculate rho
-  esirkepov3d_rho<Order + 3>(ss, current);
+  esirkepov3d_rho<Order + 3>(qs, ss, current);
 
   // ss[1][*][*] now represents DS(*,*) of Esirkepov (2001)
   esirkepov3d_ds<Order + 3>(ss);
 
   // calculate Jx, Jy, Jz
-  esirkepov3d_jx<Order + 3>(dxdt, ss, current);
-  esirkepov3d_jy<Order + 3>(dydt, ss, current);
-  esirkepov3d_jz<Order + 3>(dzdt, ss, current);
+  esirkepov3d_jx<Order + 3>(qs * dxdt, ss, current);
+  esirkepov3d_jy<Order + 3>(qs * dydt, ss, current);
+  esirkepov3d_jz<Order + 3>(qs * dzdt, ss, current);
 }
 
 /// shift weights for interpolate3d (needed for vectorization)
