@@ -33,18 +33,66 @@ public:
     return root["diagnostic"];
   }
 
-  bool parse_file(std::string filename)
+  virtual int get_Nx()
+  {
+    return root["parameter"]["Nx"].get<int>();
+  }
+
+  virtual int get_Ny()
+  {
+    return root["parameter"]["Ny"].get<int>();
+  }
+
+  virtual int get_Nz()
+  {
+    return root["parameter"]["Nz"].get<int>();
+  }
+
+  virtual int get_Cx()
+  {
+    return root["parameter"]["Cx"].get<int>();
+  }
+
+  virtual int get_Cy()
+  {
+    return root["parameter"]["Cy"].get<int>();
+  }
+
+  virtual int get_Cz()
+  {
+    return root["parameter"]["Cz"].get<int>();
+  }
+
+  virtual float64 get_delt()
+  {
+    return root["parameter"]["delt"].get<float64>();
+  }
+
+  virtual float64 get_delx()
+  {
+    return root["parameter"]["delh"].get<float64>();
+  }
+
+  virtual float64 get_dely()
+  {
+    return root["parameter"]["delh"].get<float64>();
+  }
+
+  virtual float64 get_delz()
+  {
+    return root["parameter"]["delh"].get<float64>();
+  }
+
+  bool parse_file(std::string filename, bool exit_on_error = true)
   {
     std::ifstream ifs(filename.c_str());
     root = json::parse(ifs, nullptr, true, true);
 
     bool status = validate(root);
 
-    if (status == true) {
-      // make sure that the option section exists
-      if (root["application"]["option"].is_null() == true) {
-        root["application"]["option"] = {};
-      }
+    if (status == false && exit_on_error == true) {
+      std::cerr << tfm::format("Failed to parse `%s`\n", filename);
+      exit(1);
     }
 
     return status;
@@ -63,7 +111,14 @@ public:
 
     status = status & check_mandatory_sections(object);
 
+    // make sure that the option section exists in the application section
+    if (root["application"]["option"].is_null() == true) {
+      root["application"]["option"] = {};
+    }
+
+    // check the parameter section
     if (object["parameter"].is_null() == false) {
+      status = status & check_mandatory_parameters(object["parameter"]);
       status = status & check_dimensions(object["parameter"]);
     } else {
       status = status & false;
@@ -80,7 +135,24 @@ public:
 
     for (auto section : mandatory_sections) {
       if (object[section].is_null()) {
-        ERROR << tfm::format("Configuration misses `%s` section", section);
+        std::cerr << tfm::format("Configuration misses `%s` section\n", section);
+        status = false;
+      }
+    }
+
+    return status;
+  }
+
+  virtual bool check_mandatory_parameters(json& parameter)
+  {
+    bool status = true;
+
+    std::vector<std::string> mandatory_parameters = {"Nx", "Ny", "Nz",   "Cx",
+                                                     "Cy", "Cz", "delt", "delh"};
+
+    for (auto key : mandatory_parameters) {
+      if (parameter[key].is_null()) {
+        std::cerr << tfm::format("Configuration misses `%s` parameter\n", key);
         status = false;
       }
     }
@@ -99,9 +171,9 @@ public:
     bool status = (nz % cz == 0) && (ny % cy == 0) && (nx % cx == 0);
 
     if (status == false) {
-      ERROR << tfm::format("Number of grid must be divisible by number of chunk");
-      ERROR << tfm::format("Nx, Ny, Nz = [%4d, %4d, %4d]", nx, ny, nz);
-      ERROR << tfm::format("Cx, Cy, Cz = [%4d, %4d, %4d]", cx, cy, cz);
+      std::cerr << tfm::format("Number of grid must be divisible by number of chunk\n");
+      std::cerr << tfm::format("Nx, Ny, Nz = [%4d, %4d, %4d]\n", nx, ny, nz);
+      std::cerr << tfm::format("Cx, Cy, Cz = [%4d, %4d, %4d]\n", cx, cy, cz);
     }
 
     return status;

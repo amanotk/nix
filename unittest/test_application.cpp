@@ -11,39 +11,41 @@ using namespace nix;
 const std::string config_filename = "config.json";
 const std::string config_content  = R"(
 {
-	"application": {
-		"log": {
-			"prefix": "log",
-			"path": ".",
-			"interval": 100
-		},
-		"rebalance": {
-			"loglevel": 1,
-			"interval": 100
-		}
-	},
-	"diagnostic": [
-		{
-			"name": "foo",
-			"prefix": "foo",
-			"path": ".",
-			"interval": 100
-		},
-		{
-			"name": "bar",
-			"prefix": "bar",
-			"path": ".",
-			"interval": 100
-		}
-	],
-	"parameter": {
-		"Nx": 16,
-		"Ny": 16,
-		"Nz": 16,
-		"Cx": 2,
-		"Cy": 2,
-		"Cz": 2
-	}
+  "application": {
+    "log": {
+      "prefix": "log",
+      "path": ".",
+      "interval": 100
+    },
+    "rebalance": {
+      "loglevel": 1,
+      "interval": 100
+    }
+  },
+  "diagnostic": [
+    {
+      "name": "foo",
+      "prefix": "foo",
+      "path": ".",
+      "interval": 100
+    },
+    {
+      "name": "bar",
+      "prefix": "bar",
+      "path": ".",
+      "interval": 100
+    }
+  ],
+  "parameter": {
+    "Nx": 16,
+    "Ny": 16,
+    "Nz": 16,
+    "Cx": 2,
+    "Cy": 2,
+    "Cz": 2,
+    "delt": 1.0,
+    "delh": 1.0
+  }
 }
 )";
 

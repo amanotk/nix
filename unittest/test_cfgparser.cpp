@@ -44,6 +44,39 @@ TEST_CASE("check_mandatory_sections")
   }
 }
 
+TEST_CASE("check_mandatory_parameters")
+{
+  CfgParser parser;
+
+  json parameter = {
+      {"Nx", 16}, {"Ny", 16}, {"Nz", 16},    {"Cx", 4},
+      {"Cy", 4},  {"Cz", 4},  {"delt", 1.0}, {"delh", 1.0},
+  };
+
+  SECTION("successful")
+  {
+    REQUIRE(parser.check_mandatory_parameters(parameter) == true);
+  }
+
+  SECTION("missing something")
+  {
+    auto check_parameter_with_removed_item([&](const std::string key) {
+      auto tmp = parameter;
+      tmp.erase(key);
+      return parser.check_mandatory_parameters(tmp);
+    });
+
+    REQUIRE(check_parameter_with_removed_item("Nx") == false);
+    REQUIRE(check_parameter_with_removed_item("Ny") == false);
+    REQUIRE(check_parameter_with_removed_item("Nz") == false);
+    REQUIRE(check_parameter_with_removed_item("Cx") == false);
+    REQUIRE(check_parameter_with_removed_item("Cy") == false);
+    REQUIRE(check_parameter_with_removed_item("Cz") == false);
+    REQUIRE(check_parameter_with_removed_item("delt") == false);
+    REQUIRE(check_parameter_with_removed_item("delh") == false);
+  }
+}
+
 TEST_CASE("check_dimensions")
 {
   CfgParser parser;
@@ -158,7 +191,7 @@ TEST_CASE("parse_file")
     ofs << content;
   }
 
-  REQUIRE(parser.parse_file(filename) == true);;
+  REQUIRE(parser.parse_file(filename) == true);
 
   // cleanup
   std::filesystem::remove(filename);

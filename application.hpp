@@ -52,13 +52,6 @@ protected:
   int     cdims[4]; ///< chunk dimensions
   int     curstep;  ///< current iteration step
   float64 curtime;  ///< current time
-  float64 delt;     ///< time step
-  float64 delx;     ///< grid size in x
-  float64 dely;     ///< grid size in y
-  float64 delz;     ///< grid size in z
-  float64 xlim[3];  ///< physical domain in x
-  float64 ylim[3];  ///< physical domain in y
-  float64 zlim[3];  ///< physical domain in z
 
   bool is_mpi_init_already_called; ///< flag for testing purpose
 
@@ -315,7 +308,7 @@ protected:
   ///
   virtual bool is_push_needed()
   {
-    if (curtime < argparser->get_physical_time_max() + delt) {
+    if (curtime < argparser->get_physical_time_max() + cfgparser->get_delt()) {
       return true;
     }
     return false;
@@ -363,7 +356,7 @@ protected:
   ///
   virtual void increment_time()
   {
-    curtime += delt;
+    curtime += cfgparser->get_delt();
     curstep++;
   }
 };
@@ -384,13 +377,6 @@ DEFINE_MEMBER(json, to_json)()
                 {"cdims", cdims},
                 {"curstep", curstep},
                 {"curtime", curtime},
-                {"delt", delt},
-                {"delx", delx},
-                {"dely", dely},
-                {"delz", delz},
-                {"xlim", xlim},
-                {"ylim", ylim},
-                {"zlim", zlim},
                 {"nprocess", nprocess},
                 {"thisrank", thisrank},
                 {"configuration", cfgparser->get_root()},
@@ -408,13 +394,6 @@ DEFINE_MEMBER(bool, from_json)(json& state)
 
   consistency &= current_state["ndims"] == state["ndims"];
   consistency &= current_state["cdims"] == state["cdims"];
-  consistency &= current_state["delt"] == state["delt"];
-  consistency &= current_state["delx"] == state["delx"];
-  consistency &= current_state["dely"] == state["dely"];
-  consistency &= current_state["delz"] == state["delz"];
-  consistency &= current_state["xlim"] == state["xlim"];
-  consistency &= current_state["ylim"] == state["ylim"];
-  consistency &= current_state["zlim"] == state["zlim"];
   consistency &= current_state["nprocess"] == state["nprocess"];
   consistency &= current_state["configuration"] == state["configuration"];
 
@@ -621,47 +600,20 @@ DEFINE_MEMBER(void, initialize_debugprinting)()
 
 DEFINE_MEMBER(void, initialize_dimensions)()
 {
-  json parameter = cfgparser->get_parameter();
-
-  int nx = parameter.value("Nx", 1);
-  int ny = parameter.value("Ny", 1);
-  int nz = parameter.value("Nz", 1);
-  int cx = parameter.value("Cx", 1);
-  int cy = parameter.value("Cy", 1);
-  int cz = parameter.value("Cz", 1);
-
-  ndims[0] = nz;
-  ndims[1] = ny;
-  ndims[2] = nx;
+  ndims[0] = cfgparser->get_Nz();
+  ndims[1] = cfgparser->get_Ny();
+  ndims[2] = cfgparser->get_Nx();
   ndims[3] = ndims[0] * ndims[1] * ndims[2];
-  cdims[0] = cz;
-  cdims[1] = cy;
-  cdims[2] = cx;
+
+  cdims[0] = cfgparser->get_Cz();
+  cdims[1] = cfgparser->get_Cy();
+  cdims[2] = cfgparser->get_Cx();
   cdims[3] = cdims[0] * cdims[1] * cdims[2];
 }
 
 DEFINE_MEMBER(void, initialize_domain)()
 {
-  json parameter = cfgparser->get_parameter();
-
-  delt = parameter.value("delt", 1.0);
-  delx = parameter.value("delh", 1.0);
-  dely = parameter.value("delh", 1.0);
-  delz = parameter.value("delh", 1.0);
-
-  int nx = parameter.value("Nx", 1);
-  int ny = parameter.value("Ny", 1);
-  int nz = parameter.value("Nz", 1);
-
-  xlim[0] = 0;
-  xlim[1] = delx * nx;
-  xlim[2] = xlim[1] - xlim[0];
-  ylim[0] = 0;
-  ylim[1] = dely * ny;
-  ylim[2] = ylim[1] - ylim[0];
-  zlim[0] = 0;
-  zlim[1] = delz * nz;
-  zlim[2] = zlim[1] - zlim[0];
+  // not necessary by default
 }
 
 DEFINE_MEMBER(void, initialize_workload)()
