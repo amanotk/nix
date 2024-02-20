@@ -146,18 +146,18 @@ public:
   static const int boundary_margin = Nb;
 
 protected:
-  int  gdims[3];     ///< global number of grids
-  int  offset[3];    ///< global index offset
-  int  Lbx;          ///< lower bound in x
-  int  Ubx;          ///< upper bound in x
-  int  Lby;          ///< lower bound in y
-  int  Uby;          ///< upper bound in y
-  int  Lbz;          ///< lower bound in z
-  int  Ubz;          ///< upper bound in z
-  int  sendlb[3][3]; ///< lower bound for send
-  int  sendub[3][3]; ///< upper bound for send
-  int  recvlb[3][3]; ///< lower bound for recv
-  int  recvub[3][3]; ///< upper bound for recv
+  int gdims[3];     ///< global number of grids
+  int offset[3];    ///< global index offset
+  int Lbx;          ///< lower bound in x
+  int Ubx;          ///< upper bound in x
+  int Lby;          ///< lower bound in y
+  int Uby;          ///< upper bound in y
+  int Lbz;          ///< lower bound in z
+  int Ubz;          ///< upper bound in z
+  int sendlb[3][3]; ///< lower bound for send
+  int sendub[3][3]; ///< upper bound for send
+  int recvlb[3][3]; ///< lower bound for recv
+  int recvub[3][3]; ///< upper bound for recv
 
   float64      delx;      ///< grid size in x
   float64      dely;      ///< grid size in y
@@ -280,7 +280,7 @@ public:
   /// @param Lbp first index of particle array
   /// @param Ubp last index of particle array (inclusive)
   ///
-  virtual void set_boundary_particle(ParticlePtr particle, int Lbp, int Ubp);
+  virtual void set_boundary_particle(ParticlePtr particle, int Lbp, int Ubp, int species);
 
   ///
   /// @brief setup MPI Buffer
@@ -386,8 +386,7 @@ protected:
   type Chunk3D<Nb, ParticlePtr>::name
 
 DEFINE_MEMBER(, Chunk3D)
-(const int dims[3], int id)
-    : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0)
+(const int dims[3], int id) : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0)
 {
   size_t Nz = this->dims[0] + 2 * Nb;
   size_t Ny = this->dims[1] + 2 * Nb;
@@ -630,7 +629,7 @@ DEFINE_MEMBER(void, set_boundary_field)(int mode)
   }
 }
 
-DEFINE_MEMBER(void, set_boundary_particle)(ParticlePtr particle, int Lbp, int Ubp)
+DEFINE_MEMBER(void, set_boundary_particle)(ParticlePtr particle, int Lbp, int Ubp, int species)
 {
   // NOTE: trick to take care of round-off error
   float64 xlength = gxlim[2] - std::numeric_limits<float64>::epsilon();
@@ -784,10 +783,6 @@ DEFINE_MEMBER(template <typename Halo> void, end_bc_exchange)
   for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
     for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
       for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
-        // skip physical boundary
-        if (get_nb_rank(dirz, diry, dirx) == MPI_PROC_NULL)
-          continue;
-
         // clang-format off
         int send_bound[3][2] = {
           sendlb[0][iz], sendub[0][iz],

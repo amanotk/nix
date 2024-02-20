@@ -61,6 +61,9 @@ public:
     if (iz == 1 && iy == 1 && ix == 1)
       return false;
 
+    if (chunk->get_nb_rank(iz - 1, iy - 1, ix - 1) == MPI_PROC_NULL)
+      return false;
+
     // unpacking
     auto Iz   = xt::range(recv_bound[0][0], recv_bound[0][1] + 1);
     auto Iy   = xt::range(recv_bound[1][0], recv_bound[1][1] + 1);
@@ -123,9 +126,11 @@ public:
   bool unpack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
   {
     // skip
-    if (iz == 1 && iy == 1 && ix == 1) {
+    if (iz == 1 && iy == 1 && ix == 1)
       return false;
-    }
+
+    if (chunk->get_nb_rank(iz - 1, iy - 1, ix - 1) == MPI_PROC_NULL)
+      return false;
 
     // unpacking
     auto Iz   = xt::range(send_bound[0][0], send_bound[0][1] + 1);
@@ -190,6 +195,9 @@ public:
   {
     // skip
     if (iz == 1 && iy == 1 && ix == 1)
+      return false;
+
+    if (chunk->get_nb_rank(iz - 1, iy - 1, ix - 1) == MPI_PROC_NULL)
       return false;
 
     // unpacking
@@ -357,6 +365,10 @@ public:
     int      recvcnt = 0;
     uint8_t* recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
 
+    // sent particles are fed back to the receive buffer at the physical boundary
+    if (chunk->get_nb_rank(iz - 1, iy - 1, ix - 1) == MPI_PROC_NULL)
+      recvptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
+
     // copy to the end of particle array
     for (int is = 0; is < Ns; is++) {
       // header
@@ -404,7 +416,7 @@ public:
     // set boundary condition and append count for received particles
     //
     for (int is = 0; is < Ns; is++) {
-      chunk->set_boundary_particle(particle[is], particle[is]->Np, num_particle[is] - 1);
+      chunk->set_boundary_particle(particle[is], particle[is]->Np, num_particle[is] - 1, is);
       chunk->count_particle(particle[is], particle[is]->Np, num_particle[is] - 1, false);
       // now update number of particles
       particle[is]->Np = num_particle[is];

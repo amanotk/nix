@@ -8,6 +8,7 @@ NIX_NAMESPACE_BEGIN
 
 using rand_uniform = std::uniform_real_distribution<float64>;
 using rand_normal  = std::normal_distribution<float64>;
+using rand_poisson = std::poisson_distribution<int>;
 using rand_gamma   = std::gamma_distribution<float64>;
 
 ///
@@ -65,6 +66,17 @@ public:
     initialize();
   }
 
+  void set_temperature(float64 temperature)
+  {
+    this->temperature = temperature;
+    initialize();
+  }
+
+  void set_drift(float64 drift)
+  {
+    this->drift = drift;
+  }
+
   template <typename Random>
   void operator()(Random& random, float64& ux, float64& uy, float64& uz)
   {
@@ -91,14 +103,7 @@ public:
     uz = uu * 2 * std::sqrt(r3 * (1 - r3)) * std::sin(2 * M_PI * r4);
 
     // Lorentz boost to the lab frame with the flipping method
-    float64 r5 = uniform(random);
-    float64 Gm = std::sqrt(1 + drift * drift);
-    float64 Vx = drift / Gm;
-    float64 gm = std::sqrt(1 + ux * ux + uy * uy + uz * uz);
-    float64 vx = ux / gm;
-
-    ux = (-Vx * vx > r5) ? -ux : +ux;
-    ux = Gm * (ux + Vx * gm);
+    ux = lorentz_boost(random, drift, ux, uy, uz);
   }
 
   template <typename Random>
@@ -107,6 +112,19 @@ public:
     float64 ux, uy, uz;
     (*this)(random, ux, uy, uz);
     return std::make_tuple(ux, uy, uz);
+  }
+
+  template <typename Random>
+  float64 lorentz_boost(Random& random, float64 u0, float64 ux, float64 uy, float64 uz)
+  {
+    float64 rr = uniform(random);
+    float64 Gm = std::sqrt(1 + u0 * u0);
+    float64 Vx = u0 / Gm;
+    float64 gm = std::sqrt(1 + ux * ux + uy * uy + uz * uz);
+    float64 vx = ux / gm;
+
+    ux = (-Vx * vx > rr) ? -ux : +ux;
+    return Gm * (ux + Vx * gm);
   }
 };
 
