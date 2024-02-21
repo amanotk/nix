@@ -416,7 +416,8 @@ public:
     // set boundary condition and append count for received particles
     //
     for (int is = 0; is < Ns; is++) {
-      chunk->set_boundary_particle(particle[is], particle[is]->Np, num_particle[is] - 1, is);
+      chunk->set_boundary_particle_after_sendrecv(particle[is], particle[is]->Np,
+                                                  num_particle[is] - 1, is);
       chunk->count_particle(particle[is], particle[is]->Np, num_particle[is] - 1, false);
       // now update number of particles
       particle[is]->Np = num_particle[is];

@@ -77,6 +77,14 @@ public:
     this->drift = drift;
   }
 
+  void reset()
+  {
+    uniform.reset();
+    for (auto& g : gamma) {
+      g.reset();
+    }
+  }
+
   template <typename Random>
   void operator()(Random& random, float64& ux, float64& uy, float64& uz)
   {

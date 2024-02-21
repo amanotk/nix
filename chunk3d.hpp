@@ -283,6 +283,15 @@ public:
   virtual void set_boundary_particle(ParticlePtr particle, int Lbp, int Ubp, int species);
 
   ///
+  /// @brief set boundary condition to particle array after MPI send/recv
+  /// @param particle particle species
+  /// @param Lbp first index of particle array
+  /// @param Ubp last index of particle array (inclusive)
+  ///
+  virtual void set_boundary_particle_after_sendrecv(ParticlePtr particle, int Lbp, int Ubp,
+                                                    int species);
+
+  ///
   /// @brief setup MPI Buffer
   /// @param mpibuf MPI buffer to be setup
   /// @param mode +1 for send, -1 for recv, 0 for both
@@ -630,6 +639,11 @@ DEFINE_MEMBER(void, set_boundary_field)(int mode)
 }
 
 DEFINE_MEMBER(void, set_boundary_particle)(ParticlePtr particle, int Lbp, int Ubp, int species)
+{
+}
+
+DEFINE_MEMBER(void, set_boundary_particle_after_sendrecv)
+(ParticlePtr particle, int Lbp, int Ubp, int species)
 {
   // NOTE: trick to take care of round-off error
   float64 xlength = gxlim[2] - std::numeric_limits<float64>::epsilon();
