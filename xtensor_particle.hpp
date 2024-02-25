@@ -113,21 +113,21 @@ public:
       auto tmp(xu);
 
       xu.resize({np, nc});
-      std::memcpy(xu.data(), tmp.data(), sizeof(float64) * Np * Nc);
+      std::memcpy(xu.data(), tmp.data(), sizeof(float64) * tmp.size());
     }
 
     {
       auto tmp(xv);
 
       xv.resize({np, nc});
-      std::memcpy(xv.data(), tmp.data(), sizeof(float64) * Np * Nc);
+      std::memcpy(xv.data(), tmp.data(), sizeof(float64) * tmp.size());
     }
 
     {
       auto tmp(gindex);
 
       gindex.resize({np});
-      std::memcpy(gindex.data(), tmp.data(), sizeof(int32) * Np);
+      std::memcpy(gindex.data(), tmp.data(), sizeof(int32) * tmp.size());
     }
 
     // set new total number of particles

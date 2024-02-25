@@ -15,6 +15,7 @@ set(LIBRARY_DIRS
 #
 set(SERIAL_EXECS
 	test_balancer
+	test_buffer
 	test_sfc
 	test_random
 	test_nixio

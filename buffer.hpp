@@ -35,7 +35,7 @@ struct Buffer {
   }
 
   ///
-  /// @brief resize the buffer if 's' is larger than the current (otherwise do nothing)
+  /// @brief resize the buffer
   /// @param s new size for resize
   ///
   void resize(int s)

@@ -270,9 +270,9 @@ public:
       // loop over particles
       auto& xu = particle[is]->xu;
       for (int ip = 0; ip < particle[is]->Np; ip++) {
-        int dirz = (xu(ip, 2) > zmax) - (xu(ip, 2) < zmin);
-        int diry = (xu(ip, 1) > ymax) - (xu(ip, 1) < ymin);
-        int dirx = (xu(ip, 0) > xmax) - (xu(ip, 0) < xmin);
+        int dirz = (xu(ip, 2) >= zmax) - (xu(ip, 2) < zmin);
+        int diry = (xu(ip, 1) >= ymax) - (xu(ip, 1) < ymin);
+        int dirx = (xu(ip, 0) >= xmax) - (xu(ip, 0) < xmin);
 
         // skip
         if (dirx == 0 && diry == 0 && dirz == 0)
@@ -362,12 +362,11 @@ public:
     if (iz == 1 && iy == 1 && ix == 1)
       return false;
 
+    if (chunk->get_nb_rank(iz - 1, iy - 1, ix - 1) == MPI_PROC_NULL)
+      return false;
+
     int      recvcnt = 0;
     uint8_t* recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
-
-    // sent particles are fed back to the receive buffer at the physical boundary
-    if (chunk->get_nb_rank(iz - 1, iy - 1, ix - 1) == MPI_PROC_NULL)
-      recvptr = mpibuf->sendbuf.get(mpibuf->bufaddr(iz, iy, ix));
 
     // copy to the end of particle array
     for (int is = 0; is < Ns; is++) {
