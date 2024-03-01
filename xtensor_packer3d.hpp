@@ -15,10 +15,10 @@ class XtensorPacker3D
 public:
   /// pack coordinate
   template <typename Array>
-  int pack_coordinate(int& Lb, int& Ub, Array& x, uint8_t* buffer, int address)
+  size_t pack_coordinate(int& Lb, int& Ub, Array& x, uint8_t* buffer, int address)
   {
     size_t size  = Ub - Lb + 1;
-    int    count = sizeof(float64) * size + address;
+    size_t count = sizeof(float64) * size + address;
 
     if (buffer == nullptr) {
       return count;
@@ -34,15 +34,15 @@ public:
 
   /// pack field
   template <typename Array, typename Data>
-  int pack_field(Array& x, Data data, uint8_t* buffer, int address)
+  size_t pack_field(Array& x, Data data, uint8_t* buffer, int address)
   {
     // calculate number of elements
-    int size = (data.Ubz - data.Lbz + 1) * (data.Uby - data.Lby + 1) * (data.Ubx - data.Lbx + 1);
+    size_t size = (data.Ubz - data.Lbz + 1) * (data.Uby - data.Lby + 1) * (data.Ubx - data.Lbx + 1);
     for (int i = 3; i < x.dimension(); i++) {
       size *= x.shape(i);
     }
 
-    int count = sizeof(float64) * size + address;
+    size_t count = sizeof(float64) * size + address;
 
     if (buffer == nullptr) {
       return count;
@@ -61,15 +61,30 @@ public:
   }
 
   /// pack particle
-  template <typename ParticlePtr, typename Data>
-  int pack_particle(ParticlePtr& p, Data data, uint8_t* buffer, int address)
+  template <typename ParticlePtr>
+  size_t pack_particle(ParticlePtr& p, uint8_t* buffer, int address)
   {
-    int count = address;
+    size_t count = address;
 
-    auto& xu   = p->xu;
-    int   np   = p->get_Np_active();
-    int   size = ParticlePtr::element_type::get_particle_size();
+    auto&  xu   = p->xu;
+    size_t np   = p->get_Np_active();
+    size_t size = ParticlePtr::element_type::get_particle_size();
     count += memcpy_count(buffer, xu.data(), np * size, count, 0);
+
+    return count;
+  }
+
+  /// pack particle
+  template <typename ParticlePtr, typename Array>
+  size_t pack_particle(ParticlePtr& p, Array& index, uint8_t* buffer, int address)
+  {
+    size_t count = address;
+
+    auto&  xu   = p->xu;
+    size_t size = ParticlePtr::element_type::get_particle_size();
+    for (int i = 0; i < index.size(); i++) {
+      count += memcpy_count(buffer, &xu(index[i], 0), size, count, 0);
+    }
 
     return count;
   }
