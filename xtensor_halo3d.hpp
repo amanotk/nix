@@ -297,7 +297,7 @@ public:
     }
 
     if (status == false) {
-#pragma omp critical
+      OMP_MAYBE_CRITICAL
       {
         ERROR << tfm::format("Chunk[%06d]: insufficient send buffer", chunk->get_id());
         MPI_Abort(MPI_COMM_WORLD, -1);
@@ -394,7 +394,7 @@ public:
     int recvsize = Ns * head_byte + recvcnt * elem_byte;
 
     if (recvsize > mpibuf->bufsize(iz, iy, ix)) {
-#pragma omp critical
+      OMP_MAYBE_CRITICAL
       {
         ERROR << tfm::format("Chunk[%06d]: insufficient recv buffer", chunk->get_id());
         MPI_Abort(MPI_COMM_WORLD, -1);

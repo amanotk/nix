@@ -31,6 +31,12 @@
 #include <mpi.h>
 #include <nlohmann/json.hpp>
 
+#ifdef HAS_MPI_THREAD_MULTIPLE
+#define OMP_MAYBE_CRITICAL
+#else
+#define OMP_MAYBE_CRITICAL _Pragma("omp critical")
+#endif
+
 #define NIX_NAMESPACE_BEGIN                                                                        \
   namespace nix                                                                                    \
   {
