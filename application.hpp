@@ -534,7 +534,7 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
 {
   // initialize MPI with thread support
   {
-    int thread_required = MPI_THREAD_SERIALIZED;
+    int thread_required = NIX_MPI_THREAD_LEVEL;
     int thread_provided = -1;
 
     if (is_mpi_init_already_called == false) {
@@ -546,7 +546,7 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
     }
 
     if (thread_provided < thread_required) {
-      ERROR << tfm::format("Your MPI does not support thread!");
+      ERROR << tfm::format("Your MPI does not support required thread level!");
       MPI_Finalize();
       exit(-1);
     }

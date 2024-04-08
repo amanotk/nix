@@ -33,8 +33,10 @@
 
 #ifdef HAS_MPI_THREAD_MULTIPLE
 #define OMP_MAYBE_CRITICAL
+constexpr int NIX_MPI_THREAD_LEVEL = MPI_THREAD_MULTIPLE;
 #else
 #define OMP_MAYBE_CRITICAL _Pragma("omp critical")
+constexpr int NIX_MPI_THREAD_LEVEL = MPI_THREAD_SERIALIZED;
 #endif
 
 #define NIX_NAMESPACE_BEGIN                                                                        \
