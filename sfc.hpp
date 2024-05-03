@@ -61,18 +61,18 @@ bool check_index(T& index);
 ///
 /// @brief check locality of 2D map
 /// @param coord coordinate array to be checked
-/// @param distmax maximum allowable distance between neighboring cells
+/// @param distmax2 maximum allowable distance square between neighboring cells
 /// @return true if it is local and false otherwise
 ///
-bool check_locality2d(array2d& coord, const int distmax = 1);
+bool check_locality2d(array2d& coord, const int distmax2 = 1);
 
 ///
 /// @brief check locality of 3D map
 /// @param coord coordinate array to be checked
-/// @param distmax maximum allowable distance between neighboring cells
+/// @param distmax2 maximum allowable distance square between neighboring cells
 /// @return true if it is local and false otherwise
 ///
-bool check_locality3d(array2d& coord, const int distmax = 1);
+bool check_locality3d(array2d& coord, const int distmax2 = 1);
 
 } // namespace sfc
 

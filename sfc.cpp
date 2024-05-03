@@ -7,33 +7,25 @@
 
 namespace sfc
 {
-void gilbert2d(array2d& index, int& id, int& x, int& y, int ax, int ay, int bx, int by);
-
-void gilbert3d(array3d& index, int& id, int& x, int& y, int& z, int ax, int ay, int az, int bx,
-               int by, int bz, int cx, int cy, int cz);
+void gilbert2d(array2d& index, int& id, int x, int y, int ax, int ay, int bx, int by);
+void gilbert3d(array3d& index, int& id, int x, int y, int z, int ax, int ay, int az, int bx, int by,
+               int bz, int cx, int cy, int cz);
 
 inline int sign(const int x)
 {
   return x == 0 ? 0 : (x > 0 ? +1 : -1);
 }
 
-inline void push2d(array2d& index, int& id, int& x, int& y, int dx, int dy)
+inline void forward_id_2d(array2d& index, int& id, int x, int y)
 {
-  id++;
-  x += dx;
-  y += dy;
-  // std::cout << tfm::format("%8d, %4d, %4d\n", id, x, y);
   index.at(y, x) = id;
+  id++;
 }
 
-inline void push3d(array3d& index, int& id, int& x, int& y, int& z, int dx, int dy, int dz)
+inline void forward_id_3d(array3d& index, int& id, int x, int y, int z)
 {
-  id++;
-  x += dx;
-  y += dy;
-  z += dz;
-  // std::cout << tfm::format("%8d, %4d, %4d, %4d\n", id, x, y, z);
   index.at(z, y, x) = id;
+  id++;
 }
 
 void get_map1d(size_t Nx, array1d& index, array2d& coord)
@@ -49,13 +41,9 @@ void get_map2d(size_t Ny, size_t Nx, array2d& index, array2d& coord)
   // calculate coordiante to ID map
   if (Ny != 1 && Nx != 1) {
     // 2D mapping
-    assert(Nx % 2 == 0);
-    assert(Ny % 2 == 0);
-
-    int id = -1;
+    int id = 0;
     int x  = 0;
     int y  = 0;
-    push2d(index, id, x, y, 0, 0);
 
     if (Nx >= Ny) {
       gilbert2d(index, id, x, y, Nx, 0, 0, Ny);
@@ -92,15 +80,10 @@ void get_map3d(size_t Nz, size_t Ny, size_t Nx, array3d& index, array2d& coord)
   // calculate coordiante to ID map
   if (Nz != 1 && Ny != 1 && Nx != 1) {
     // 3D mapping
-    assert(Nx % 2 == 0);
-    assert(Ny % 2 == 0);
-    assert(Nz % 2 == 0);
-
-    int id = -1;
+    int id = 0;
     int x  = 0;
     int y  = 0;
     int z  = 0;
-    push3d(index, id, x, y, z, 0, 0, 0);
 
     if (Nx >= Ny && Nx >= Nz) {
       gilbert3d(index, id, x, y, z, Nx, 0, 0, 0, Ny, 0, 0, 0, Nz);
@@ -170,7 +153,7 @@ bool check_index(T& index)
   return status;
 }
 
-bool check_locality2d(array2d& coord, const int distmax)
+bool check_locality2d(array2d& coord, const int distmax2)
 {
   bool status = true;
 
@@ -182,7 +165,7 @@ bool check_locality2d(array2d& coord, const int distmax)
     int iy = coord(id, 1);
     dx     = dx - ix;
     dy     = dy - iy;
-    status = status & (dx * dx + dy * dy <= distmax * distmax);
+    status = status & (dx * dx + dy * dy <= distmax2);
     dx     = ix;
     dy     = iy;
   }
@@ -190,7 +173,7 @@ bool check_locality2d(array2d& coord, const int distmax)
   return status;
 }
 
-bool check_locality3d(array2d& coord, const int distmax)
+bool check_locality3d(array2d& coord, const int distmax2)
 {
   bool status = true;
 
@@ -205,7 +188,7 @@ bool check_locality3d(array2d& coord, const int distmax)
     dx     = dx - ix;
     dy     = dy - iy;
     dz     = dz - iz;
-    status = status & (dx * dx + dy * dy + dz * dz <= distmax * distmax);
+    status = status & (dx * dx + dy * dy + dz * dz <= distmax2);
     dx     = ix;
     dy     = iy;
     dz     = iz;
@@ -214,10 +197,10 @@ bool check_locality3d(array2d& coord, const int distmax)
   return status;
 }
 
-void gilbert2d(array2d& index, int& id, int& x, int& y, int ax, int ay, int bx, int by)
+void gilbert2d(array2d& index, int& id, int x, int y, int ax, int ay, int bx, int by)
 {
-  int ww  = abs(ax + ay);
-  int hh  = abs(bx + by);
+  int w   = std::abs(ax + ay);
+  int h   = std::abs(bx + by);
   int dax = sign(ax);
   int day = sign(ay);
   int dbx = sign(bx);
@@ -227,26 +210,22 @@ void gilbert2d(array2d& index, int& id, int& x, int& y, int ax, int ay, int bx, 
   // trivial path
   //
   {
-    // 2x2 square
-    if (hh == 2 && ww == 2) {
-      push2d(index, id, x, y, +dbx, +dby);
-      push2d(index, id, x, y, +dax, +day);
-      push2d(index, id, x, y, -dbx, -dby);
-      return;
-    }
-
     // straight segment in x
-    if (hh == 1) {
-      for (int i = 1; i < ww; i++) {
-        push2d(index, id, x, y, dax, day);
+    if (h == 1) {
+      for (int i = 0; i < w; i++) {
+        forward_id_2d(index, id, x, y);
+        x += dax;
+        y += day;
       }
       return;
     }
 
     // straight segment in y
-    if (ww == 1) {
-      for (int i = 1; i < hh; i++) {
-        push2d(index, id, x, y, dbx, dby);
+    if (w == 1) {
+      for (int i = 0; i < h; i++) {
+        forward_id_2d(index, id, x, y);
+        x += dbx;
+        y += dby;
       }
       return;
     }
@@ -256,52 +235,70 @@ void gilbert2d(array2d& index, int& id, int& x, int& y, int ax, int ay, int bx, 
   // recursive call
   //
   {
-    int ax1 = ax / 2;
-    int ay1 = ay / 2;
-    int bx1 = bx / 2;
-    int by1 = by / 2;
-    int ax2 = ax - ax1;
-    int ay2 = ay - ay1;
-    int bx2 = bx - bx1;
-    int by2 = by - by1;
-    int ww1 = abs(ax1 + ay1);
-    int hh1 = abs(bx1 + by1);
+    int ax2 = ax / 2;
+    int ay2 = ay / 2;
+    int bx2 = bx / 2;
+    int by2 = by / 2;
+    int w2  = abs(ax2 + ay2);
+    int h2  = abs(bx2 + by2);
 
-    if (ww1 % 2 == 1 && ww > 2) {
-      ax1 = ax1 + dax;
-      ay1 = ay1 + day;
-      ax2 = ax - ax1;
-      ay2 = ay - ay1;
-    }
+    if (2 * w > 3 * h) {
+      //
+      // one-dimensional spliting in x
+      //
+      if ((w2 % 2) && (w > 2)) {
+        ax2 = ax2 + dax;
+        ay2 = ay2 + day;
+      }
 
-    if (hh1 % 2 == 1 && hh > 2) {
-      bx1 = bx1 + dbx;
-      by1 = by1 + dby;
-      bx2 = bx - bx1;
-      by2 = by - by1;
-    }
+      int ax3 = ax - ax2;
+      int ay3 = ay - ay2;
 
-    if (2 * ww > 3 * hh) {
-      // split only in x
-      gilbert2d(index, id, x, y, +ax1, +ay1, +bx, +by);
-      push2d(index, id, x, y, +dax, +day);
+      // first step
       gilbert2d(index, id, x, y, +ax2, +ay2, +bx, +by);
+      x += ax2;
+      y += ay2;
+
+      // second step
+      gilbert2d(index, id, x, y, +ax3, +ay3, +bx, +by);
     } else {
-      gilbert2d(index, id, x, y, +bx1, +by1, +ax1, +ay1);
-      push2d(index, id, x, y, +dbx, +dby);
-      gilbert2d(index, id, x, y, +ax, +ay, +bx2, +by2);
-      push2d(index, id, x, y, -dbx, -dby);
-      gilbert2d(index, id, x, y, -bx1, -by1, -ax2, -ay2);
+      //
+      // two-dimensional spliting
+      //
+      if ((h2 % 2) && (h > 2)) {
+        bx2 = bx2 + dbx;
+        by2 = by2 + dby;
+      }
+
+      int ax3 = ax - ax2;
+      int ay3 = ay - ay2;
+      int bx3 = bx - bx2;
+      int by3 = by - by2;
+
+      // first step
+      gilbert2d(index, id, x, y, +bx2, +by2, +ax2, +ay2);
+      x += bx2;
+      y += by2;
+
+      // second step
+      gilbert2d(index, id, x, y, +ax, +ay, +bx3, +by3);
+      x += ax;
+      y += ay;
+
+      // third step
+      x -= dax + dbx;
+      y -= day + dby;
+      gilbert2d(index, id, x, y, -bx2, -by2, -ax3, -ay3);
     }
   }
 }
 
-void gilbert3d(array3d& index, int& id, int& x, int& y, int& z, int ax, int ay, int az, int bx,
-               int by, int bz, int cx, int cy, int cz)
+void gilbert3d(array3d& index, int& id, int x, int y, int z, int ax, int ay, int az, int bx, int by,
+               int bz, int cx, int cy, int cz)
 {
-  int ww  = abs(ax + ay + az);
-  int hh  = abs(bx + by + bz);
-  int dd  = abs(cx + cy + cz);
+  int w   = std::abs(ax + ay + az);
+  int h   = std::abs(bx + by + bz);
+  int d   = std::abs(cx + cy + cz);
   int dax = sign(ax);
   int day = sign(ay);
   int daz = sign(az);
@@ -316,38 +313,35 @@ void gilbert3d(array3d& index, int& id, int& x, int& y, int& z, int ax, int ay, 
   // trivial path
   //
   {
-    // 2x2x2 cube
-    if (ww == 2 && hh == 2 && dd == 2) {
-      push3d(index, id, x, y, z, +dbx, +dby, +dbz);
-      push3d(index, id, x, y, z, +dcx, +dcy, +dcz);
-      push3d(index, id, x, y, z, -dbx, -dby, -dbz);
-      push3d(index, id, x, y, z, +dax, +day, +daz);
-      push3d(index, id, x, y, z, +dbx, +dby, +dbz);
-      push3d(index, id, x, y, z, -dcx, -dcy, -dcz);
-      push3d(index, id, x, y, z, -dbx, -dby, -dbz);
-      return;
-    }
-
     // straight segment in x
-    if (hh == 1 && dd == 1) {
-      for (int i = 1; i < ww; i++) {
-        push3d(index, id, x, y, z, dax, day, daz);
+    if (h == 1 && d == 1) {
+      for (int i = 0; i < w; i++) {
+        forward_id_3d(index, id, x, y, z);
+        x += dax;
+        y += day;
+        z += daz;
       }
       return;
     }
 
     // straight segment in y
-    if (dd == 1 && ww == 1) {
-      for (int i = 1; i < hh; i++) {
-        push3d(index, id, x, y, z, dbx, dby, dbz);
+    if (d == 1 && w == 1) {
+      for (int i = 0; i < h; i++) {
+        forward_id_3d(index, id, x, y, z);
+        x += dbx;
+        y += dby;
+        z += dbz;
       }
       return;
     }
 
     // straight segment in z
-    if (ww == 1 && hh == 1) {
-      for (int i = 1; i < dd; i++) {
-        push3d(index, id, x, y, z, dcx, dcy, dcz);
+    if (w == 1 && h == 1) {
+      for (int i = 0; i < d; i++) {
+        forward_id_3d(index, id, x, y, z);
+        x += dcx;
+        y += dcy;
+        z += dcz;
       }
       return;
     }
@@ -357,85 +351,158 @@ void gilbert3d(array3d& index, int& id, int& x, int& y, int& z, int ax, int ay, 
   // recursive call
   //
   {
-    int ax1 = ax / 2;
-    int ay1 = ay / 2;
-    int az1 = az / 2;
-    int bx1 = bx / 2;
-    int by1 = by / 2;
-    int bz1 = bz / 2;
-    int cx1 = cx / 2;
-    int cy1 = cy / 2;
-    int cz1 = cz / 2;
-    int ax2 = ax - ax1;
-    int ay2 = ay - ay1;
-    int az2 = az - az1;
-    int bx2 = bx - bx1;
-    int by2 = by - by1;
-    int bz2 = bz - bz1;
-    int cx2 = cx - cx1;
-    int cy2 = cy - cy1;
-    int cz2 = cz - cz1;
-    int ww1 = abs(ax1 + ay1 + az1);
-    int hh1 = abs(bx1 + by1 + bz1);
-    int dd1 = abs(cx1 + cy1 + cz1);
+    int ax2 = ax / 2;
+    int ay2 = ay / 2;
+    int az2 = az / 2;
+    int bx2 = bx / 2;
+    int by2 = by / 2;
+    int bz2 = bz / 2;
+    int cx2 = cx / 2;
+    int cy2 = cy / 2;
+    int cz2 = cz / 2;
+    int w2  = std::abs(ax2 + ay2 + az2);
+    int h2  = std::abs(bx2 + by2 + bz2);
+    int d2  = std::abs(cx2 + cy2 + cz2);
 
-    if ((ww1 % 2 == 1) && (ww > 2)) {
-      ax1 = ax1 + dax;
-      ay1 = ay1 + day;
-      az1 = az1 + daz;
-      ax2 = ax - ax1;
-      ay2 = ay - ay1;
-      az2 = az - az1;
+    if ((w2 % 2) && (w > 2)) {
+      ax2 = ax2 + dax;
+      ay2 = ay2 + day;
+      az2 = az2 + daz;
     }
 
-    if ((hh1 % 2 == 1) && (hh > 2)) {
-      bx1 = bx1 + dbx;
-      by1 = by1 + dby;
-      bz1 = bz1 + dbz;
-      bx2 = bx - bx1;
-      by2 = by - by1;
-      bz2 = bz - bz1;
+    if ((h2 % 2) && (h > 2)) {
+      bx2 = bx2 + dbx;
+      by2 = by2 + dby;
+      bz2 = bz2 + dbz;
     }
 
-    if ((dd1 % 2 == 1) && (dd > 2)) {
-      cx1 = cx1 + dcx;
-      cy1 = cy1 + dcy;
-      cz1 = cz1 + dcz;
-      cx2 = cx - cx1;
-      cy2 = cy - cy1;
-      cz2 = cz - cz1;
+    if ((d2 % 2) && (d > 2)) {
+      cx2 = cx2 + dcx;
+      cy2 = cy2 + dcy;
+      cz2 = cz2 + dcz;
     }
 
-    if ((2 * ww > 3 * hh) && (2 * ww > 3 * dd)) {
-      // split only in x
-      gilbert3d(index, id, x, y, z, +ax1, +ay1, +az1, +bx, +by, +bz, +cx, +cy, +cz);
-      push3d(index, id, x, y, z, +dax, +day, +daz);
+    if ((2 * w > 3 * h) && (2 * w > 3 * d)) {
+      //
+      // one-dimensional spliting in x
+      //
+      int ax3 = ax - ax2;
+      int ay3 = ay - ay2;
+      int az3 = az - az2;
+
+      // first step
       gilbert3d(index, id, x, y, z, +ax2, +ay2, +az2, +bx, +by, +bz, +cx, +cy, +cz);
-    } else if (3 * hh > 4 * dd) {
-      // split only in x-y
-      gilbert3d(index, id, x, y, z, +bx1, +by1, +bz1, +cx, +cy, +cz, +ax1, +ay1, +az1);
-      push3d(index, id, x, y, z, +dbx, +dby, +dbz);
-      gilbert3d(index, id, x, y, z, +ax, +ay, +az, +bx2, +by2, +bz2, +cx, +cy, +cz);
-      push3d(index, id, x, y, z, -dbx, -dby, -dbz);
-      gilbert3d(index, id, x, y, z, -bx1, -by1, -bz1, +cx, +cy, +cz, -ax2, -ay2, -az2);
-    } else if (3 * dd > 4 * hh) {
-      // split only in x-z
-      gilbert3d(index, id, x, y, z, +cx1, +cy1, +cz1, +ax1, +ay1, +az1, +bx, +by, +bz);
-      push3d(index, id, x, y, z, +dcx, +dcy, +dcz);
-      gilbert3d(index, id, x, y, z, +ax, +ay, +az, +bx, +by, +bz, +cx2, +cy2, +cz2);
-      push3d(index, id, x, y, z, -dcx, -dcy, -dcz);
-      gilbert3d(index, id, x, y, z, -cx1, -cy1, -cz1, -ax2, -ay2, -az2, +bx, +by, +bz);
+      x += ax2;
+      y += ay2;
+      z += az2;
+
+      // second step
+      gilbert3d(index, id, x, y, z, +ax3, +ay3, +az3, +bx, +by, +bz, +cx, +cy, +cz);
+    } else if (3 * h > 4 * d) {
+      //
+      // two-dimensional spliting in x-y
+      //
+      int ax3 = ax - ax2;
+      int ay3 = ay - ay2;
+      int az3 = az - az2;
+      int bx3 = bx - bx2;
+      int by3 = by - by2;
+      int bz3 = bz - bz2;
+
+      // first step
+      gilbert3d(index, id, x, y, z, +bx2, +by2, +bz2, +cx, +cy, +cz, +ax2, +ay2, +az2);
+      x += bx2;
+      y += by2;
+      z += bz2;
+
+      // second step
+      gilbert3d(index, id, x, y, z, +ax, +ay, +az, +bx3, +by3, +bz3, +cx, +cy, +cz);
+      x += ax;
+      y += ay;
+      z += az;
+
+      // third step
+      x -= dax + dbx;
+      y -= day + dby;
+      z -= daz + dbz;
+      gilbert3d(index, id, x, y, z, -bx2, -by2, -bz2, +cx, +cy, +cz, -ax3, -ay3, -az3);
+    } else if (3 * d > 4 * h) {
+      //
+      // two-dimensional spliting in x-z
+      //
+      int ax3 = ax - ax2;
+      int ay3 = ay - ay2;
+      int az3 = az - az2;
+      int cx3 = cx - cx2;
+      int cy3 = cy - cy2;
+      int cz3 = cz - cz2;
+
+      // first step
+      gilbert3d(index, id, x, y, z, +cx2, +cy2, +cz2, +ax2, +ay2, +az2, +bx, +by, +bz);
+      x += cx2;
+      y += cy2;
+      z += cz2;
+
+      // second step
+      gilbert3d(index, id, x, y, z, +ax, +ay, +az, +bx, +by, +bz, +cx3, +cy3, +cz3);
+      x += ax;
+      y += ay;
+      z += az;
+
+      // third step
+      x -= dax + dcx;
+      y -= day + dcy;
+      z -= daz + dcz;
+      gilbert3d(index, id, x, y, z, -cx2, -cy2, -cz2, -ax3, -ay3, -az3, +bx, +by, +bz);
     } else {
-      // full split
-      gilbert3d(index, id, x, y, z, +bx1, +by1, +bz1, +cx1, +cy1, +cz1, +ax1, +ay1, +az1);
-      push3d(index, id, x, y, z, dbx, dby, dbz);
-      gilbert3d(index, id, x, y, z, +cx, +cy, +cz, +ax1, +ay1, +az1, +bx2, +by2, +bz2);
-      push3d(index, id, x, y, z, -dbx, -dby, -dbz);
-      gilbert3d(index, id, x, y, z, +ax, +ay, +az, -bx1, -by1, -bz1, -cx2, -cy2, -cz2);
-      push3d(index, id, x, y, z, +dbx, +dby, +dbz);
-      gilbert3d(index, id, x, y, z, -cx, -cy, -cz, -ax2, -ay2, -az2, +bx2, +by2, +bz2);
-      push3d(index, id, x, y, z, -dbx, -dby, -dbz);
-      gilbert3d(index, id, x, y, z, -bx1, -by1, -bz1, +cx1, +cy1, +cz1, -ax2, -ay2, -az2);
+      //
+      // fully three-dimensional spliting
+      //
+      int ax3 = ax - ax2;
+      int ay3 = ay - ay2;
+      int az3 = az - az2;
+      int bx3 = bx - bx2;
+      int by3 = by - by2;
+      int bz3 = bz - bz2;
+      int cx3 = cx - cx2;
+      int cy3 = cy - cy2;
+      int cz3 = cz - cz2;
+
+      // first step
+      gilbert3d(index, id, x, y, z, +bx2, +by2, +bz2, +cx2, +cy2, +cz2, +ax2, +ay2, +az2);
+      x += bx2;
+      y += by2;
+      z += bz2;
+
+      // second step
+      gilbert3d(index, id, x, y, z, +cx, +cy, +cz, +ax2, +ay2, +az2, +bx3, +by3, +bz3);
+      x += cx;
+      y += cy;
+      z += cz;
+
+      // third step
+      x -= dbx + dcx;
+      y -= dby + dcy;
+      z -= dbz + dcz;
+      gilbert3d(index, id, x, y, z, +ax, +ay, +az, -bx2, -by2, -bz2, -cx3, -cy3, -cz3);
+      x += ax;
+      y += ay;
+      z += az;
+
+      // fourth step
+      x -= dax - dbx;
+      y -= day - dby;
+      z -= daz - dbz;
+      gilbert3d(index, id, x, y, z, -cx, -cy, -cz, -ax3, -ay3, -az3, +bx3, +by3, +bz3);
+      x -= cx;
+      y -= cy;
+      z -= cz;
+
+      // fifth step
+      x -= dbx - dcx;
+      y -= dby - dcy;
+      z -= dbz - dcz;
+      gilbert3d(index, id, x, y, z, -bx2, -by2, -bz2, +cx2, +cy2, +cz2, -ax3, -ay3, -az3);
     }
   }
 }
