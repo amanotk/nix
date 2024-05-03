@@ -31,6 +31,10 @@
 #include <mpi.h>
 #include <nlohmann/json.hpp>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #ifdef HAS_MPI_THREAD_MULTIPLE
 #define OMP_MAYBE_CRITICAL
 constexpr int NIX_MPI_THREAD_LEVEL = MPI_THREAD_MULTIPLE;
@@ -135,6 +139,15 @@ inline int32_t get_endian_flag()
   } endian_flag;
 
   return endian_flag.flag;
+}
+
+inline int get_max_threads()
+{
+#ifdef _OPENMP
+  return omp_get_max_threads();
+#else
+  return 1;
+#endif
 }
 
 ///

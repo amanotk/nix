@@ -45,6 +45,7 @@ protected:
 
   int     thisrank; ///< my rank
   int     nprocess; ///< number of mpi processes
+  int     nthread;  ///< number of threads
   int     cl_argc;  ///< command-line argc
   char**  cl_argv;  ///< command-line argv
   float64 wclock;   ///< wall clock time at initialization
@@ -61,8 +62,9 @@ protected:
   struct InternalData {
     int*         ndims;
     int*         cdims;
-    int&         nprocess;
     int&         thisrank;
+    int&         nprocess;
+    int&         nthread;
     int&         curstep;
     float64&     curtime;
     PtrChunkMap& chunkmap;
@@ -74,7 +76,7 @@ protected:
   ///
   InternalData get_internal_data()
   {
-    return {ndims, cdims, nprocess, thisrank, curstep, curtime, chunkmap, chunkvec};
+    return {ndims, cdims, thisrank, nprocess, nthread, curstep, curtime, chunkmap, chunkvec};
   }
 
 public:
@@ -377,8 +379,9 @@ DEFINE_MEMBER(json, to_json)()
                 {"cdims", cdims},
                 {"curstep", curstep},
                 {"curtime", curtime},
-                {"nprocess", nprocess},
                 {"thisrank", thisrank},
+                {"nprocess", nprocess},
+                {"nthread", nthread},
                 {"configuration", cfgparser->get_root()},
                 {"chunkmap", chunkmap->to_json()}};
 
@@ -532,6 +535,8 @@ DEFINE_MEMBER(void, initialize_base_directory)()
 
 DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
 {
+  nthread = nix::get_max_threads();
+
   // initialize MPI with thread support
   {
     int thread_required = NIX_MPI_THREAD_LEVEL;
