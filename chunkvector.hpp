@@ -20,6 +20,8 @@ public:
   using vector_type::emplace_back;
   using vector_type::begin;
   using vector_type::end;
+  using vector_type::rbegin;
+  using vector_type::rend;
   using vector_type::front;
   using vector_type::back;
   using vector_type::operator[];
@@ -29,20 +31,22 @@ public:
   using vector_type::reserve;
   using vector_type::shrink_to_fit;
 
-  void sort_and_shrink(int max_id)
+  void remove_nullptr()
   {
+    this->erase(
+        std::remove_if(this->begin(), this->end(), [](const auto& x) { return x == nullptr; }),
+        this->end());
+  }
+
+  void sort_and_shrink()
+  {
+    // clean up
+    this->remove_nullptr();
+
+    // sort by id
     std::sort(this->begin(), this->end(),
               [](const auto& x, const auto& y) { return x->get_id() < y->get_id(); });
 
-    // discard unused chunks with id > max_id
-    int new_size = 0;
-    for (int i = 0; i < this->size(); i++) {
-      if ((*this)[i]->get_id() > max_id)
-        break;
-      new_size++;
-    }
-
-    this->resize(new_size);
     this->shrink_to_fit();
   }
 

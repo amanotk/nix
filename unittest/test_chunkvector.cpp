@@ -80,7 +80,6 @@ TEST_CASE("sort_and_shrink")
 {
   using MockChunkVector = std::vector<std::unique_ptr<MockChunk>>;
   const int size        = 10;
-  const int max_id      = 4;
 
   ChunkVectorTest chunktest;
   MockChunkVector chunkmock;
@@ -102,10 +101,8 @@ TEST_CASE("sort_and_shrink")
 
   SECTION("with pre-sorted data")
   {
-    chunktest.sort_and_shrink(max_id);
+    chunktest.sort_and_shrink();
     REQUIRE(chunktest.is_sorted());
-    REQUIRE(max_id + 1 == chunktest.size());
-    REQUIRE(max_id + 1 == chunktest.capacity());
   }
 
   SECTION("with shuffled data")
@@ -115,10 +112,25 @@ TEST_CASE("sort_and_shrink")
     std::mt19937       engine(seed_gen());
     std::shuffle(chunktest.begin(), chunktest.end(), engine);
 
-    chunktest.sort_and_shrink(max_id);
+    chunktest.sort_and_shrink();
     REQUIRE(chunktest.is_sorted());
-    REQUIRE(max_id + 1 == chunktest.size());
-    REQUIRE(max_id + 1 == chunktest.capacity());
+  }
+
+  SECTION("with nullptr")
+  {
+    // reset for even id
+    for (int i = 0; i < chunktest.size(); i++) {
+      if (chunktest[i]->get_id() % 2 == 0) {
+        chunktest[i].reset();
+      }
+    }
+
+    chunktest.sort_and_shrink();
+    REQUIRE(chunktest.is_sorted());
+    REQUIRE(chunktest.size() == size / 2);
+    for (int i = 0; i < chunktest.size(); i++) {
+      REQUIRE(chunktest[i]->get_id() % 2 != 0);
+    }
   }
 }
 

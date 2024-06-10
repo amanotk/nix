@@ -188,8 +188,6 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& boundary
 
   int thisrank = data.thisrank;
   int nprocess = data.nprocess;
-  int idxmin   = 0;
-  int idxmax   = data.chunkvec.size() - 1;
   int rankmin  = 0;
   int rankmax  = nprocess - 1;
   int rank_l   = thisrank > rankmin ? thisrank - 1 : MPI_PROC_NULL;
@@ -260,13 +258,13 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& boundary
     }
 
     auto it    = std::find_if(data.chunkvec.begin(), data.chunkvec.end(),
-                           [&](auto& p) { return p->get_id() == chunkid; });
+                              [&](auto& p) { return p->get_id() == chunkid; });
     int  index = std::distance(data.chunkvec.begin(), it);
 
     while (find_rank(chunkid, boundary) == rank) {
       // pack
       size = data.chunkvec[index]->pack(buf, 0);
-      data.chunkvec[index]->set_id(nchunk_global + 1); // to be removed
+      data.chunkvec[index].reset(); // deallocate memory
 
       MPI_Isend(buf, size, MPI_BYTE, rank, tag, MPI_COMM_WORLD, &request);
       MPI_Wait(&request, MPI_STATUS_IGNORE);
@@ -305,57 +303,67 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& boundary
   // chunk exchange at odd boundary
   //
   if (thisrank % 2 == 1) {
+    int chunkid_min = (*data.chunkvec.begin())->get_id();
+
     // send to left
     {
-      int chunkid = data.chunkvec[idxmin]->get_id();
+      int chunkid = chunkid_min;
       send_chunk(chunkid, rank_l, 1, +1, 0);
     }
     // recv from left
     {
-      int chunkid = data.chunkvec[idxmin]->get_id() - 1;
+      int chunkid = chunkid_min - 1;
       recv_chunk(chunkid, rank_l, 2, -1, 0);
     }
   } else {
+    int chunkid_max = (*data.chunkvec.rbegin())->get_id();
+
     // send to right
     {
-      int chunkid = data.chunkvec[idxmax]->get_id();
+      int chunkid = chunkid_max;
       send_chunk(chunkid, rank_r, 2, -1, 0);
     }
     // recv from right
     {
-      int chunkid = data.chunkvec[idxmax]->get_id() + 1;
+      int chunkid = chunkid_max + 1;
       recv_chunk(chunkid, rank_r, 1, +1, 0);
     }
   }
+
+  data.chunkvec.sort_and_shrink();
 
   //
   // chunk exchange at even boundary
   //
   if (thisrank % 2 == 1) {
+    int chunkid_max = (*data.chunkvec.rbegin())->get_id();
+
     // send to right
     {
-      int chunkid = data.chunkvec[idxmax]->get_id();
+      int chunkid = chunkid_max;
       send_chunk(chunkid, rank_r, 3, -1, 0);
     }
     // recv from right
     {
-      int chunkid = data.chunkvec[idxmax]->get_id() + 1;
+      int chunkid = chunkid_max + 1;
       recv_chunk(chunkid, rank_r, 4, +1, 0);
     }
   } else {
+    int chunkid_min = (*data.chunkvec.begin())->get_id();
+
     // send to left
     {
-      int chunkid = data.chunkvec[idxmin]->get_id();
+      int chunkid = chunkid_min;
       send_chunk(chunkid, rank_l, 4, +1, 0);
     }
     // recv from left
     {
-      int chunkid = data.chunkvec[idxmin]->get_id() - 1;
+      int chunkid = chunkid_min - 1;
       recv_chunk(chunkid, rank_l, 3, -1, 0);
     }
   }
 
-  data.chunkvec.sort_and_shrink(nchunk_global);
+  data.chunkvec.sort_and_shrink();
 }
 
 NIX_NAMESPACE_END
