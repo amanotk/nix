@@ -13,10 +13,10 @@ NIX_NAMESPACE_BEGIN
 /// @brief Boundary Halo3D class for field
 ///
 template <typename Chunk>
-class XtensorHaloField3D : public Halo3D<xt::xtensor<float64, 4>, Chunk>
+class XtensorHaloField3D : public Halo3D<xt::xtensor<float64, 4>, Chunk, true>
 {
 public:
-  using Base = Halo3D<xt::xtensor<float64, 4>, Chunk>;
+  using Base = Halo3D<xt::xtensor<float64, 4>, Chunk, true>;
   using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
@@ -81,10 +81,10 @@ public:
 /// @brief Boundary Halo3D class for current
 ///
 template <typename Chunk>
-class XtensorHaloCurrent3D : public Halo3D<xt::xtensor<float64, 4>, Chunk>
+class XtensorHaloCurrent3D : public Halo3D<xt::xtensor<float64, 4>, Chunk, true>
 {
 public:
-  using Base = Halo3D<xt::xtensor<float64, 4>, Chunk>;
+  using Base = Halo3D<xt::xtensor<float64, 4>, Chunk, true>;
   using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
@@ -149,10 +149,10 @@ public:
 /// @brief Boundary Halo3D class for moment
 ///
 template <typename Chunk>
-class XtensorHaloMoment3D : public Halo3D<xt::xtensor<float64, 5>, Chunk>
+class XtensorHaloMoment3D : public Halo3D<xt::xtensor<float64, 5>, Chunk, true>
 {
 public:
-  using Base = Halo3D<xt::xtensor<float64, 5>, Chunk>;
+  using Base = Halo3D<xt::xtensor<float64, 5>, Chunk, true>;
   using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
@@ -217,10 +217,10 @@ public:
 /// @brief Boundary Halo3D class for particle
 ///
 template <typename Chunk>
-class XtensorHaloParticle3D : public Halo3D<ParticleVec, Chunk>
+class XtensorHaloParticle3D : public Halo3D<ParticleVec, Chunk, true>
 {
 public:
-  using Base = Halo3D<ParticleVec, Chunk>;
+  using Base = Halo3D<ParticleVec, Chunk, true>;
   using Base::data;
   using Base::chunk;
   using Base::send_buffer;
@@ -239,7 +239,8 @@ public:
   xt::xtensor<int32_t, 4> snd_count;
   std::vector<int32_t>    num_particle;
 
-  XtensorHaloParticle3D(ParticleVec& data, Chunk& chunk) : Halo3D<ParticleVec, Chunk>(data, chunk)
+  XtensorHaloParticle3D(ParticleVec& data, Chunk& chunk)
+      : Halo3D<ParticleVec, Chunk, true>(data, chunk)
   {
     Ns       = data.size();
     particle = data;
@@ -377,7 +378,7 @@ public:
 
       if (num_particle[is] + cnt > particle[is]->Np_total) {
         // run out of particle buffer and try to reallocate twice the original
-        particle[is]->resize(2 * particle[is]->Np_total);
+        particle[is]->resize(1.2 * num_particle[is] + cnt);
       }
 
       // particles
@@ -437,7 +438,7 @@ public:
 
       // increase particle buffer
       if (particle[is]->Np > increase_fraction * particle[is]->Np_total) {
-        new_np = 2.0 * particle[is]->Np_total;
+        new_np = 1.2 * particle[is]->Np_total;
       }
 
       // decrease particle buffer

@@ -10,10 +10,12 @@ NIX_NAMESPACE_BEGIN
 ///
 /// @brief Halo3D
 ///
-template <typename Data, typename Chunk>
+template <typename Data, typename Chunk, bool FixedBufferFlag>
 class Halo3D
 {
 public:
+  static constexpr bool is_buffer_fixed = FixedBufferFlag;
+
   Data*   data;
   Chunk*  chunk;
   void*   send_buffer;

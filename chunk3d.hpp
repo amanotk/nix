@@ -368,6 +368,9 @@ public:
   }
 
 protected:
+  template <typename Halo>
+  bool probe_bc_exchange(MpiBufferPtr mpibuf, Halo& halo);
+
   ///
   /// @brief pack and start boundary exchange
   /// @tparam Halo boundary halo class
@@ -722,9 +725,99 @@ DEFINE_MEMBER(void, set_mpi_buffer)
   }
 }
 
+DEFINE_MEMBER(template <typename Halo> bool, probe_bc_exchange)
+(MpiBufferPtr mpibuf, Halo& halo)
+{
+  if constexpr (Halo::is_buffer_fixed == true)
+    return true;
+
+  MPI_Status stat[3][3][3];
+  int        flag[3][3][3] = {0};
+  int        size[3][3][3] = {0};
+  int        bufaddr       = 0;
+  int        bufsize       = 0;
+
+  bool is_ready = true;
+
+  //
+  // probe incoming messages
+  //
+  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
+    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
+      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+        // skip
+        if (iz == 1 && iy == 1 && ix == 1) {
+          continue;
+        }
+
+        OMP_MAYBE_CRITICAL
+        {
+          MPI_Comm* recv_comm = &mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
+          int       nbrank    = get_nb_rank(dirz, diry, dirx);
+          int       recvtag   = get_rcvtag(dirz, diry, dirx);
+
+          MPI_Iprobe(nbrank, recvtag, *recv_comm, &flag[iz][iy][ix], &stat[iz][iy][ix]);
+
+          // get message size
+          if (flag[iz][iy][ix] != 0) {
+            MPI_Get_count(&stat[iz][iy][ix], mpibuf->recvtype(iz, iy, ix), &size[iz][iy][ix]);
+            bufsize += size[iz][iy][ix];
+          }
+
+          is_ready = is_ready && (flag[iz][iy][ix] != 0);
+        }
+      }
+    }
+  }
+
+  // not ready yet
+  if (is_ready == false)
+    return false;
+
+  //
+  // recv incoming messages
+  //
+  {
+    // resize buffer
+    mpibuf->recvbuf.resize(bufsize);
+
+    for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
+      for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
+        for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+          // skip
+          if (iz == 1 && iy == 1 && ix == 1) {
+            mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
+            continue;
+          }
+
+          OMP_MAYBE_CRITICAL
+          {
+            auto& recvcomm = mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
+            auto& recvtype = mpibuf->recvtype(iz, iy, ix);
+            auto& recvreq  = mpibuf->recvreq(iz, iy, ix);
+            int   nbrank   = get_nb_rank(dirz, diry, dirx);
+            int   recvtag  = get_rcvtag(dirz, diry, dirx);
+            int   recvcnt  = size[iz][iy][ix];
+            void* recvptr  = mpibuf->recvbuf.get(bufaddr);
+
+            MPI_Irecv(recvptr, recvcnt, recvtype, nbrank, recvtag, recvcomm, &recvreq);
+
+            bufaddr += recvcnt;
+          }
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
 (MpiBufferPtr mpibuf, Halo& halo)
 {
+  static constexpr bool is_send_required = true;
+  static constexpr bool is_recv_required = Halo::is_buffer_fixed == true;
+
   // pre-process
   halo.pre_pack(mpibuf);
 
@@ -749,23 +842,31 @@ DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
 
         OMP_MAYBE_CRITICAL
         if (status) {
-          int   nbrank  = get_nb_rank(dirz, diry, dirx);
-          int   sendtag = get_sndtag(dirz, diry, dirx);
-          int   recvtag = get_rcvtag(dirz, diry, dirx);
-          void* sendptr = halo.send_buffer;
-          void* recvptr = halo.recv_buffer;
-          int   sendcnt = halo.send_count;
-          int   recvcnt = halo.recv_count;
+          int nbrank = get_nb_rank(dirz, diry, dirx);
 
-          // communicator
-          MPI_Comm* send_comm = &mpibuf->comm(1 + dirz, 1 + diry, 1 + dirx);
-          MPI_Comm* recv_comm = &mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
+          // send
+          if constexpr (is_send_required == true) {
+            auto& sendcomm = mpibuf->comm(1 + dirz, 1 + diry, 1 + dirx);
+            auto& sendtype = mpibuf->sendtype(iz, iy, ix);
+            auto& sendreq  = mpibuf->sendreq(iz, iy, ix);
+            int   sendtag  = get_sndtag(dirz, diry, dirx);
+            void* sendptr  = halo.send_buffer;
+            int   sendcnt  = halo.send_count;
 
-          // send/recv calls
-          MPI_Isend(sendptr, sendcnt, mpibuf->sendtype(iz, iy, ix), nbrank, sendtag, *send_comm,
-                    &mpibuf->sendreq(iz, iy, ix));
-          MPI_Irecv(recvptr, recvcnt, mpibuf->recvtype(iz, iy, ix), nbrank, recvtag, *recv_comm,
-                    &mpibuf->recvreq(iz, iy, ix));
+            MPI_Isend(sendptr, sendcnt, sendtype, nbrank, sendtag, sendcomm, &sendreq);
+          }
+
+          // recv
+          if constexpr (is_recv_required == true) {
+            auto& recvcomm = mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
+            auto& recvtype = mpibuf->recvtype(iz, iy, ix);
+            auto& recvreq  = mpibuf->recvreq(iz, iy, ix);
+            int   recvtag  = get_rcvtag(dirz, diry, dirx);
+            void* recvptr  = halo.recv_buffer;
+            int   recvcnt  = halo.recv_count;
+
+            MPI_Irecv(recvptr, recvcnt, recvtype, nbrank, recvtag, recvcomm, &recvreq);
+          }
         } else {
           // no send/recv required
           mpibuf->sendreq(iz, iy, ix) = MPI_REQUEST_NULL;
