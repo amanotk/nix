@@ -217,10 +217,10 @@ public:
 /// @brief Boundary Halo3D class for particle
 ///
 template <typename Chunk>
-class XtensorHaloParticle3D : public Halo3D<ParticleVec, Chunk, true>
+class XtensorHaloParticle3D : public Halo3D<ParticleVec, Chunk, false>
 {
 public:
-  using Base = Halo3D<ParticleVec, Chunk, true>;
+  using Base = Halo3D<ParticleVec, Chunk, false>;
   using Base::data;
   using Base::chunk;
   using Base::send_buffer;
@@ -230,23 +230,19 @@ public:
 
   static constexpr int32_t head_byte         = sizeof(int32_t);
   static constexpr int32_t elem_byte         = ParticlePtr::element_type::get_particle_size();
-  static constexpr float64 increase_fraction = 0.80;
-  static constexpr float64 decrease_fraction = 0.20;
+  static constexpr float64 delta_fraction    = 0.20;
+  static constexpr float64 increase_fraction = 1 + delta_fraction;
+  static constexpr float64 decrease_fraction = 1 - delta_fraction;
 
-  int32_t                 Ns;
-  int32_t                 buffer_flag[3][3][3];
-  ParticleVec             particle;
-  xt::xtensor<int32_t, 4> snd_count;
-  std::vector<int32_t>    num_particle;
+  int32_t              Ns;
+  ParticleVec          particle;
+  std::vector<int32_t> num_unpacked;
 
   XtensorHaloParticle3D(ParticleVec& data, Chunk& chunk)
-      : Halo3D<ParticleVec, Chunk, true>(data, chunk)
+      : Halo3D<ParticleVec, Chunk, false>(data, chunk)
   {
     Ns       = data.size();
     particle = data;
-
-    snd_count.resize({static_cast<size_t>(Ns + 1), 3ul, 3ul, 3ul});
-    num_particle.resize(Ns);
   }
 
   template <typename BufferPtr>
@@ -259,51 +255,139 @@ public:
     const float64 zmin = chunk->get_zmin();
     const float64 zmax = chunk->get_zmax();
 
-    bool status = true;
+    std::array<size_t, 4>   shape = {static_cast<size_t>(Ns + 1), 3ul, 3ul, 3ul};
+    xt::xtensor<int32_t, 4> send_count(shape);
 
-    // initialize with zero
-    snd_count.fill(0);
+    DEBUG2 << tfm::format("pre_pack() start : %.4d", this->chunk->get_id());
+
+    // initialize
+    send_count.fill(0);
 
     //
-    // pack out-of-bounds particles
+    // count out-of-bounds particles
     //
     for (int is = 0; is < Ns; is++) {
       // loop over particles
       auto& xu = particle[is]->xu;
       for (int ip = 0; ip < particle[is]->Np; ip++) {
-        int dirz = (xu(ip, 2) >= zmax) - (xu(ip, 2) < zmin);
-        int diry = (xu(ip, 1) >= ymax) - (xu(ip, 1) < ymin);
-        int dirx = (xu(ip, 0) >= xmax) - (xu(ip, 0) < xmin);
+        int iz = (xu(ip, 2) >= zmax) - (xu(ip, 2) < zmin) + 1;
+        int iy = (xu(ip, 1) >= ymax) - (xu(ip, 1) < ymin) + 1;
+        int ix = (xu(ip, 0) >= xmax) - (xu(ip, 0) < xmin) + 1;
 
         // skip
-        if (dirx == 0 && diry == 0 && dirz == 0)
+        if (ix == 1 && iy == 1 && iz == 1)
           continue;
 
-        int iz  = dirz + 1;
-        int iy  = diry + 1;
-        int ix  = dirx + 1;
-        int cnt = elem_byte * snd_count(Ns, iz, iy, ix) + head_byte * (is + 1);
-        int pos = mpibuf->bufaddr(iz, iy, ix) + cnt;
+        send_count(is, iz, iy, ix)++;
+        send_count(Ns, iz, iy, ix)++; // total number of send particles
+      }
+    }
 
-        // check buffer size
-        if (mpibuf->bufsize(iz, iy, ix) < cnt) {
-          status = false;
+    //
+    // allocate buffer
+    //
+    {
+      int bufsize = 0;
+
+      mpibuf->bufsize.fill(0);
+      mpibuf->bufaddr.fill(0);
+
+      for (int iz = 0; iz < 3; iz++) {
+        for (int iy = 0; iy < 3; iy++) {
+          for (int ix = 0; ix < 3; ix++) {
+            // skip
+            if (iz == 1 && iy == 1 && ix == 1)
+              continue;
+
+            mpibuf->bufsize(iz, iy, ix) = elem_byte * send_count(Ns, iz, iy, ix) + head_byte * Ns;
+            mpibuf->bufaddr(iz, iy, ix) = bufsize;
+            bufsize += mpibuf->bufsize(iz, iy, ix);
+          }
+        }
+      }
+
+      mpibuf->sendbuf.resize(bufsize);
+    }
+
+    //
+    // pack header
+    //
+    {
+      for (int iz = 0; iz < 3; iz++) {
+        for (int iy = 0; iy < 3; iy++) {
+          for (int ix = 0; ix < 3; ix++) {
+            // skip
+            if (iz == 1 && iy == 1 && ix == 1)
+              continue;
+
+            int addr = mpibuf->bufaddr(iz, iy, ix);
+            for (int is = 0; is < Ns; is++) {
+              std::memcpy(mpibuf->sendbuf.get(addr), &send_count(is, iz, iy, ix), head_byte);
+              addr += head_byte + elem_byte * send_count(is, iz, iy, ix);
+            }
+          }
+        }
+      }
+    }
+
+    //
+    // pack out-of-bounds particles
+    //
+    {
+      auto addr = mpibuf->bufaddr;
+
+      for (int is = 0; is < Ns; is++) {
+        // skip header
+        for (int iz = 0; iz < 3; iz++) {
+          for (int iy = 0; iy < 3; iy++) {
+            for (int ix = 0; ix < 3; ix++) {
+              addr(iz, iy, ix) += head_byte;
+            }
+          }
         }
 
-        // pack
-        std::memcpy(mpibuf->sendbuf.get(pos), &xu(ip, 0), elem_byte);
-        snd_count(is, iz, iy, ix)++;
-        snd_count(Ns, iz, iy, ix)++; // total number of send particles
+        // pack particles
+        auto& xu = particle[is]->xu;
+        for (int ip = 0; ip < particle[is]->Np; ip++) {
+          int iz = (xu(ip, 2) >= zmax) - (xu(ip, 2) < zmin) + 1;
+          int iy = (xu(ip, 1) >= ymax) - (xu(ip, 1) < ymin) + 1;
+          int ix = (xu(ip, 0) >= xmax) - (xu(ip, 0) < xmin) + 1;
+
+          // skip
+          if (ix == 1 && iy == 1 && iz == 1)
+            continue;
+
+          // pack
+          std::memcpy(mpibuf->sendbuf.get(addr(iz, iy, ix)), &xu(ip, 0), elem_byte);
+          addr(iz, iy, ix) += elem_byte;
+          send_count(is, iz, iy, ix)--;
+        }
       }
     }
 
-    if (status == false) {
-      OMP_MAYBE_CRITICAL
-      {
-        ERROR << tfm::format("Chunk[%06d]: insufficient send buffer", chunk->get_id());
-        MPI_Abort(MPI_COMM_WORLD, -1);
+    //
+    // check if all particles are packed
+    //
+    {
+      bool is_all_packed = true;
+
+      for (int is = 0; is < Ns; is++) {
+        for (int iz = 0; iz < 3; iz++) {
+          for (int iy = 0; iy < 3; iy++) {
+            for (int ix = 0; ix < 3; ix++) {
+              is_all_packed = is_all_packed && (send_count(is, iz, iy, ix) == 0);
+            }
+          }
+        }
+      }
+
+      if (is_all_packed == false) {
+        ERROR << "not all particles are packed";
+        ERROR << send_count;
       }
     }
+
+    DEBUG2 << tfm::format("pre_pack()   end : %.4d", this->chunk->get_id());
   }
 
   template <typename BufferPtr>
@@ -313,23 +397,15 @@ public:
     if (iz == 1 && iy == 1 && ix == 1)
       return false;
 
-    // add header for each species
-    int addr = mpibuf->bufaddr(iz, iy, ix);
-    int byte = 0;
-    for (int is = 0; is < Ns; is++) {
-      std::memcpy(mpibuf->sendbuf.get(addr + byte), &snd_count(is, iz, iy, ix), head_byte);
-      byte += head_byte + elem_byte * snd_count(is, iz, iy, ix);
-    }
-
     // datatype
     mpibuf->sendtype(iz, iy, ix) = MPI_BYTE;
     mpibuf->recvtype(iz, iy, ix) = MPI_BYTE;
 
-    // parameters for MPI send/recv
+    // only for send buffer (recv is not yet ready)
     send_buffer = mpibuf->get_send_buffer(iz, iy, ix);
-    recv_buffer = mpibuf->get_recv_buffer(iz, iy, ix);
-    send_count  = byte;
-    recv_count  = mpibuf->bufsize(iz, iy, ix);
+    recv_buffer = nullptr;
+    send_count  = mpibuf->bufsize(iz, iy, ix);
+    recv_count  = 0;
 
     return true;
   }
@@ -343,17 +419,56 @@ public:
   template <typename BufferPtr>
   void pre_unpack(BufferPtr& mpibuf)
   {
+    DEBUG2 << tfm::format("pre_unpack() start : %.4d", this->chunk->get_id());
+
+    std::array<size_t, 4>   shape = {static_cast<size_t>(Ns + 1), 3ul, 3ul, 3ul};
+    xt::xtensor<int32_t, 4> recv_count(shape);
+
+    // initialize
+    recv_count.fill(0);
+
+    //
+    // unpack header
+    //
     for (int iz = 0; iz < 3; iz++) {
       for (int iy = 0; iy < 3; iy++) {
         for (int ix = 0; ix < 3; ix++) {
-          buffer_flag[iz][iy][ix] = 0;
+          // skip null message
+          if (mpibuf->bufsize(iz, iy, ix) == 0)
+            continue;
+
+          int addr = mpibuf->bufaddr(iz, iy, ix);
+          for (int is = 0; is < Ns; is++) {
+            std::memcpy(&recv_count(is, iz, iy, ix), mpibuf->recvbuf.get(addr), head_byte);
+            addr += head_byte + elem_byte * recv_count(is, iz, iy, ix);
+            recv_count(Ns, iz, iy, ix) += recv_count(is, iz, iy, ix);
+          }
         }
       }
     }
 
+    //
+    // resize particle buffer if needed
+    //
     for (int is = 0; is < Ns; is++) {
-      num_particle[is] = particle[is]->Np;
+      int np_next = particle[is]->Np;
+      for (int iz = 0; iz < 3; iz++) {
+        for (int iy = 0; iy < 3; iy++) {
+          for (int ix = 0; ix < 3; ix++) {
+            np_next += recv_count(is, iz, iy, ix);
+          }
+        }
+      }
+
+      if (np_next > particle[is]->Np_total) {
+        particle[is]->resize(increase_fraction * np_next);
+      }
     }
+
+    // number of unpacked particles
+    num_unpacked.resize(Ns, 0);
+
+    DEBUG2 << tfm::format("pre_unpack() end   : %.4d", this->chunk->get_id());
   }
 
   template <typename BufferPtr>
@@ -366,44 +481,26 @@ public:
     if (chunk->get_nb_rank(iz - 1, iy - 1, ix - 1) == MPI_PROC_NULL)
       return false;
 
-    int      recvcnt = 0;
+    //
+    // copy to the end of particle array
+    //
     uint8_t* recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
 
-    // copy to the end of particle array
     for (int is = 0; is < Ns; is++) {
+      int Np = particle[is]->Np;
+
       // header
-      int cnt;
-      std::memcpy(&cnt, recvptr, head_byte);
+      int rcnt;
+      std::memcpy(&rcnt, recvptr, head_byte);
       recvptr += head_byte;
 
-      if (num_particle[is] + cnt > particle[is]->Np_total) {
-        // run out of particle buffer and try to reallocate twice the original
-        particle[is]->resize(1.2 * num_particle[is] + cnt);
-      }
-
       // particles
-      float64* ptcl = &particle[is]->xu(num_particle[is], 0);
-      std::memcpy(ptcl, recvptr, elem_byte * cnt);
-      recvptr += cnt * elem_byte;
-      recvcnt += cnt;
+      float64* ptcl = &particle[is]->xu(Np + num_unpacked[is], 0);
+      std::memcpy(ptcl, recvptr, elem_byte * rcnt);
+      recvptr += rcnt * elem_byte;
 
-      // increment number of particles
-      num_particle[is] += cnt;
-    }
-
-    // check received data size
-    int recvsize = Ns * head_byte + recvcnt * elem_byte;
-
-    if (recvsize > mpibuf->bufsize(iz, iy, ix)) {
-      OMP_MAYBE_CRITICAL
-      {
-        ERROR << tfm::format("Chunk[%06d]: insufficient recv buffer", chunk->get_id());
-        MPI_Abort(MPI_COMM_WORLD, -1);
-      }
-    } else if (recvsize > increase_fraction * mpibuf->bufsize(iz, iy, ix)) {
-      buffer_flag[iz][iy][ix] = +1;
-    } else if (recvsize < decrease_fraction * mpibuf->bufsize(iz, iy, ix)) {
-      buffer_flag[iz][iy][ix] = -1;
+      // increment number of unpacked particles
+      num_unpacked[is] += rcnt;
     }
 
     return true;
@@ -412,72 +509,37 @@ public:
   template <typename BufferPtr>
   void post_unpack(BufferPtr& mpibuf)
   {
+    DEBUG2 << tfm::format("post_unpack() start : %.4d", this->chunk->get_id());
+
     //
     // set boundary condition and append count for received particles
     //
     for (int is = 0; is < Ns; is++) {
-      chunk->set_boundary_particle_after_sendrecv(particle[is], particle[is]->Np,
-                                                  num_particle[is] - 1, is);
-      chunk->count_particle(particle[is], particle[is]->Np, num_particle[is] - 1, false);
+      int np_prev = particle[is]->Np;
+      int np_next = particle[is]->Np + num_unpacked[is];
+      chunk->set_boundary_particle_after_sendrecv(particle[is], np_prev, np_next - 1, is);
+      chunk->count_particle(particle[is], np_prev, np_next - 1, false);
       // now update number of particles
-      particle[is]->Np = num_particle[is];
+      particle[is]->Np = np_next;
     }
 
     //
-    // sort (or rearrange) particle array
+    // sort particle array and discard out-of-range particles
     //
     for (int is = 0; is < Ns; is++) {
       particle[is]->sort();
     }
 
     //
-    // automatically resize particle buffer
+    // resize particle buffer if needed
     //
     for (int is = 0; is < Ns; is++) {
-      int new_np = particle[is]->Np_total;
-
-      // increase particle buffer
-      if (particle[is]->Np > increase_fraction * particle[is]->Np_total) {
-        new_np = 1.2 * particle[is]->Np_total;
-      }
-
-      // decrease particle buffer
-      if (particle[is]->Np < decrease_fraction * particle[is]->Np_total) {
-        new_np = 0.5 * particle[is]->Np_total;
-      }
-
-      // resize if needed
-      particle[is]->resize(new_np);
-    }
-
-    //
-    // resize MPI buffer if required
-    //
-    {
-      bool increase = false;
-      bool decrease = true;
-
-      for (int iz = 0; iz < 3; iz++) {
-        for (int iy = 0; iy < 3; iy++) {
-          for (int ix = 0; ix < 3; ix++) {
-            // if increase flag is true in any directions
-            increase = increase | (buffer_flag[iz][iy][ix] == +1);
-            // if decrease flag is true in all directions
-            decrease = decrease & (buffer_flag[iz][iy][ix] == -1);
-          }
-        }
-      }
-
-      // resize
-      if (increase == true || decrease == true) {
-        int Nppc = 0;
-        for (int is = 0; is < Ns; is++) {
-          Nppc += particle[is]->Np / particle[is]->Ng + 1;
-        }
-
-        chunk->set_mpi_buffer(mpibuf, 0, Ns * head_byte, Nppc * elem_byte);
+      if (particle[is]->Np < particle[is]->Np_total * decrease_fraction) {
+        particle[is]->resize(decrease_fraction * particle[is]->Np_total);
       }
     }
+
+    DEBUG2 << tfm::format("post_unpack() end   : %.4d", this->chunk->get_id());
   }
 };
 

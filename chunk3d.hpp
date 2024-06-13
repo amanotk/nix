@@ -33,6 +33,8 @@ public:
   /// @brief MPI buffer
   ///
   struct MpiBuffer {
+    bool     sendwait;
+    bool     recvwait;
     Buffer   sendbuf;
     Buffer   recvbuf;
     IntArray bufsize;
@@ -46,7 +48,7 @@ public:
     ///
     /// constructor
     ///
-    MpiBuffer()
+    MpiBuffer() : sendwait(false), recvwait(false)
     {
     }
 
@@ -57,6 +59,8 @@ public:
     int64_t get_size_byte() const
     {
       int64_t size = 0;
+      size += sizeof(sendwait);
+      size += sizeof(recvwait);
       size += sendbuf.size;
       size += recvbuf.size;
       size += bufsize.size() * sizeof(int);
@@ -106,6 +110,8 @@ public:
       int rsize = recvbuf.size;
       int asize = bufsize.size() * sizeof(int);
 
+      count += memcpy_count(buffer, &sendwait, sizeof(bool), count, 0);
+      count += memcpy_count(buffer, &recvwait, sizeof(bool), count, 0);
       count += memcpy_count(buffer, &ssize, sizeof(int), count, 0);
       count += memcpy_count(buffer, &rsize, sizeof(int), count, 0);
       count += memcpy_count(buffer, bufsize.data(), asize, count, 0);
@@ -127,6 +133,8 @@ public:
       int rsize = 0;
       int asize = bufsize.size() * sizeof(int);
 
+      count += memcpy_count(&sendwait, buffer, sizeof(bool), 0, count);
+      count += memcpy_count(&recvwait, buffer, sizeof(bool), 0, count);
       count += memcpy_count(&ssize, buffer, sizeof(int), 0, count);
       count += memcpy_count(&rsize, buffer, sizeof(int), 0, count);
       count += memcpy_count(bufsize.data(), buffer, asize, 0, count);
@@ -368,8 +376,7 @@ public:
   }
 
 protected:
-  template <typename Halo>
-  bool probe_bc_exchange(MpiBufferPtr mpibuf, Halo& halo);
+  bool probe_bc_exchange(MpiBufferPtr mpibuf);
 
   ///
   /// @brief pack and start boundary exchange
@@ -725,19 +732,15 @@ DEFINE_MEMBER(void, set_mpi_buffer)
   }
 }
 
-DEFINE_MEMBER(template <typename Halo> bool, probe_bc_exchange)
-(MpiBufferPtr mpibuf, Halo& halo)
+DEFINE_MEMBER(bool, probe_bc_exchange)
+(MpiBufferPtr mpibuf)
 {
-  if constexpr (Halo::is_buffer_fixed == true)
-    return true;
+  DEBUG2 << tfm::format("probe_bc_exchange() start : %.4d", this->get_id());
+  bool is_everyone_ready = true;
 
-  MPI_Status stat[3][3][3];
-  int        flag[3][3][3] = {0};
-  int        size[3][3][3] = {0};
-  int        bufaddr       = 0;
-  int        bufsize       = 0;
-
-  bool is_ready = true;
+  // return if recv has already been called
+  if (mpibuf->recvwait == true)
+    return is_everyone_ready;
 
   //
   // probe incoming messages
@@ -746,41 +749,62 @@ DEFINE_MEMBER(template <typename Halo> bool, probe_bc_exchange)
     for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
       for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
         // skip
-        if (iz == 1 && iy == 1 && ix == 1) {
+        if (iz == 1 && iy == 1 && ix == 1)
           continue;
-        }
 
         OMP_MAYBE_CRITICAL
         {
-          MPI_Comm* recv_comm = &mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
-          int       nbrank    = get_nb_rank(dirz, diry, dirx);
-          int       recvtag   = get_rcvtag(dirz, diry, dirx);
+          MPI_Status status;
+          int        is_ready = 0;
 
-          MPI_Iprobe(nbrank, recvtag, *recv_comm, &flag[iz][iy][ix], &stat[iz][iy][ix]);
+          auto& recvcomm = mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
+          auto& recvtype = mpibuf->recvtype(iz, iy, ix);
+          int   nbrank   = get_nb_rank(dirz, diry, dirx);
+          int   recvtag  = get_rcvtag(dirz, diry, dirx);
+
+          MPI_Iprobe(nbrank, recvtag, recvcomm, &is_ready, &status);
 
           // get message size
-          if (flag[iz][iy][ix] != 0) {
-            MPI_Get_count(&stat[iz][iy][ix], mpibuf->recvtype(iz, iy, ix), &size[iz][iy][ix]);
-            bufsize += size[iz][iy][ix];
+          if (is_ready) {
+            int count    = 0;
+            int typebyte = 0;
+            MPI_Get_count(&status, recvtype, &count);
+            MPI_Type_size(recvtype, &typebyte);
+            mpibuf->bufsize(iz, iy, ix) = count * typebyte;
+          } else {
+            // not ready yet
+            is_everyone_ready = false;
           }
-
-          is_ready = is_ready && (flag[iz][iy][ix] != 0);
         }
       }
     }
   }
 
-  // not ready yet
-  if (is_ready == false)
+  if (is_everyone_ready == false)
     return false;
+
+  DEBUG2 << tfm::format("probe_bc_exchange() ready : %.4d", this->get_id());
 
   //
   // recv incoming messages
   //
   {
-    // resize buffer
+    int bufsize = 0;
+    int bufaddr = 0;
+
+    // prepare for recv
+    for (int iz = 0; iz < 3; iz++) {
+      for (int iy = 0; iy < 3; iy++) {
+        for (int ix = 0; ix < 3; ix++) {
+          mpibuf->bufaddr(iz, iy, ix) = bufaddr;
+          bufsize += mpibuf->bufsize(iz, iy, ix);
+          bufaddr += mpibuf->bufsize(iz, iy, ix);
+        }
+      }
+    }
     mpibuf->recvbuf.resize(bufsize);
 
+    // recv
     for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
       for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
         for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
@@ -797,18 +821,19 @@ DEFINE_MEMBER(template <typename Halo> bool, probe_bc_exchange)
             auto& recvreq  = mpibuf->recvreq(iz, iy, ix);
             int   nbrank   = get_nb_rank(dirz, diry, dirx);
             int   recvtag  = get_rcvtag(dirz, diry, dirx);
-            int   recvcnt  = size[iz][iy][ix];
-            void* recvptr  = mpibuf->recvbuf.get(bufaddr);
+            void* recvptr  = mpibuf->get_recv_buffer(iz, iy, ix);
+            int   recvcnt  = mpibuf->bufsize(iz, iy, ix);
 
             MPI_Irecv(recvptr, recvcnt, recvtype, nbrank, recvtag, recvcomm, &recvreq);
-
-            bufaddr += recvcnt;
           }
         }
       }
     }
+
+    mpibuf->recvwait = true;
   }
 
+  DEBUG2 << tfm::format("probe_bc_exchange() end   : %.4d", this->get_id());
   return true;
 }
 
@@ -817,6 +842,9 @@ DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
 {
   static constexpr bool is_send_required = true;
   static constexpr bool is_recv_required = Halo::is_buffer_fixed == true;
+
+  mpibuf->sendwait = false;
+  mpibuf->recvwait = false;
 
   // pre-process
   halo.pre_pack(mpibuf);
@@ -876,6 +904,14 @@ DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
     }
   }
 
+  if constexpr (is_send_required == true) {
+    mpibuf->sendwait = true;
+  }
+
+  if constexpr (is_recv_required == true) {
+    mpibuf->recvwait = true;
+  }
+
   // post-process
   halo.post_pack(mpibuf);
 }
@@ -883,10 +919,18 @@ DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
 DEFINE_MEMBER(template <typename Halo> void, end_bc_exchange)
 (MpiBufferPtr mpibuf, Halo& halo)
 {
+  // wait for MPI send/recv calls to complete
   OMP_MAYBE_CRITICAL
   {
-    // wait for MPI recv calls to complete
-    MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUSES_IGNORE);
+    if (mpibuf->sendwait == true) {
+      MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
+      mpibuf->sendwait = false;
+    }
+
+    if (mpibuf->recvwait == true) {
+      MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUSES_IGNORE);
+      mpibuf->recvwait = false;
+    }
   }
 
   // pre-process
@@ -919,12 +963,6 @@ DEFINE_MEMBER(template <typename Halo> void, end_bc_exchange)
 
   // post-proces
   halo.post_unpack(mpibuf);
-
-  OMP_MAYBE_CRITICAL
-  {
-    // wait for MPI send calls to complete
-    MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
-  }
 }
 
 #undef DEFINE_MEMBER
