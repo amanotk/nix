@@ -760,15 +760,14 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
   //
   {
     int bufsize = 0;
-    int bufaddr = 0;
 
     // prepare for recv
     for (int iz = 0; iz < 3; iz++) {
       for (int iy = 0; iy < 3; iy++) {
         for (int ix = 0; ix < 3; ix++) {
-          mpibuf->bufaddr(iz, iy, ix) = bufaddr;
+          mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
+          mpibuf->bufaddr(iz, iy, ix) = bufsize;
           bufsize += mpibuf->bufsize(iz, iy, ix);
-          bufaddr += mpibuf->bufsize(iz, iy, ix);
         }
       }
     }
@@ -779,10 +778,8 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
       for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
         for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
           // skip
-          if (iz == 1 && iy == 1 && ix == 1) {
-            mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
+          if (iz == 1 && iy == 1 && ix == 1)
             continue;
-          }
 
           OMP_MAYBE_CRITICAL
           {
