@@ -193,6 +193,13 @@ public:
   virtual void setup(json& config) = 0;
 
   ///
+  /// @brief probe incoming messages and call recv if ready
+  /// @param mode mode of boundary exchange
+  /// @param wait blocking if true and non-blocking otherwise
+  ///
+  virtual bool set_boundary_probe(int mode, bool wait) = 0;
+
+  ///
   /// @brief begin boundary exchange (pure virtual)
   /// @param mode mode of boundary exchange
   ///
@@ -309,15 +316,6 @@ public:
   void set_mpi_buffer(MpiBufferPtr mpibuf, int mode, int headbyte, int elembyte);
 
   ///
-  /// @brief setup MPI Buffer
-  /// @param mpibuf MPI buffer to be setup
-  /// @param mode +1 for send, -1 for recv, 0 for both
-  /// @param headbyte number of bytes used for header
-  /// @param sizebyte number of bytes
-  ///
-  void set_mpi_buffer(MpiBufferPtr mpibuf, int mode, int headbyte, const int sizebyte[3][3][3]);
-
-  ///
   /// @brief return MpiBuffer of given mode of boundary exchange
   /// @param mode mode of MpiBuffer
   /// @return MpiBufferPtr or std::shared_ptr<MpiBuffer>
@@ -376,6 +374,11 @@ public:
   }
 
 protected:
+  ///
+  /// @brief probe incoming messages
+  /// @param mpibuf MPI buffer
+  /// @return true if recv has been called and false otherwise
+  ///
   bool probe_bc_exchange(MpiBufferPtr mpibuf);
 
   ///
@@ -702,45 +705,14 @@ DEFINE_MEMBER(void, set_mpi_buffer)
   }
 }
 
-DEFINE_MEMBER(void, set_mpi_buffer)
-(MpiBufferPtr mpibuf, int mode, int headbyte, const int sizebyte[3][3][3])
-{
-  // buffer size
-  int size = 0;
-
-  for (int iz = 0; iz < 3; iz++) {
-    for (int iy = 0; iy < 3; iy++) {
-      for (int ix = 0; ix < 3; ix++) {
-        if (iz == 1 && iy == 1 && ix == 1) {
-          mpibuf->bufsize(iz, iy, ix) = 0;
-          mpibuf->bufaddr(iz, iy, ix) = size;
-        } else {
-          mpibuf->bufsize(iz, iy, ix) = headbyte + sizebyte[iz][iy][ix];
-          mpibuf->bufaddr(iz, iy, ix) = size;
-          size += mpibuf->bufsize(iz, iy, ix);
-        }
-      }
-    }
-  }
-
-  // buffer allocation
-  if (mode == +1 || mode == 0) {
-    mpibuf->sendbuf.resize(size);
-  }
-  if (mode == -1 || mode == 0) {
-    mpibuf->recvbuf.resize(size);
-  }
-}
-
 DEFINE_MEMBER(bool, probe_bc_exchange)
 (MpiBufferPtr mpibuf)
 {
-  DEBUG2 << tfm::format("probe_bc_exchange() start : %.4d", this->get_id());
   bool is_everyone_ready = true;
 
   // return if recv has already been called
   if (mpibuf->recvwait == true)
-    return is_everyone_ready;
+    return true;
 
   //
   // probe incoming messages
@@ -782,8 +754,6 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
 
   if (is_everyone_ready == false)
     return false;
-
-  DEBUG2 << tfm::format("probe_bc_exchange() ready : %.4d", this->get_id());
 
   //
   // recv incoming messages
@@ -833,7 +803,6 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
     mpibuf->recvwait = true;
   }
 
-  DEBUG2 << tfm::format("probe_bc_exchange() end   : %.4d", this->get_id());
   return true;
 }
 

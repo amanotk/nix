@@ -258,8 +258,6 @@ public:
     std::array<size_t, 4>   shape = {static_cast<size_t>(Ns + 1), 3ul, 3ul, 3ul};
     xt::xtensor<int32_t, 4> send_count(shape);
 
-    DEBUG2 << tfm::format("pre_pack() start : %.4d", this->chunk->get_id());
-
     // initialize
     send_count.fill(0);
 
@@ -267,7 +265,6 @@ public:
     // count out-of-bounds particles
     //
     for (int is = 0; is < Ns; is++) {
-      // loop over particles
       auto& xu = particle[is]->xu;
       for (int ip = 0; ip < particle[is]->Np; ip++) {
         int iz = (xu(ip, 2) >= zmax) - (xu(ip, 2) < zmin) + 1;
@@ -382,12 +379,9 @@ public:
       }
 
       if (is_all_packed == false) {
-        ERROR << "not all particles are packed";
-        ERROR << send_count;
+        ERROR << tfm::format("Some particles are not properly packed!");
       }
     }
-
-    DEBUG2 << tfm::format("pre_pack()   end : %.4d", this->chunk->get_id());
   }
 
   template <typename BufferPtr>
@@ -419,8 +413,6 @@ public:
   template <typename BufferPtr>
   void pre_unpack(BufferPtr& mpibuf)
   {
-    DEBUG2 << tfm::format("pre_unpack() start : %.4d", this->chunk->get_id());
-
     std::array<size_t, 4>   shape = {static_cast<size_t>(Ns + 1), 3ul, 3ul, 3ul};
     xt::xtensor<int32_t, 4> recv_count(shape);
 
@@ -467,8 +459,6 @@ public:
 
     // number of unpacked particles
     num_unpacked.resize(Ns, 0);
-
-    DEBUG2 << tfm::format("pre_unpack() end   : %.4d", this->chunk->get_id());
   }
 
   template <typename BufferPtr>
@@ -509,8 +499,6 @@ public:
   template <typename BufferPtr>
   void post_unpack(BufferPtr& mpibuf)
   {
-    DEBUG2 << tfm::format("post_unpack() start : %.4d", this->chunk->get_id());
-
     //
     // set boundary condition and append count for received particles
     //
@@ -538,8 +526,6 @@ public:
         particle[is]->resize(decrease_fraction * particle[is]->Np_total);
       }
     }
-
-    DEBUG2 << tfm::format("post_unpack() end   : %.4d", this->chunk->get_id());
   }
 };
 
