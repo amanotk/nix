@@ -177,6 +177,7 @@ protected:
   float64      gylim[3];  ///< global physical domain in y
   float64      gzlim[3];  ///< global physical domain in z
   MpiBufferVec mpibufvec; ///< MPI buffer vector
+  json         option;    ///< internal option
 
 public:
   ///
@@ -326,6 +327,15 @@ public:
   }
 
   ///
+  /// @brief get buffer ratio (relative to the required size) from configuration file
+  /// @return buffer ratio
+  ///
+  float64 get_buffer_ratio()
+  {
+    return option.value("buffer_ratio", 0.2);
+  }
+
+  ///
   /// @brief get lower bound in x
   ///
   float64 get_xmin()
@@ -408,7 +418,7 @@ protected:
   type Chunk3D<Nb, ParticlePtr>::name
 
 DEFINE_MEMBER(, Chunk3D)
-(const int dims[3], int id) : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0)
+(const int dims[3], int id) : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0), option({})
 {
   size_t Nz = this->dims[0] + 2 * Nb;
   size_t Ny = this->dims[1] + 2 * Nb;

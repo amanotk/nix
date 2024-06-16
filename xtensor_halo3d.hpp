@@ -228,11 +228,8 @@ public:
   using Base::send_count;
   using Base::recv_count;
 
-  static constexpr int32_t head_byte         = sizeof(int32_t);
-  static constexpr int32_t elem_byte         = ParticlePtr::element_type::get_particle_size();
-  static constexpr float64 delta_fraction    = 0.20;
-  static constexpr float64 increase_fraction = 1 + delta_fraction;
-  static constexpr float64 decrease_fraction = 1 - delta_fraction;
+  static constexpr int32_t head_byte = sizeof(int32_t);
+  static constexpr int32_t elem_byte = ParticlePtr::element_type::get_particle_size();
 
   int32_t              Ns;
   ParticleVec          particle;
@@ -442,18 +439,30 @@ public:
     //
     // resize particle buffer if needed
     //
-    for (int is = 0; is < Ns; is++) {
-      int np_next = particle[is]->Np;
-      for (int iz = 0; iz < 3; iz++) {
-        for (int iy = 0; iy < 3; iy++) {
-          for (int ix = 0; ix < 3; ix++) {
-            np_next += recv_count(is, iz, iy, ix);
+    {
+      const float64 ratio     = chunk->get_buffer_ratio();
+      const float64 increased = 1 + ratio;
+      const float64 decreased = 1 - ratio;
+
+      for (int is = 0; is < Ns; is++) {
+        int np_next = particle[is]->Np;
+        for (int iz = 0; iz < 3; iz++) {
+          for (int iy = 0; iy < 3; iy++) {
+            for (int ix = 0; ix < 3; ix++) {
+              np_next += recv_count(is, iz, iy, ix);
+            }
           }
         }
-      }
 
-      if (np_next > particle[is]->Np_total) {
-        particle[is]->resize(increase_fraction * np_next);
+        // expand
+        if (np_next > particle[is]->Np_total) {
+          particle[is]->resize(increased * np_next);
+        }
+
+        // shrink
+        if (np_next < particle[is]->Np_total * decreased) {
+          particle[is]->resize(decreased * particle[is]->Np_total);
+        }
       }
     }
 
@@ -516,15 +525,6 @@ public:
     //
     for (int is = 0; is < Ns; is++) {
       particle[is]->sort();
-    }
-
-    //
-    // resize particle buffer if needed
-    //
-    for (int is = 0; is < Ns; is++) {
-      if (particle[is]->Np < particle[is]->Np_total * decrease_fraction) {
-        particle[is]->resize(decrease_fraction * particle[is]->Np_total);
-      }
     }
   }
 };
