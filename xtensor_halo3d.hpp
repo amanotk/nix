@@ -422,15 +422,21 @@ public:
     for (int iz = 0; iz < 3; iz++) {
       for (int iy = 0; iy < 3; iy++) {
         for (int ix = 0; ix < 3; ix++) {
-          // skip null message
-          if (mpibuf->bufsize(iz, iy, ix) == 0)
+          // skip
+          if (iz == 1 && iy == 1 && ix == 1)
             continue;
 
+          // skip null message
+          if (chunk->get_nb_rank(iz - 1, iy - 1, ix - 1) == MPI_PROC_NULL)
+            continue;
+
+          int rcnt = 0;
           int addr = mpibuf->bufaddr(iz, iy, ix);
           for (int is = 0; is < Ns; is++) {
-            std::memcpy(&recv_count(is, iz, iy, ix), mpibuf->recvbuf.get(addr), head_byte);
-            addr += head_byte + elem_byte * recv_count(is, iz, iy, ix);
-            recv_count(Ns, iz, iy, ix) += recv_count(is, iz, iy, ix);
+            std::memcpy(&rcnt, mpibuf->recvbuf.get(addr), head_byte);
+            addr += head_byte + elem_byte * rcnt;
+            recv_count(is, iz, iy, ix) = rcnt;
+            recv_count(Ns, iz, iy, ix) += rcnt;
           }
         }
       }
@@ -484,7 +490,15 @@ public:
     // copy to the end of particle array
     //
     uint8_t* recvptr = mpibuf->recvbuf.get(mpibuf->bufaddr(iz, iy, ix));
+    int      recvcnt = mpibuf->bufsize(iz, iy, ix);
 
+    // check message size
+    if (recvcnt < Ns * head_byte) {
+      ERROR << tfm::format("Received message is smaller than the header size: %d", recvcnt);
+      return false;
+    }
+
+    // unpack
     for (int is = 0; is < Ns; is++) {
       int Np = particle[is]->Np;
 
@@ -492,14 +506,22 @@ public:
       int rcnt;
       std::memcpy(&rcnt, recvptr, head_byte);
       recvptr += head_byte;
+      recvcnt -= head_byte;
 
       // particles
       float64* ptcl = &particle[is]->xu(Np + num_unpacked[is], 0);
       std::memcpy(ptcl, recvptr, elem_byte * rcnt);
       recvptr += rcnt * elem_byte;
+      recvcnt -= rcnt * elem_byte;
 
       // increment number of unpacked particles
       num_unpacked[is] += rcnt;
+    }
+
+    // check consistency
+    if(recvcnt != 0) {
+      ERROR << tfm::format("Unexpected message perhaps with wrong headers?");
+      return false;
     }
 
     return true;

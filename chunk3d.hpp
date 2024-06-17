@@ -718,8 +718,6 @@ DEFINE_MEMBER(void, set_mpi_buffer)
 DEFINE_MEMBER(bool, probe_bc_exchange)
 (MpiBufferPtr mpibuf)
 {
-  bool is_everyone_ready = true;
-
   // return if recv has already been called
   if (mpibuf->recvwait == true)
     return true;
@@ -727,6 +725,11 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
   //
   // probe incoming messages
   //
+  bool is_everyone_ready = true;
+
+  mpibuf->bufsize.fill(0);
+  mpibuf->bufaddr.fill(0);
+
   for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
     for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
       for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
