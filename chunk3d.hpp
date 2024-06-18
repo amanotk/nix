@@ -485,7 +485,16 @@ DEFINE_MEMBER(int, pack)(void* buffer, int address)
 {
   int count = address;
 
-  count += Chunk<3>::pack(buffer, count);
+  count = Chunk<3>::pack(buffer, count);
+
+  // option
+  {
+    std::vector<uint8_t> msgpack = json::to_msgpack(option);
+    int                  size    = msgpack.size();
+    count += memcpy_count(buffer, &size, sizeof(int), count, 0);
+    count += memcpy_count(buffer, msgpack.data(), size, count, 0);
+  }
+
   count += memcpy_count(buffer, &delx, sizeof(float64), count, 0);
   count += memcpy_count(buffer, &dely, sizeof(float64), count, 0);
   count += memcpy_count(buffer, &delz, sizeof(float64), count, 0);
@@ -501,7 +510,7 @@ DEFINE_MEMBER(int, pack)(void* buffer, int address)
     count += memcpy_count(buffer, &nmode, sizeof(int), count, 0);
 
     for (int mode = 0; mode < nmode; mode++) {
-      count += mpibufvec[mode]->pack(buffer, count);
+      count = mpibufvec[mode]->pack(buffer, count);
     }
   }
 
@@ -512,7 +521,19 @@ DEFINE_MEMBER(int, unpack)(void* buffer, int address)
 {
   int count = address;
 
-  count += Chunk<3>::unpack(buffer, count);
+  count = Chunk<3>::unpack(buffer, count);
+
+  // option
+  {
+    int size = 0;
+    count += memcpy_count(&size, buffer, sizeof(int), 0, count);
+
+    std::vector<uint8_t> msgpack(size);
+    count += memcpy_count(msgpack.data(), buffer, size, 0, count);
+
+    option = json::from_msgpack(msgpack);
+  }
+
   count += memcpy_count(&delx, buffer, sizeof(float64), 0, count);
   count += memcpy_count(&dely, buffer, sizeof(float64), 0, count);
   count += memcpy_count(&delz, buffer, sizeof(float64), 0, count);
@@ -530,7 +551,7 @@ DEFINE_MEMBER(int, unpack)(void* buffer, int address)
 
     for (int mode = 0; mode < nmode; mode++) {
       mpibufvec[mode] = std::make_shared<MpiBuffer>();
-      count += mpibufvec[mode]->unpack(buffer, count);
+      count = mpibufvec[mode]->unpack(buffer, count);
     }
   }
 
