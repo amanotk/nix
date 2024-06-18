@@ -494,7 +494,6 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   cfgparser = create_cfgparser();
   cfgparser->parse_file(argparser->get_config());
 
-  initialize_base_directory();
   initialize_mpi(&argc, &argv);
 
   // object initialization
@@ -560,25 +559,34 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
   MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
   MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
 
-  // store initial clock
   if (thisrank == 0) {
     wclock = wall_clock();
+    initialize_base_directory();
   }
   MPI_Bcast(&wclock, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   // redirect stdout/stderr
   {
-    json        config            = cfgparser->get_application()["mpistream"];
+    namespace fs = std::filesystem;
+
+    json        config            = cfgparser->get_application();
     std::string path              = "";
     int         max_files_per_dir = 1024;
 
-    if (config.is_null() == false) {
-      namespace fs      = std::filesystem;
+    if (config.contains("mpistream") == false) {
+      // redirect to /dev/null except for rank 0 by default
+      MpiStream::initialize(path, max_files_per_dir);
+    } else if (config["mpistream"].is_object() == true) {
+      // redirect with user setting
+      config            = config["mpistream"];
       path              = fs::path(get_basedir()) / config.value("path", path);
       max_files_per_dir = config.value("max_files_per_dir", max_files_per_dir);
+      MpiStream::initialize(path, max_files_per_dir);
+    } else if (config["mpistream"].is_null() == true) {
+      // no redirection
+    } else {
+      ERROR << tfm::format("Ignore invalid configuration for mpistream\n");
     }
-
-    MpiStream::initialize(path, max_files_per_dir);
   }
 }
 
@@ -707,21 +715,18 @@ DEFINE_MEMBER(bool, rebalance)()
   bool status   = false;
   json log      = {};
   json config   = cfgparser->get_application()["rebalance"];
-  int  interval = 10;
-  int  loglevel = 1;
+  int  interval = 100;
+  int  loglevel = 0;
+
+  DEBUG2 << "rebalance() start";
+  float64 wclock1 = nix::wall_clock();
 
   if (config.is_null() == false) {
     interval = config.value("interval", interval);
     loglevel = config.value("loglevel", loglevel);
   }
 
-  DEBUG2 << "rebalance() start";
-  float64 wclock1 = nix::wall_clock();
-
-  if (curstep == 0 && loglevel >= 1) {
-    // log initial boundary
-    log["boundary"] = chunkmap->get_rank_boundary();
-  } else if (curstep % interval == 0) {
+  if (curstep > 0 && curstep % interval == 0) {
     // update global load of chunks
     balancer->update_global_load(get_internal_data());
 
@@ -736,17 +741,19 @@ DEFINE_MEMBER(bool, rebalance)()
 
     assert_mpi(validate_chunks() == true, "invalid chunks after rebalance");
 
-    if (loglevel >= 1) {
-      log["boundary"] = boundary;
-    }
-
     status = true;
+  }
+
+  if (loglevel >= 1 && curstep % interval == 0) {
+    // log assignment result
+    log["boundary"] = chunkmap->get_rank_boundary();
   }
 
   DEBUG2 << "rebalance() end";
   float64 wclock2 = nix::wall_clock();
 
   log["elapsed"] = wclock2 - wclock1;
+  log["status"]  = status;
   logger->append(curstep, "rebalance", log);
 
   return status;
