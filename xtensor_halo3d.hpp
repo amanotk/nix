@@ -446,9 +446,7 @@ public:
     // resize particle buffer if needed
     //
     {
-      const float64 ratio     = chunk->get_buffer_ratio();
-      const float64 increased = 1 + ratio;
-      const float64 decreased = 1 - ratio;
+      const float64 target = 1 + chunk->get_buffer_ratio();
 
       for (int is = 0; is < Ns; is++) {
         int np_next = particle[is]->Np;
@@ -460,14 +458,12 @@ public:
           }
         }
 
-        // expand
         if (np_next > particle[is]->Np_total) {
-          particle[is]->resize(increased * np_next);
-        }
-
-        // shrink
-        if (np_next < particle[is]->Np_total * decreased) {
-          particle[is]->resize(decreased * particle[is]->Np_total);
+          // expand
+          particle[is]->resize(target * np_next);
+        } else if (target * np_next < particle[is]->Np_total) {
+          // shrink
+          particle[is]->resize(target * np_next);
         }
       }
     }
@@ -494,7 +490,7 @@ public:
 
     // check message size
     if (recvcnt < Ns * head_byte) {
-      ERROR << tfm::format("Received message is smaller than the header size: %d", recvcnt);
+      ERROR << tfm::format("Received message smaller than the header size: %d", recvcnt);
       return false;
     }
 
@@ -519,7 +515,7 @@ public:
     }
 
     // check consistency
-    if(recvcnt != 0) {
+    if (recvcnt != 0) {
       ERROR << tfm::format("Unexpected message perhaps with wrong headers?");
       return false;
     }

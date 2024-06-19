@@ -89,7 +89,6 @@ public:
   ///
   void resize(int newsize)
   {
-    const int    np_min = 2 * Ng;
     const size_t np     = newsize;
     const size_t nc     = Nc;
 
@@ -97,11 +96,10 @@ public:
     // Resize should not be performed either of the following conditions are met:
     //
     // (1) newsize is equal to the original (no need to resize)
-    // (2) newsize is smaller than minimum buffer size
-    // (3) newsize is smaller than the current active particle number
+    // (2) newsize is smaller than the current active particle number (erroneous!)
     //
-    if (newsize == Np_total || newsize < np_min || newsize <= Np) {
-      return;
+    if (newsize == Np_total || newsize <= Np) {
+        return;
     }
 
     //
