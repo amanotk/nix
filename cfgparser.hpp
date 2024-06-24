@@ -12,6 +12,31 @@ class CfgParser
 protected:
   json root;
 
+  json toml_to_json(const toml::value& toml_data)
+  {
+    json result;
+
+    if (toml_data.is_table()) {
+      for (const auto& [key, value] : toml_data.as_table()) {
+        result[key] = toml_to_json(value);
+      }
+    } else if (toml_data.is_array()) {
+      for (const auto& elem : toml_data.as_array()) {
+        result.push_back(toml_to_json(elem));
+      }
+    } else if (toml_data.is_boolean()) {
+      result = toml_data.as_boolean();
+    } else if (toml_data.is_integer()) {
+      result = toml_data.as_integer();
+    } else if (toml_data.is_floating()) {
+      result = toml_data.as_floating();
+    } else if (toml_data.is_string()) {
+      result = toml_data.as_string();
+    }
+
+    return result;
+  }
+
 public:
   json get_root()
   {
@@ -85,8 +110,20 @@ public:
 
   bool parse_file(std::string filename, bool exit_on_error = true)
   {
-    std::ifstream ifs(filename.c_str());
-    root = json::parse(ifs, nullptr, true, true);
+    namespace fs = std::filesystem;
+
+    fs::path    path(filename);
+    std::string ext = path.extension().string();
+
+    if (ext == ".json") {
+      std::ifstream ifs(filename.c_str());
+      root = json::parse(ifs, nullptr, true, true);
+    } else if (ext == ".toml") {
+      root = toml_to_json(toml::parse(filename));
+    } else {
+      std::cerr << tfm::format("Unknown file extension `%s`\n", ext);
+      exit(1);
+    }
 
     bool status = validate(root);
 

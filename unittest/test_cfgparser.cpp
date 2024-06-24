@@ -159,31 +159,59 @@ TEST_CASE("check_dimensions")
 TEST_CASE("parse_file")
 {
   CfgParser parser;
+  std::string filename;
+  std::string content;
 
-  std::string filename = "test_cfgparser.json";
-  std::string content  = R"(
+  SECTION("json")
   {
-    "application": {
-      "rebalance": {},
-      "log": {}
-    },
-    "diagnostic": [
-      {},
-      {},
-      {}
-    ],
-    "parameter": {
-        "Nx": 16,
-        "Ny": 16,
-        "Nz": 16,
-        "Cx": 4,
-        "Cy": 4,
-        "Cz": 4,
-        "delt": 1.0,
-        "delh": 1.0
+    filename = "test_cfgparser.json";
+    content  = R"(
+    {
+      "application": {
+        "rebalance": {},
+        "log": {}
+      },
+      "diagnostic": [
+        {},
+        {},
+        {}
+      ],
+      "parameter": {
+          "Nx": 16,
+          "Ny": 16,
+          "Nz": 16,
+          "Cx": 4,
+          "Cy": 4,
+          "Cz": 4,
+          "delt": 1.0,
+          "delh": 1.0
+      }
     }
+    )";
   }
-  )";
+  SECTION("toml")
+  {
+    filename = "test_cfgparser.toml";
+    content  = R"(
+    [application]
+    [application.rebalance]
+    [application.log]
+
+    [[diagnostic]]
+    [[diagnostic]]
+    [[diagnostic]]
+
+    [parameter]
+    Nx = 16
+    Ny = 16
+    Nz = 16
+    Cx = 4
+    Cy = 4
+    Cz = 4
+    delt = 1.0
+    delh = 1.0
+    )";
+  }
 
   // save
   {

@@ -6,6 +6,11 @@ This directory contains third-party header-only libraries.
 - Version: 3.10.5
 - Description: JSON for Modern C++.
 
+## toml11
+- URL: https://github.com/ToruNiina/toml11
+- Version: 4.0.1
+- Description: TOML for Modern C++.
+
 ## plog
 - URL: https://github.com/SergiusTheBest/plog
 - Version: 1.1.10

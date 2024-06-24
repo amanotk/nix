@@ -30,6 +30,7 @@
 
 #include <mpi.h>
 #include <nlohmann/json.hpp>
+#include <toml.hpp>
 
 #ifdef _OPENMP
 #include <omp.h>
