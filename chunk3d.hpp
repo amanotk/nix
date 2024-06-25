@@ -751,6 +751,7 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
   mpibuf->bufsize.fill(0);
   mpibuf->bufaddr.fill(0);
 
+  OMP_MAYBE_CRITICAL
   for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
     for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
       for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
@@ -758,29 +759,26 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
         if (iz == 1 && iy == 1 && ix == 1)
           continue;
 
-        OMP_MAYBE_CRITICAL
-        {
-          MPI_Status status;
-          int        is_ready = 0;
+        MPI_Status status;
+        int        is_ready = 0;
 
-          auto& recvcomm = mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
-          auto& recvtype = mpibuf->recvtype(iz, iy, ix);
-          int   nbrank   = get_nb_rank(dirz, diry, dirx);
-          int   recvtag  = get_rcvtag(dirz, diry, dirx);
+        auto& recvcomm = mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
+        auto& recvtype = mpibuf->recvtype(iz, iy, ix);
+        int   nbrank   = get_nb_rank(dirz, diry, dirx);
+        int   recvtag  = get_rcvtag(dirz, diry, dirx);
 
-          MPI_Iprobe(nbrank, recvtag, recvcomm, &is_ready, &status);
+        MPI_Iprobe(nbrank, recvtag, recvcomm, &is_ready, &status);
 
-          // get message size
-          if (is_ready) {
-            int count    = 0;
-            int typebyte = 0;
-            MPI_Get_count(&status, recvtype, &count);
-            MPI_Type_size(recvtype, &typebyte);
-            mpibuf->bufsize(iz, iy, ix) = count * typebyte;
-          } else {
-            // not ready yet
-            is_everyone_ready = false;
-          }
+        // get message size
+        if (is_ready) {
+          int count    = 0;
+          int typebyte = 0;
+          MPI_Get_count(&status, recvtype, &count);
+          MPI_Type_size(recvtype, &typebyte);
+          mpibuf->bufsize(iz, iy, ix) = count * typebyte;
+        } else {
+          // not ready yet
+          is_everyone_ready = false;
         }
       }
     }
@@ -808,6 +806,7 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
     mpibuf->recvbuf.resize(bufsize);
 
     // recv
+    OMP_MAYBE_CRITICAL
     for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
       for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
         for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
@@ -815,18 +814,15 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
           if (iz == 1 && iy == 1 && ix == 1)
             continue;
 
-          OMP_MAYBE_CRITICAL
-          {
-            auto& recvcomm = mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
-            auto& recvtype = mpibuf->recvtype(iz, iy, ix);
-            auto& recvreq  = mpibuf->recvreq(iz, iy, ix);
-            int   nbrank   = get_nb_rank(dirz, diry, dirx);
-            int   recvtag  = get_rcvtag(dirz, diry, dirx);
-            void* recvptr  = mpibuf->get_recv_buffer(iz, iy, ix);
-            int   recvcnt  = mpibuf->bufsize(iz, iy, ix);
+          auto& recvcomm = mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
+          auto& recvtype = mpibuf->recvtype(iz, iy, ix);
+          auto& recvreq  = mpibuf->recvreq(iz, iy, ix);
+          int   nbrank   = get_nb_rank(dirz, diry, dirx);
+          int   recvtag  = get_rcvtag(dirz, diry, dirx);
+          void* recvptr  = mpibuf->get_recv_buffer(iz, iy, ix);
+          int   recvcnt  = mpibuf->bufsize(iz, iy, ix);
 
-            MPI_Irecv(recvptr, recvcnt, recvtype, nbrank, recvtag, recvcomm, &recvreq);
-          }
+          MPI_Irecv(recvptr, recvcnt, recvtype, nbrank, recvtag, recvcomm, &recvreq);
         }
       }
     }
@@ -849,6 +845,7 @@ DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
   // pre-process
   halo.pre_pack(mpibuf);
 
+  OMP_MAYBE_CRITICAL
   for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
     for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
       for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
@@ -868,7 +865,6 @@ DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
         // pack
         bool status = halo.pack(mpibuf, iz, iy, ix, send_bound, recv_bound);
 
-        OMP_MAYBE_CRITICAL
         if (status) {
           int nbrank = get_nb_rank(dirz, diry, dirx);
 
