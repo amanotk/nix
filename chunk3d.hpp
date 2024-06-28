@@ -280,9 +280,10 @@ public:
   ///
   /// @brief query status of boundary exchange
   /// @param mode mode of boundary exchange
+  /// @param sendrecv +1 for send, -1 for recv, 0 for both
   /// @return true if boundary exchange is finished and false otherwise
   ///
-  virtual bool set_boundary_query(int mode = 0) override;
+  virtual bool set_boundary_query(int mode = 0, int sendrecv = 0) override;
 
   ///
   /// @brief set field boundary condition
@@ -551,7 +552,7 @@ DEFINE_MEMBER(int, unpack)(void* buffer, int address)
 
     for (int mode = 0; mode < nmode; mode++) {
       mpibufvec[mode] = std::make_shared<MpiBuffer>();
-      count = mpibufvec[mode]->unpack(buffer, count);
+      count           = mpibufvec[mode]->unpack(buffer, count);
     }
   }
 
@@ -619,29 +620,22 @@ DEFINE_MEMBER(void, inject_particle)(ParticleVec& particle)
 {
 }
 
-DEFINE_MEMBER(bool, set_boundary_query)(int mode)
+DEFINE_MEMBER(bool, set_boundary_query)(int mode, int sendrecv)
 {
-  int  flag   = 0;
-  int  bcmode = mode;
-  bool send   = (mode & SendMode) == SendMode; // send flag
-  bool recv   = (mode & RecvMode) == RecvMode; // recv flag
-
-  // remove send/recv bits
-  bcmode &= ~SendMode;
-  bcmode &= ~RecvMode;
+  int flag = 0;
 
   // MPI buffer
-  MpiBufferPtr mpibuf = mpibufvec[bcmode];
+  MpiBufferPtr mpibuf = mpibufvec[mode];
 
   OMP_MAYBE_CRITICAL
-  if (send == true && recv == true) {
+  if (sendrecv == 0) {
     // both send/recv
     MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUSES_IGNORE);
     MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUSES_IGNORE);
-  } else if (send == true) {
+  } else if (sendrecv == +1) {
     // send
     MPI_Testall(27, mpibuf->sendreq.data(), &flag, MPI_STATUSES_IGNORE);
-  } else if (recv == true) {
+  } else if (sendrecv == -1) {
     // recv
     MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUSES_IGNORE);
   }

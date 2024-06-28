@@ -159,9 +159,10 @@ public:
   ///
   /// @brief query status of boundary exchange
   /// @param mode mode of boundary exchange
+  /// @param sendrecv +1 for send, -1 for recv, 0 for both
   /// @return true if boundary exchange is finished and false otherwise
   ///
-  virtual bool set_boundary_query(int mode) = 0;
+  virtual bool set_boundary_query(int mode, int sendrecv) = 0;
 
   ///
   /// @brief begin boundary exchange
