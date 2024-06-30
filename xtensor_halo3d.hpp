@@ -20,10 +20,6 @@ public:
   using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
-  using Base::send_buffer;
-  using Base::recv_buffer;
-  using Base::send_count;
-  using Base::recv_count;
 
   template <typename BufferPtr>
   bool pack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
@@ -42,14 +38,8 @@ public:
     std::copy(view.begin(), view.end(), ptr);
 
     // datatype
-    mpibuf->sendtype(iz, iy, ix) = MPI_FLOAT64_T;
-    mpibuf->recvtype(iz, iy, ix) = MPI_FLOAT64_T;
-
-    // parameters for MPI send/recv
-    send_buffer = mpibuf->get_send_buffer(iz, iy, ix);
-    recv_buffer = mpibuf->get_recv_buffer(iz, iy, ix);
-    send_count  = view.size();
-    recv_count  = view.size();
+    mpibuf->sendtype(iz, iy, ix) = MPI_BYTE;
+    mpibuf->recvtype(iz, iy, ix) = MPI_BYTE;
 
     return true;
   }
@@ -88,10 +78,6 @@ public:
   using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
-  using Base::send_buffer;
-  using Base::recv_buffer;
-  using Base::send_count;
-  using Base::recv_count;
 
   template <typename BufferPtr>
   bool pack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
@@ -110,14 +96,8 @@ public:
     std::copy(view.begin(), view.end(), ptr);
 
     // datatype
-    mpibuf->sendtype(iz, iy, ix) = MPI_FLOAT64_T;
-    mpibuf->recvtype(iz, iy, ix) = MPI_FLOAT64_T;
-
-    // parameters for MPI send/recv
-    send_buffer = mpibuf->get_send_buffer(iz, iy, ix);
-    recv_buffer = mpibuf->get_recv_buffer(iz, iy, ix);
-    send_count  = view.size();
-    recv_count  = view.size();
+    mpibuf->sendtype(iz, iy, ix) = MPI_BYTE;
+    mpibuf->recvtype(iz, iy, ix) = MPI_BYTE;
 
     return true;
   }
@@ -156,10 +136,6 @@ public:
   using Base::Base; // constructor
   using Base::data;
   using Base::chunk;
-  using Base::send_buffer;
-  using Base::recv_buffer;
-  using Base::send_count;
-  using Base::recv_count;
 
   template <typename BufferPtr>
   bool pack(BufferPtr& mpibuf, int iz, int iy, int ix, int send_bound[3][2], int recv_bound[3][2])
@@ -178,14 +154,8 @@ public:
     std::copy(view.begin(), view.end(), ptr);
 
     // datatype
-    mpibuf->sendtype(iz, iy, ix) = MPI_FLOAT64_T;
-    mpibuf->recvtype(iz, iy, ix) = MPI_FLOAT64_T;
-
-    // parameters for MPI send/recv
-    send_buffer = mpibuf->get_send_buffer(iz, iy, ix);
-    recv_buffer = mpibuf->get_recv_buffer(iz, iy, ix);
-    send_count  = view.size();
-    recv_count  = view.size();
+    mpibuf->sendtype(iz, iy, ix) = MPI_BYTE;
+    mpibuf->recvtype(iz, iy, ix) = MPI_BYTE;
 
     return true;
   }
@@ -223,10 +193,6 @@ public:
   using Base = Halo3D<ParticleVec, Chunk, false>;
   using Base::data;
   using Base::chunk;
-  using Base::send_buffer;
-  using Base::recv_buffer;
-  using Base::send_count;
-  using Base::recv_count;
 
   static constexpr int32_t head_byte = sizeof(int32_t);
   static constexpr int32_t elem_byte = ParticlePtr::element_type::get_particle_size();
@@ -391,12 +357,6 @@ public:
     // datatype
     mpibuf->sendtype(iz, iy, ix) = MPI_BYTE;
     mpibuf->recvtype(iz, iy, ix) = MPI_BYTE;
-
-    // only for send buffer (recv is not yet ready)
-    send_buffer = mpibuf->get_send_buffer(iz, iy, ix);
-    recv_buffer = nullptr;
-    send_count  = mpibuf->bufsize(iz, iy, ix);
-    recv_count  = 0;
 
     return true;
   }

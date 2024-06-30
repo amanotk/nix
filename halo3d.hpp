@@ -18,10 +18,6 @@ public:
 
   Data*   data;
   Chunk*  chunk;
-  void*   send_buffer;
-  void*   recv_buffer;
-  int32_t send_count;
-  int32_t recv_count;
 
   ///
   /// @brief constructor

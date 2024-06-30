@@ -201,6 +201,18 @@ public:
   virtual bool set_boundary_probe(int mode, bool wait) = 0;
 
   ///
+  /// @brief pack for boundary exchange (pure virtual)
+  /// @param mode mode of boundary exchange
+  ///
+  virtual void set_boundary_pack(int mode) override = 0;
+
+  ///
+  /// @brief unpack for boundary exchange (pure virtual)
+  /// @param mode mode of boundary exchange
+  ///
+  virtual void set_boundary_unpack(int mode) override = 0;
+
+  ///
   /// @brief begin boundary exchange (pure virtual)
   /// @param mode mode of boundary exchange
   ///
@@ -281,9 +293,9 @@ public:
   /// @brief query status of boundary exchange
   /// @param mode mode of boundary exchange
   /// @param sendrecv +1 for send, -1 for recv, 0 for both
-  /// @return true if boundary exchange is finished and false otherwise
+  /// @return 1 if boundary exchange is finished and 0 otherwise
   ///
-  virtual bool set_boundary_query(int mode = 0, int sendrecv = 0) override;
+  virtual int set_boundary_query(int mode = 0, int sendrecv = 0) override;
 
   ///
   /// @brief set field boundary condition
@@ -388,9 +400,27 @@ protected:
   ///
   /// @brief probe incoming messages
   /// @param mpibuf MPI buffer
-  /// @return true if recv has been called and false otherwise
+  /// @return true 1 recv has been called and 0 otherwise
   ///
-  bool probe_bc_exchange(MpiBufferPtr mpibuf);
+  int probe_bc_exchange(MpiBufferPtr mpibuf);
+
+  ///
+  /// @brief pack for boundary exchange
+  /// @tparam Halo boundary halo class
+  /// @param mpibuf MPI buffer
+  /// @param halo boundary halo object
+  ///
+  template <typename Halo>
+  void pack_bc_exchange(MpiBufferPtr mpibuf, Halo& halo);
+
+  ///
+  /// @brief unpack for boundary exchange
+  /// @tparam Halo boundary halo class
+  /// @param mpibuf MPI buffer
+  /// @param halo boundary halo object
+  ///
+  template <typename Halo>
+  void unpack_bc_exchange(MpiBufferPtr mpibuf, Halo& halo);
 
   ///
   /// @brief pack and start boundary exchange
@@ -620,7 +650,7 @@ DEFINE_MEMBER(void, inject_particle)(ParticleVec& particle)
 {
 }
 
-DEFINE_MEMBER(bool, set_boundary_query)(int mode, int sendrecv)
+DEFINE_MEMBER(int, set_boundary_query)(int mode, int sendrecv)
 {
   int flag = 0;
 
@@ -640,7 +670,7 @@ DEFINE_MEMBER(bool, set_boundary_query)(int mode, int sendrecv)
     MPI_Testall(27, mpibuf->recvreq.data(), &flag, MPI_STATUSES_IGNORE);
   }
 
-  return !(flag == 0);
+  return flag;
 }
 
 DEFINE_MEMBER(void, set_boundary_field)(int mode)
@@ -730,12 +760,12 @@ DEFINE_MEMBER(void, set_mpi_buffer)
   }
 }
 
-DEFINE_MEMBER(bool, probe_bc_exchange)
+DEFINE_MEMBER(int, probe_bc_exchange)
 (MpiBufferPtr mpibuf)
 {
   // return if recv has already been called
   if (mpibuf->recvwait == true)
-    return true;
+    return 1;
 
   //
   // probe incoming messages
@@ -779,7 +809,7 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
   }
 
   if (is_everyone_ready == false)
-    return false;
+    return 0;
 
   //
   // recv incoming messages
@@ -824,22 +854,15 @@ DEFINE_MEMBER(bool, probe_bc_exchange)
     mpibuf->recvwait = true;
   }
 
-  return true;
+  return 1;
 }
 
-DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
+DEFINE_MEMBER(template <typename Halo> void, pack_bc_exchange)
 (MpiBufferPtr mpibuf, Halo& halo)
 {
-  static constexpr bool is_send_required = true;
-  static constexpr bool is_recv_required = Halo::is_buffer_fixed == true;
-
-  mpibuf->sendwait = false;
-  mpibuf->recvwait = false;
-
   // pre-process
   halo.pre_pack(mpibuf);
 
-  OMP_MAYBE_CRITICAL
   for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
     for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
       for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
@@ -859,70 +882,19 @@ DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
         // pack
         bool status = halo.pack(mpibuf, iz, iy, ix, send_bound, recv_bound);
 
-        if (status) {
-          int nbrank = get_nb_rank(dirz, diry, dirx);
-
-          // send
-          if constexpr (is_send_required == true) {
-            auto& sendcomm = mpibuf->comm(1 + dirz, 1 + diry, 1 + dirx);
-            auto& sendtype = mpibuf->sendtype(iz, iy, ix);
-            auto& sendreq  = mpibuf->sendreq(iz, iy, ix);
-            int   sendtag  = get_sndtag(dirz, diry, dirx);
-            void* sendptr  = halo.send_buffer;
-            int   sendcnt  = halo.send_count;
-
-            MPI_Isend(sendptr, sendcnt, sendtype, nbrank, sendtag, sendcomm, &sendreq);
-          }
-
-          // recv
-          if constexpr (is_recv_required == true) {
-            auto& recvcomm = mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
-            auto& recvtype = mpibuf->recvtype(iz, iy, ix);
-            auto& recvreq  = mpibuf->recvreq(iz, iy, ix);
-            int   recvtag  = get_rcvtag(dirz, diry, dirx);
-            void* recvptr  = halo.recv_buffer;
-            int   recvcnt  = halo.recv_count;
-
-            MPI_Irecv(recvptr, recvcnt, recvtype, nbrank, recvtag, recvcomm, &recvreq);
-          }
-        } else {
-          // no send/recv required
-          mpibuf->sendreq(iz, iy, ix) = MPI_REQUEST_NULL;
-          mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
-        }
+        mpibuf->sendreq(iz, iy, ix) = MPI_REQUEST_NULL;
+        mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
       }
     }
-  }
-
-  if constexpr (is_send_required == true) {
-    mpibuf->sendwait = true;
-  }
-
-  if constexpr (is_recv_required == true) {
-    mpibuf->recvwait = true;
   }
 
   // post-process
   halo.post_pack(mpibuf);
 }
 
-DEFINE_MEMBER(template <typename Halo> void, end_bc_exchange)
+DEFINE_MEMBER(template <typename Halo> void, unpack_bc_exchange)
 (MpiBufferPtr mpibuf, Halo& halo)
 {
-  // wait for MPI send/recv calls to complete
-  OMP_MAYBE_CRITICAL
-  {
-    if (mpibuf->sendwait == true) {
-      MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
-      mpibuf->sendwait = false;
-    }
-
-    if (mpibuf->recvwait == true) {
-      MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUSES_IGNORE);
-      mpibuf->recvwait = false;
-    }
-  }
-
   // pre-process
   halo.pre_unpack(mpibuf);
 
@@ -953,6 +925,77 @@ DEFINE_MEMBER(template <typename Halo> void, end_bc_exchange)
 
   // post-proces
   halo.post_unpack(mpibuf);
+}
+
+DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
+(MpiBufferPtr mpibuf, Halo& halo)
+{
+  static constexpr bool is_send_required = true;
+  static constexpr bool is_recv_required = Halo::is_buffer_fixed == true;
+
+  mpibuf->sendwait = false;
+  mpibuf->recvwait = false;
+
+  OMP_MAYBE_CRITICAL
+  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
+    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
+      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+        if (iz == 1 && iy == 1 && ix == 1)
+          continue;
+
+        int nbrank = get_nb_rank(dirz, diry, dirx);
+        // send
+        if constexpr (is_send_required == true) {
+          int   sendtag  = get_sndtag(dirz, diry, dirx);
+          auto& sendcomm = mpibuf->comm(1 + dirz, 1 + diry, 1 + dirx);
+          auto& sendtype = mpibuf->sendtype(iz, iy, ix);
+          auto& sendreq  = mpibuf->sendreq(iz, iy, ix);
+          void* sendptr  = mpibuf->get_send_buffer(iz, iy, ix);
+          int   sendcnt  = mpibuf->bufsize(iz, iy, ix);
+
+          MPI_Isend(sendptr, sendcnt, sendtype, nbrank, sendtag, sendcomm, &sendreq);
+        }
+
+        // recv
+        if constexpr (is_recv_required == true) {
+          int   recvtag  = get_rcvtag(dirz, diry, dirx);
+          auto& recvcomm = mpibuf->comm(1 - dirz, 1 - diry, 1 - dirx);
+          auto& recvtype = mpibuf->recvtype(iz, iy, ix);
+          auto& recvreq  = mpibuf->recvreq(iz, iy, ix);
+          void* recvptr  = mpibuf->get_recv_buffer(iz, iy, ix);
+          int   recvcnt  = mpibuf->bufsize(iz, iy, ix);
+
+          MPI_Irecv(recvptr, recvcnt, recvtype, nbrank, recvtag, recvcomm, &recvreq);
+        }
+      }
+    }
+  }
+
+  if constexpr (is_send_required == true) {
+    mpibuf->sendwait = true;
+  }
+
+  if constexpr (is_recv_required == true) {
+    mpibuf->recvwait = true;
+  }
+}
+
+DEFINE_MEMBER(template <typename Halo> void, end_bc_exchange)
+(MpiBufferPtr mpibuf, Halo& halo)
+{
+  // wait for MPI send/recv calls to complete
+  OMP_MAYBE_CRITICAL
+  {
+    if (mpibuf->sendwait == true) {
+      MPI_Waitall(27, mpibuf->sendreq.data(), MPI_STATUSES_IGNORE);
+      mpibuf->sendwait = false;
+    }
+
+    if (mpibuf->recvwait == true) {
+      MPI_Waitall(27, mpibuf->recvreq.data(), MPI_STATUSES_IGNORE);
+      mpibuf->recvwait = false;
+    }
+  }
 }
 
 #undef DEFINE_MEMBER
