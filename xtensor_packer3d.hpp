@@ -61,20 +61,6 @@ public:
   }
 
   /// pack particle
-  template <typename ParticlePtr>
-  size_t pack_particle(ParticlePtr& p, uint8_t* buffer, int address)
-  {
-    size_t count = address;
-
-    auto&  xu   = p->xu;
-    size_t np   = p->get_Np_active();
-    size_t size = ParticlePtr::element_type::get_particle_size();
-    count += memcpy_count(buffer, xu.data(), np * size, count, 0);
-
-    return count;
-  }
-
-  /// pack particle
   template <typename ParticlePtr, typename Array>
   size_t pack_particle(ParticlePtr& p, Array& index, uint8_t* buffer, int address)
   {
@@ -84,6 +70,25 @@ public:
     size_t size = ParticlePtr::element_type::get_particle_size();
     for (int i = 0; i < index.size(); i++) {
       count += memcpy_count(buffer, &xu(index[i], 0), size, count, 0);
+    }
+
+    return count;
+  }
+
+  /// pack tracer
+  template <typename ParticlePtr>
+  size_t pack_tracer(ParticlePtr& p, uint8_t* buffer, int address)
+  {
+    size_t count = address;
+
+    auto&  xu   = p->xu;
+    size_t np   = p->get_Np_active();
+    size_t size = ParticlePtr::element_type::get_particle_size();
+    for (int i = 0; i < np; i++) {
+      int64& id64 = *reinterpret_cast<int64*>(&xu(i, 6));
+      if (id64 < 0) {
+        count += memcpy_count(buffer, &xu(i, 0), size, count, 0);
+      }
     }
 
     return count;
