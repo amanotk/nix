@@ -398,7 +398,7 @@ DEFINE_MEMBER(bool, from_json)(json& state)
   consistency &= current_state["ndims"] == state["ndims"];
   consistency &= current_state["cdims"] == state["cdims"];
   consistency &= current_state["nprocess"] == state["nprocess"];
-  consistency &= current_state["configuration"] == state["configuration"];
+  consistency &= current_state["configuration"]["parameter"] == state["configuration"]["parameter"];
 
   if (consistency == false) {
     ERROR << tfm::format("Trying to load inconsistent state");
