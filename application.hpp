@@ -320,7 +320,7 @@ protected:
   /// @brief get basedir from configuration file
   /// @return return basedir
   ///
-  std::string get_basedir()
+  virtual std::string get_basedir()
   {
     return cfgparser->get_application().value("basedir", "");
   }
