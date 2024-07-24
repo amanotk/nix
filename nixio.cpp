@@ -100,9 +100,9 @@ void close_file(MPI_File* fh)
 }
 
 // collective read/write with hindexed type
-void readwrite_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t offset,
-                          const size_t size, const int32_t elembyte, const int32_t packbyte,
-                          MPI_Request* req, const int mode)
+size_t readwrite_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t offset,
+                            const size_t size, const int32_t elembyte, const int32_t packbyte,
+                            MPI_Request* req, const int mode)
 {
   MPI_Datatype ptype, ftype;
   MPI_Aint     packed_offset[1];
@@ -134,12 +134,14 @@ void readwrite_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t o
 
   MPI_Type_free(&ptype);
   MPI_Type_free(&ftype);
+
+  return size * elembyte;
 }
 
 // non-collective read/write
-void readwrite_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                             const int32_t elembyte, const int32_t packbyte, MPI_Request* req,
-                             const int mode)
+size_t readwrite_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
+                               const int32_t elembyte, const int32_t packbyte, MPI_Request* req,
+                               const int mode)
 {
   MPI_Offset   pos;
   MPI_Datatype ptype;
@@ -167,12 +169,14 @@ void readwrite_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_
   }
 
   MPI_Type_free(&ptype);
+
+  return size * elembyte;
 }
 
 // collective read/write with subarray type
-void readwrite_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
-                        const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
-                        const int32_t elembyte, MPI_Request* req, const int mode, const int order)
+size_t readwrite_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
+                          const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
+                          const int32_t elembyte, MPI_Request* req, const int mode, const int order)
 {
   MPI_Datatype ptype, ftype;
   int          count = get_size(ndim, lshape);
@@ -200,16 +204,20 @@ void readwrite_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t nd
 
   MPI_Type_free(&ptype);
   MPI_Type_free(&ftype);
+
+  return count * elembyte;
 }
 
-void read_single(MPI_File* fh, size_t* disp, void* data, const size_t size, MPI_Request* req)
+size_t read_single(MPI_File* fh, size_t* disp, void* data, const size_t size, MPI_Request* req)
 {
   MPI_File_iread_at(*fh, *disp, data, size, MPI_BYTE, req);
 
   *disp += size;
+
+  return size;
 }
 
-void write_single(MPI_File* fh, size_t* disp, void* data, const size_t size, MPI_Request* req)
+size_t write_single(MPI_File* fh, size_t* disp, void* data, const size_t size, MPI_Request* req)
 {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -222,10 +230,12 @@ void write_single(MPI_File* fh, size_t* disp, void* data, const size_t size, MPI
   }
 
   *disp += size;
+
+  return size;
 }
 
-void read_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                     const int32_t elembyte, const int32_t packbyte, MPI_Request* req)
+size_t read_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
+                       const int32_t elembyte, const int32_t packbyte, MPI_Request* req)
 {
   size_t  gsize, offset;
   int32_t pbyte;
@@ -243,10 +253,12 @@ void read_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
   readwrite_contiguous(fh, disp, data, offset, size, elembyte, pbyte, req, +1);
 
   *disp += gsize * elembyte;
+
+  return gsize * elembyte;
 }
 
-void write_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                      const int32_t elembyte, const int32_t packbyte, MPI_Request* req)
+size_t write_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
+                        const int32_t elembyte, const int32_t packbyte, MPI_Request* req)
 {
   size_t  gsize, offset;
   int32_t pbyte;
@@ -264,24 +276,26 @@ void write_contiguous(MPI_File* fh, size_t* disp, void* data, const size_t size,
   readwrite_contiguous(fh, disp, data, offset, size, elembyte, pbyte, req, -1);
 
   *disp += gsize * elembyte;
+
+  return gsize * elembyte;
 }
 
-void read_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                        const int32_t elembyte, MPI_Request* req)
+size_t read_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
+                          const int32_t elembyte, MPI_Request* req)
 {
-  readwrite_contiguous_at(fh, disp, data, size, elembyte, elembyte, req, +1);
+  return readwrite_contiguous_at(fh, disp, data, size, elembyte, elembyte, req, +1);
 }
 
-void write_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
-                         const int32_t elembyte, MPI_Request* req)
+size_t write_contiguous_at(MPI_File* fh, size_t* disp, void* data, const size_t size,
+                           const int32_t elembyte, MPI_Request* req)
 {
-  readwrite_contiguous_at(fh, disp, data, size, elembyte, elembyte, req, -1);
+  return readwrite_contiguous_at(fh, disp, data, size, elembyte, elembyte, req, -1);
 }
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
-void read_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
-                   const T3 lshape[], const T4 offset[], const T5 elembyte, MPI_Request* req,
-                   const int order)
+size_t read_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
+                     const T3 lshape[], const T4 offset[], const T5 elembyte, MPI_Request* req,
+                     const int order)
 {
   if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
     ERROR << tfm::format(" No such order available");
@@ -302,12 +316,14 @@ void read_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const 
 
   readwrite_subarray(fh, disp, data, nd, gs, ls, os, eb, req, +1, order);
   *disp += size * elembyte;
+
+  return size * elembyte;
 }
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
-void write_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
-                    const T3 lshape[], const T4 offset[], const T5 elembyte, MPI_Request* req,
-                    const int order)
+size_t write_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const T2 gshape[],
+                      const T3 lshape[], const T4 offset[], const T5 elembyte, MPI_Request* req,
+                      const int order)
 {
   if (order != MPI_ORDER_C && order != MPI_ORDER_FORTRAN) {
     ERROR << tfm::format("No such order available");
@@ -328,6 +344,8 @@ void write_subarray(MPI_File* fh, size_t* disp, void* data, const T1 ndim, const
 
   readwrite_subarray(fh, disp, data, nd, gs, ls, os, eb, req, -1, order);
   *disp += size * elembyte;
+
+  return size * elembyte;
 }
 
 void put_metadata(json& obj, string name, string dtype, string desc, const size_t disp,
@@ -455,26 +473,28 @@ void put_attribute(json& obj, string name, const size_t disp, const int32_t leng
   obj[name]["data"] = std::vector<float64>(&data[0], &data[length]);
 }
 
-template void read_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
-                            const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
-                            const int32_t elembyte, MPI_Request* req, const int order);
-template void read_subarray(MPI_File* fh, size_t* disp, void* data, const size_t ndim,
-                            const size_t gshape[], const size_t lshape[], const size_t offset[],
-                            const size_t elembyte, MPI_Request* req, const int order);
-template void write_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
-                             const int32_t gshape[], const int32_t lshape[], const int32_t offset[],
-                             const int32_t elembyte, MPI_Request* req, const int order);
-template void write_subarray(MPI_File* fh, size_t* disp, void* data, const size_t ndim,
-                             const size_t gshape[], const size_t lshape[], const size_t offset[],
-                             const size_t elembyte, MPI_Request* req, const int order);
-template void get_attribute(json& obj, string name, size_t& disp, int32_t& data);
-template void get_attribute(json& obj, string name, size_t& disp, int64_t& data);
-template void get_attribute(json& obj, string name, size_t& disp, float32& data);
-template void get_attribute(json& obj, string name, size_t& disp, float64& data);
-template void get_attribute(json& obj, string name, size_t& disp, int32_t length, int32_t* data);
-template void get_attribute(json& obj, string name, size_t& disp, int32_t length, int64_t* data);
-template void get_attribute(json& obj, string name, size_t& disp, int32_t length, float32* data);
-template void get_attribute(json& obj, string name, size_t& disp, int32_t length, float64* data);
+template size_t read_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
+                              const int32_t gshape[], const int32_t lshape[],
+                              const int32_t offset[], const int32_t elembyte, MPI_Request* req,
+                              const int order);
+template size_t read_subarray(MPI_File* fh, size_t* disp, void* data, const size_t ndim,
+                              const size_t gshape[], const size_t lshape[], const size_t offset[],
+                              const size_t elembyte, MPI_Request* req, const int order);
+template size_t write_subarray(MPI_File* fh, size_t* disp, void* data, const int32_t ndim,
+                               const int32_t gshape[], const int32_t lshape[],
+                               const int32_t offset[], const int32_t elembyte, MPI_Request* req,
+                               const int order);
+template size_t write_subarray(MPI_File* fh, size_t* disp, void* data, const size_t ndim,
+                               const size_t gshape[], const size_t lshape[], const size_t offset[],
+                               const size_t elembyte, MPI_Request* req, const int order);
+template void   get_attribute(json& obj, string name, size_t& disp, int32_t& data);
+template void   get_attribute(json& obj, string name, size_t& disp, int64_t& data);
+template void   get_attribute(json& obj, string name, size_t& disp, float32& data);
+template void   get_attribute(json& obj, string name, size_t& disp, float64& data);
+template void   get_attribute(json& obj, string name, size_t& disp, int32_t length, int32_t* data);
+template void   get_attribute(json& obj, string name, size_t& disp, int32_t length, int64_t* data);
+template void   get_attribute(json& obj, string name, size_t& disp, int32_t length, float32* data);
+template void   get_attribute(json& obj, string name, size_t& disp, int32_t length, float64* data);
 
 } // namespace nixio
 

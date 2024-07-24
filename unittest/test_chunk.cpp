@@ -13,9 +13,17 @@ using namespace nix;
 template <int Nb>
 class TestChunk : public Chunk<Nb>
 {
-  virtual bool set_boundary_query(int mode) override
+  virtual int set_boundary_query(int mode, int sendrecv) override
   {
-    return false;
+    return 0;
+  }
+
+  virtual void set_boundary_pack(int mode) override
+  {
+  }
+
+  virtual void set_boundary_unpack(int mode) override
+  {
   }
 
   virtual void set_boundary_begin(int mode) override

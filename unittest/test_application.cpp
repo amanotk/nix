@@ -54,9 +54,17 @@ class MockChunk : public Chunk<3>
 public:
   using Chunk<3>::Chunk;
 
-  virtual bool set_boundary_query(int mode) override
+  virtual int set_boundary_query(int mode, int sendrecv) override
   {
-    return true;
+    return 0;
+  }
+
+  virtual void set_boundary_pack(int mode) override
+  {
+  }
+
+  virtual void set_boundary_unpack(int mode) override
+  {
   }
 
   virtual void set_boundary_begin(int mode) override
