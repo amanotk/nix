@@ -87,7 +87,7 @@ public:
   template <typename App, typename Data>
   bool load_application(App&& app, Data&& data, std::string prefix)
   {
-    prefix = get_path_with_basedir(prefix);
+    prefix = get_path_with_basedir(prefix, true);
 
     std::string   filename = prefix + ".msgpack";
     std::ifstream ifs(filename, std::ios::binary);
@@ -106,7 +106,7 @@ public:
     int thisrank = data.thisrank;
     int nprocess = data.nprocess;
 
-    prefix = get_path_with_basedir(prefix);
+    prefix = get_path_with_basedir(prefix, true);
 
     std::string filename =
         MpiStream::get_filename(prefix, ".data", thisrank, nprocess, max_file_per_dir);
@@ -124,11 +124,29 @@ public:
   }
 
 protected:
-  std::string get_path_with_basedir(std::string name)
+  std::string get_path_with_basedir(std::string name, bool require_existence = false)
   {
     namespace fs = std::filesystem;
 
-    return (fs::path(basedir) / fs::path(name)).string();
+    fs::path base_path = fs::path(basedir);
+    fs::path full_path = base_path / fs::path(name);
+
+    if (require_existence == false) {
+      return full_path.string();
+    }
+
+    if (fs::exists(full_path) == false) {
+      // full_path should exist for loading
+      // otherwise try to find it in the last directory of basedir
+      fs::path last_dir = base_path;
+      while (last_dir.filename() == "" || last_dir.filename() == ".") {
+        last_dir = last_dir.parent_path();
+      }
+
+      full_path = last_dir.filename() / fs::path(name);
+    }
+
+    return full_path.string();
   }
 
   template <typename App, typename Data>
