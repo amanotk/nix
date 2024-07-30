@@ -32,6 +32,10 @@
 #include <nlohmann/json.hpp>
 #include <toml.hpp>
 
+#ifdef _POSIX_VERSION
+#include <unistd.h>
+#endif
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -148,6 +152,13 @@ inline int get_max_threads()
   return omp_get_max_threads();
 #else
   return 1;
+#endif
+}
+
+inline void sync()
+{
+#ifdef _POSIX_VERSION
+  sync();
 #endif
 }
 

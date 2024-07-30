@@ -194,6 +194,7 @@ public:
       }
 
       // synchronize
+      nix::sync();
       MPI_Barrier(MPI_COMM_WORLD);
 
       if (status == false) {
@@ -215,6 +216,7 @@ public:
         }
 
         // synchronize
+        nix::sync();
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }

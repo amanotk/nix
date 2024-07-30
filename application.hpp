@@ -530,6 +530,7 @@ DEFINE_MEMBER(void, initialize_base_directory)()
       fs::create_directory(basedir);
     }
   }
+  nix::sync();
 }
 
 DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
