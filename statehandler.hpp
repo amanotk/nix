@@ -8,7 +8,7 @@
 
 NIX_NAMESPACE_BEGIN
 
-static constexpr int default_max_file_per_dir = 1024;
+static constexpr int default_max_file_per_dir = 1000;
 
 class StateHandler
 {
@@ -40,9 +40,7 @@ public:
       json                      state  = app.to_json();
       std::vector<std::uint8_t> buffer = json::to_msgpack(state);
 
-      prefix = get_path_with_basedir(prefix);
-
-      std::string   filename = prefix + ".msgpack";
+      std::string   filename = get_path_with_basedir(prefix) + ".msgpack";
       std::ofstream ofs(filename, std::ios::binary);
       ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
       ofs.close();
@@ -57,11 +55,13 @@ public:
     int thisrank = data.thisrank;
     int nprocess = data.nprocess;
 
-    prefix = get_path_with_basedir(prefix);
+    DEBUG2 << tfm::format("start saving chunkvec with prefix %s", prefix);
 
-    MpiStream::create_directory_tree(prefix, thisrank, nprocess, max_file_per_dir);
+    std::string path = get_path_with_basedir(prefix);
+
+    MpiStream::create_directory_tree(path, thisrank, nprocess, max_file_per_dir);
     std::string filename =
-        MpiStream::get_filename(prefix, ".data", thisrank, nprocess, max_file_per_dir);
+        MpiStream::get_filename(path, ".data", thisrank, nprocess, max_file_per_dir);
 
     {
       Vector id;
@@ -71,6 +71,8 @@ public:
       save_chunkvec_header(app, data, filename, id, size, offset);
       save_chunkvec_content(app, data, filename, id, size, offset);
     }
+
+    DEBUG2 << tfm::format("finish saving chunkvec with prefix %s", prefix);
 
     return true;
   }
@@ -87,9 +89,7 @@ public:
   template <typename App, typename Data>
   bool load_application(App&& app, Data&& data, std::string prefix)
   {
-    prefix = get_path_with_basedir(prefix, true);
-
-    std::string   filename = prefix + ".msgpack";
+    std::string   filename = get_path_with_basedir(prefix, true) + ".msgpack";
     std::ifstream ifs(filename, std::ios::binary);
 
     json state  = json::from_msgpack(ifs);
@@ -106,10 +106,12 @@ public:
     int thisrank = data.thisrank;
     int nprocess = data.nprocess;
 
-    prefix = get_path_with_basedir(prefix, true);
+    DEBUG2 << tfm::format("start loading chunkvec with prefix %s", prefix);
+
+    std::string path = get_path_with_basedir(prefix, true);
 
     std::string filename =
-        MpiStream::get_filename(prefix, ".data", thisrank, nprocess, max_file_per_dir);
+        MpiStream::get_filename(path, ".data", thisrank, nprocess, max_file_per_dir);
 
     {
       Vector id;
@@ -119,6 +121,8 @@ public:
       load_chunkvec_header(app, data, filename, id, size, offset);
       load_chunkvec_content(app, data, filename, id, size, offset);
     }
+
+    DEBUG2 << tfm::format("finish loading chunkvec with prefix %s", prefix);
 
     return true;
   }

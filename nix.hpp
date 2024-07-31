@@ -155,11 +155,19 @@ inline int get_max_threads()
 #endif
 }
 
-inline void sync()
+inline int sync_directory(std::string dirname)
 {
+  int status = 0;
+
 #ifdef _POSIX_VERSION
-  sync();
+  if (std::filesystem::is_directory(dirname) == true) {
+    int fd = open(dirname.c_str(), O_RDONLY | O_DIRECTORY);
+    status = fsync(fd);
+    close(fd);
+  }
 #endif
+
+  return status;
 }
 
 ///

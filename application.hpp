@@ -522,15 +522,17 @@ DEFINE_MEMBER(void, finalize)()
 
 DEFINE_MEMBER(void, initialize_base_directory)()
 {
-  if (is_initial_run() == true) {
+  if (thisrank == 0 && is_initial_run() == true) {
     namespace fs = std::filesystem;
 
     std::string basedir = get_basedir();
     if (basedir != "" && fs::exists(basedir) == false) {
       fs::create_directory(basedir);
+      nix::sync_directory(basedir);
     }
   }
-  nix::sync();
+  // synchronize
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
@@ -560,19 +562,18 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
   MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
   MPI_Comm_rank(MPI_COMM_WORLD, &thisrank);
 
-  if (thisrank == 0) {
-    wclock = wall_clock();
-    initialize_base_directory();
-  }
+  wclock = wall_clock();
   MPI_Bcast(&wclock, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  // redirect stdout/stderr
+  // base directory and stdout/stderr redirection
   {
     namespace fs = std::filesystem;
 
     json        config            = cfgparser->get_application();
     std::string path              = "";
-    int         max_files_per_dir = 1024;
+    int         max_files_per_dir = 1000;
+
+    initialize_base_directory();
 
     if (config.contains("mpistream") == false) {
       // redirect to /dev/null except for rank 0 by default
@@ -583,7 +584,7 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
       path              = fs::path(get_basedir()) / config.value("path", path);
       max_files_per_dir = config.value("max_files_per_dir", max_files_per_dir);
       MpiStream::initialize(path, max_files_per_dir);
-    } else if (config["mpistream"].is_null() == true) {
+    } else if (config["mpistream"] == false) {
       // no redirection
     } else {
       ERROR << tfm::format("Ignore invalid configuration for mpistream\n");

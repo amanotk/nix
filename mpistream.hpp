@@ -135,14 +135,18 @@ public:
     MpiStream* instance = getInstance();
 
     // close dummy standard output
-    instance->m_out->flush();
-    instance->m_out->close();
-    std::cout.rdbuf(instance->m_outbuf);
+    if (instance->m_out != nullptr) {
+      instance->m_out->flush();
+      instance->m_out->close();
+      std::cout.rdbuf(instance->m_outbuf);
+    }
 
     // close dummy standard error
-    instance->m_err->flush();
-    instance->m_err->close();
-    std::cerr.rdbuf(instance->m_errbuf);
+    if (instance->m_err != nullptr) {
+      instance->m_err->flush();
+      instance->m_err->close();
+      std::cerr.rdbuf(instance->m_errbuf);
+    }
   }
 
   static void flush()
@@ -184,22 +188,13 @@ public:
 
     // base directory
     {
-      if (fs::exists(dirname) == false) {
-        if (thisrank == 0) {
-          status = status & fs::create_directory(dirname);
-        }
-      } else if (fs::is_directory(dirname) == false) {
-        status = false;
-        ERROR << tfm::format("Error: %s exists but not a directory.", dirname) << std::endl;
+      if (thisrank == 0 && fs::exists(dirname) == false) {
+        status = status & fs::create_directory(dirname);
+        nix::sync_directory(dirname);
       }
 
       // synchronize
-      nix::sync();
       MPI_Barrier(MPI_COMM_WORLD);
-
-      if (status == false) {
-        return status;
-      }
     }
 
     // recursive directory creation
@@ -213,10 +208,10 @@ public:
 
         if (thisrank % max_file_level == 0 && fs::exists(path) == false) {
           status = status & fs::create_directory(path.string());
+          nix::sync_directory(path.string());
         }
 
         // synchronize
-        nix::sync();
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
