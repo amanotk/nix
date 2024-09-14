@@ -85,7 +85,8 @@ public:
     size_t np   = p->get_Np_active();
     size_t size = ParticlePtr::element_type::get_particle_size();
     for (int i = 0; i < np; i++) {
-      int64& id64 = *reinterpret_cast<int64*>(&xu(i, 6));
+      int64 id64;
+      std::memcpy(&id64, &xu(i, 6), sizeof(int64));
       if (id64 < 0) {
         count += memcpy_count(buffer, &xu(i, 0), size, count, 0);
       }
