@@ -17,7 +17,7 @@ using simd_i64 = xsimd::batch<nix::typedefs::int64>;
 
 /// charge density calculation for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_rho(T_float qs, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void rho3d(T_float qs, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   for (int jz = 0; jz < N; jz++) {
     for (int jy = 0; jy < N; jy++) {
@@ -30,7 +30,7 @@ static void esirkepov3d_rho(T_float qs, T_float ss[2][3][N], T_float current[N][
 
 /// calculation of DS(*,*) of Esirkepov (2001)
 template <int N, typename T_float>
-static void esirkepov3d_ds(T_float ss[2][3][N])
+static void ds3d(T_float ss[2][3][N])
 {
   for (int dir = 0; dir < 3; dir++) {
     for (int l = 0; l < N; l++) {
@@ -41,7 +41,7 @@ static void esirkepov3d_ds(T_float ss[2][3][N])
 
 /// calculation of Jx for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_jx(T_float qdxdt, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void jx3d(T_float qdxdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -63,7 +63,7 @@ static void esirkepov3d_jx(T_float qdxdt, T_float ss[2][3][N], T_float current[N
 
 /// calculation of Jy for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_jy(T_float qdydt, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void jy3d(T_float qdydt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -85,7 +85,7 @@ static void esirkepov3d_jy(T_float qdydt, T_float ss[2][3][N], T_float current[N
 
 /// calculation of Jz for Esirkepov scheme
 template <int N, typename T_float>
-static void esirkepov3d_jz(T_float qdzdt, T_float ss[2][3][N], T_float current[N][N][N][4])
+static void jz3d(T_float qdzdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -107,7 +107,6 @@ static void esirkepov3d_jz(T_float qdzdt, T_float ss[2][3][N], T_float current[N
 
 /// shift weights after movement for Esirkepov scheme (needed for vectorization)
 template <int Order, typename T_int, typename T_float>
-// static void esirkepov3d_shift_weights(T_int shift[3], T_float ss[3][Order + 3])
 static void shift_weights3d(T_int shift[3], T_float ss[3][Order + 3])
 {
   constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
@@ -167,15 +166,15 @@ static void deposit3d(float64 dxdt, float64 dydt, float64 dzdt, T_float qs,
                       T_float current[Order + 3][Order + 3][Order + 3][4])
 {
   // calculate rho
-  esirkepov3d_rho<Order + 3>(qs, ss, current);
+  rho3d<Order + 3>(qs, ss, current);
 
   // ss[1][*][*] now represents DS(*,*) of Esirkepov (2001)
-  esirkepov3d_ds<Order + 3>(ss);
+  ds3d<Order + 3>(ss);
 
   // calculate Jx, Jy, Jz
-  esirkepov3d_jx<Order + 3>(qs * dxdt, ss, current);
-  esirkepov3d_jy<Order + 3>(qs * dydt, ss, current);
-  esirkepov3d_jz<Order + 3>(qs * dzdt, ss, current);
+  jx3d<Order + 3>(qs * dxdt, ss, current);
+  jy3d<Order + 3>(qs * dydt, ss, current);
+  jz3d<Order + 3>(qs * dzdt, ss, current);
 }
 
 } // namespace esirkepov

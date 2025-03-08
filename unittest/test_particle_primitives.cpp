@@ -10,11 +10,11 @@
 
 using namespace nix::typedefs;
 using namespace nix::primitives;
+
 namespace stdex    = std::experimental;
 using Array2D      = stdex::mdspan<float64, stdex::dextents<size_t, 2>>;
 using Array4D      = stdex::mdspan<float64, stdex::dextents<size_t, 4>>;
 using uniform_rand = std::uniform_real_distribution<float64>;
-
 template <typename T>
 using aligned_vector = std::vector<T, xsimd::aligned_allocator<T, 64>>;
 

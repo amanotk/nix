@@ -10,7 +10,10 @@
 #include "catch.hpp"
 
 using namespace nix::typedefs;
-using namespace nix::primitives;
+using namespace nix::esirkepov;
+using nix::primitives::digitize;
+using nix::primitives::shape;
+
 namespace stdex    = std::experimental;
 using Array2D      = stdex::mdspan<float64, stdex::dextents<size_t, 2>>;
 using uniform_rand = std::uniform_real_distribution<float64>;
@@ -52,9 +55,6 @@ bool test_deposit3d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt, 
 
 TEST_CASE("Esirkepov shift weights")
 {
-  using simd::simd_f64;
-  using simd::simd_i64;
-
   std::random_device              rd;
   std::mt19937                    gen(rd());
   std::uniform_int_distribution<> rand(0, 2);
@@ -418,7 +418,6 @@ bool deposit3d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_fl
 template <int Order, typename T_int>
 bool test_shift_weights3d(T_int shift[3], float64 ww[Order + 3])
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_integral_v<T_int>;
   const int      size      = Order + 3;
 
@@ -519,9 +518,6 @@ template <int Order, typename T_array>
 bool test_deposit3d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
                           const float64 epsilon)
 {
-  using simd::simd_f64;
-  using simd::simd_i64;
-
   const int size    = Order + 3;
   bool      status1 = true;
   bool      status2 = true;
