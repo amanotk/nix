@@ -9,12 +9,6 @@ NIX_NAMESPACE_BEGIN
 
 namespace esirkepov
 {
-
-using simd_f32 = xsimd::batch<nix::typedefs::float32>;
-using simd_f64 = xsimd::batch<nix::typedefs::float64>;
-using simd_i32 = xsimd::batch<nix::typedefs::int32>;
-using simd_i64 = xsimd::batch<nix::typedefs::int64>;
-
 /// charge density calculation for Esirkepov scheme
 template <int N, typename T_float>
 static void rho3d(T_float qs, T_float ss[2][3][N], T_float current[N][N][N][4])

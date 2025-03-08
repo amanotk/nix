@@ -9,12 +9,6 @@ NIX_NAMESPACE_BEGIN
 
 namespace interp
 {
-
-using simd_f32 = xsimd::batch<nix::typedefs::float32>;
-using simd_f64 = xsimd::batch<nix::typedefs::float64>;
-using simd_i32 = xsimd::batch<nix::typedefs::int32>;
-using simd_i64 = xsimd::batch<nix::typedefs::int64>;
-
 /// shift weights for interpolate3d (needed for vectorization)
 template <int Order, typename T_int, typename T_float>
 static void shift_weights3d(T_int shift, T_float ww[Order + 2])

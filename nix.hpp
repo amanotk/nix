@@ -31,6 +31,7 @@
 #include <mpi.h>
 #include <nlohmann/json.hpp>
 #include <toml.hpp>
+#include <xsimd/xsimd.hpp>
 
 #ifdef _POSIX_VERSION
 #include <unistd.h>
@@ -76,6 +77,12 @@ using uint64 = uint64_t;
 using float32 = float;
 using float64 = double;
 using real    = float64;
+
+// SIMD types
+using simd_f32 = xsimd::batch<float32>;
+using simd_f64 = xsimd::batch<float64>;
+using simd_i32 = xsimd::batch<int32>;
+using simd_i64 = xsimd::batch<int64>;
 
 // MPI datatype for consistent notations
 // (constexpr does not work with some MPI library)

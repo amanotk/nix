@@ -9,21 +9,10 @@ NIX_NAMESPACE_BEGIN
 
 namespace primitives
 {
-
-/// SIMD types
-namespace simd
-{
-using simd_f32 = xsimd::batch<nix::typedefs::float32>;
-using simd_f64 = xsimd::batch<nix::typedefs::float64>;
-using simd_i32 = xsimd::batch<nix::typedefs::int32>;
-using simd_i64 = xsimd::batch<nix::typedefs::int64>;
-} // namespace simd
-
 /// convert to integer (scalar or vector)
 template <typename T_float>
 static auto to_int(T_float x)
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
@@ -40,7 +29,6 @@ static auto to_int(T_float x)
 template <typename T_int>
 static auto to_float(T_int x)
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_integral_v<T_int>;
   constexpr bool is_vector = std::is_same_v<T_int, simd_i32> || std::is_same_v<T_int, simd_i64>;
 
@@ -57,7 +45,6 @@ static auto to_float(T_int x)
 template <typename T_float>
 static auto digitize(T_float x, T_float xmin, T_float rdx)
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
@@ -74,7 +61,6 @@ static auto digitize(T_float x, T_float xmin, T_float rdx)
 template <typename T_float>
 static auto sign(T_float x)
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
@@ -91,7 +77,6 @@ static auto sign(T_float x)
 template <typename T_float>
 static auto min(T_float x, T_float y)
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
@@ -108,7 +93,6 @@ static auto min(T_float x, T_float y)
 template <typename T_float>
 static auto max(T_float x, T_float y)
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
@@ -125,7 +109,6 @@ static auto max(T_float x, T_float y)
 template <typename T_float>
 static auto abs(T_float x)
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
@@ -142,7 +125,6 @@ static auto abs(T_float x)
 template <typename T_float, typename T_bool>
 static auto ifthenelse(T_bool cond, T_float x, T_float y)
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
@@ -159,7 +141,6 @@ static auto ifthenelse(T_bool cond, T_float x, T_float y)
 template <typename T_float>
 static auto lorentz_factor(T_float ux, T_float uy, T_float uz, T_float rc)
 {
-  using namespace simd;
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
@@ -622,7 +603,6 @@ template <int Order, typename T_array, typename T_int, typename T_float>
 static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
                              T_float current[Order + 3][Order + 3][Order + 3][4])
 {
-  using namespace simd;
   constexpr int  size      = Order + 3;
   constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;

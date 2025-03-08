@@ -303,7 +303,7 @@ bool deposit3d_scalar(const float64 delt, const float64 delh, float64 xu[7], flo
   shape<Order>(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0]);
 
   // calculate charge and current density
-  nix::esirkepov::deposit3d<Order>(dhdt, dhdt, dhdt, qs, ss, cur);
+  deposit3d<Order>(dhdt, dhdt, dhdt, qs, ss, cur);
 
   // check charge density
   for (int jz = 0; jz < Order + 3; jz++) {
@@ -385,10 +385,10 @@ bool deposit3d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_fl
   // in-place shift of ss[1] according to particle movement
   //
   xsimd::batch<int64_t> shift[3] = {ix1 - ix0, iy1 - iy0, iz1 - iz0};
-  nix::esirkepov::shift_weights3d<Order>(shift, ss[1]);
+  shift_weights3d<Order>(shift, ss[1]);
 
   // calculate charge and current density
-  nix::esirkepov::deposit3d<Order>(dhdt, dhdt, dhdt, qs, ss, cur);
+  deposit3d<Order>(dhdt, dhdt, dhdt, qs, ss, cur);
 
   // check charge density
   for (int jz = 0; jz < Order + 3; jz++) {
@@ -433,7 +433,7 @@ bool test_shift_weights3d(T_int shift[3], float64 ww[Order + 3])
     }
 
     // shift
-    nix::esirkepov::shift_weights3d<Order>(shift, ss);
+    shift_weights3d<Order>(shift, ss);
 
     // check
     bool status = true;
@@ -466,7 +466,7 @@ bool test_shift_weights3d(T_int shift[3], float64 ww[Order + 3])
     }
 
     // shift
-    nix::esirkepov::shift_weights3d<Order>(shift, ss);
+    shift_weights3d<Order>(shift, ss);
 
     // check
     bool status = true;

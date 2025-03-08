@@ -56,8 +56,6 @@ TEST_CASE("digitize")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -97,8 +95,6 @@ TEST_CASE("sign")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -145,8 +141,6 @@ TEST_CASE("lorentz_factor")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> ux(simd_f64::size);
     aligned_vector<float64> uy(simd_f64::size);
@@ -192,8 +186,6 @@ TEST_CASE("push_boris")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     aligned_vector<float64> ux(simd_f64::size);
     aligned_vector<float64> uy(simd_f64::size);
     aligned_vector<float64> uz(simd_f64::size);
@@ -269,8 +261,6 @@ TEST_CASE("First-order shape function")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -337,8 +327,6 @@ TEST_CASE("Second-order shape function")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -406,8 +394,6 @@ TEST_CASE("Third-order shape function")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -482,8 +468,6 @@ TEST_CASE("Fourth-order shape function")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -552,8 +536,6 @@ TEST_CASE("First-order shape function for WT scheme")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -624,8 +606,6 @@ TEST_CASE("Second-order shape function for WT scheme")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -701,8 +681,6 @@ TEST_CASE("Third-order shape function for WT scheme")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -785,8 +763,6 @@ TEST_CASE("Fourth-order shape function for WT scheme")
   }
   SECTION("xsimd")
   {
-    using simd::simd_f64;
-
     // initialize
     aligned_vector<float64> x(simd_f64::size);
 
@@ -851,7 +827,6 @@ TEST_CASE("Current append to global array 3D")
     REQUIRE(test_append_current3d_xsimd<1>(uj1, uj2, 2, 4, 8, eps) == true);
 
     // vector index
-    using simd::simd_i64;
     simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
     simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
     simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
@@ -871,7 +846,6 @@ TEST_CASE("Current append to global array 3D")
     REQUIRE(test_append_current3d_xsimd<2>(uj1, uj2, 2, 4, 8, eps) == true);
 
     // vector index
-    using simd::simd_i64;
     simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
     simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
     simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
@@ -891,7 +865,6 @@ TEST_CASE("Current append to global array 3D")
     REQUIRE(test_append_current3d_xsimd<3>(uj1, uj2, 2, 4, 8, eps) == true);
 
     // vector index
-    using simd::simd_i64;
     simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
     simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
     simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
@@ -911,7 +884,6 @@ TEST_CASE("Current append to global array 3D")
     REQUIRE(test_append_current3d_xsimd<4>(uj1, uj2, 2, 4, 8, eps) == true);
 
     // vector index
-    using simd::simd_i64;
     simd_i64 iz0 = xsimd::load_unaligned(iz0_data.data());
     simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
     simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
@@ -963,9 +935,6 @@ template <int Order, typename T_array, typename T_int>
 bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0, T_int ix0,
                                  const float64 epsilon)
 {
-  using simd::simd_f64;
-  using simd::simd_i64;
-
   const int size   = Order + 3;
   const int stride = size * size * size * 4;
   const int Nz     = uj.extent(0);
