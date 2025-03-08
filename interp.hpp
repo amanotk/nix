@@ -123,7 +123,7 @@ static auto interp3d(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik, T_flo
   }
 }
 
-} // namespace primitives
+} // namespace interp
 
 NIX_NAMESPACE_END
 
