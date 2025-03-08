@@ -1,7 +1,7 @@
 // -*- C++ -*-
 
 #include "nix.hpp"
-#include "particle_primitives.hpp"
+#include "primitives.hpp"
 
 #include <experimental/mdspan>
 #include <iostream>
@@ -252,7 +252,7 @@ TEST_CASE("First-order shape function")
       float64 s[2];
       float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-      shape<1>(x, xmin, 1 / delx, s);
+      shape_mc<1>(x, xmin, 1 / delx, s);
       status = status & (std::abs(s[0] - W(xeval[0] - x)) < epsilon);
       status = status & (std::abs(s[1] - W(xeval[1] - x)) < epsilon);
     }
@@ -274,12 +274,12 @@ TEST_CASE("First-order shape function")
     simd_f64 xmin_simd = xmin;
     simd_f64 delx_simd = delx;
 
-    shape<1>(x_simd, xmin_simd, 1 / delx_simd, s_simd);
+    shape_mc<1>(x_simd, xmin_simd, 1 / delx_simd, s_simd);
 
     bool status = true;
     for (int i = 0; i < simd_f64::size; i++) {
       float64 s[2];
-      shape<1>(x[i], xmin, 1 / delx, s);
+      shape_mc<1>(x[i], xmin, 1 / delx, s);
       status = status & (std::abs(s[0] - s_simd[0].get(i)) < epsilon);
       status = status & (std::abs(s[1] - s_simd[1].get(i)) < epsilon);
     }
@@ -317,7 +317,7 @@ TEST_CASE("Second-order shape function")
       float64 s[3];
       float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-      shape<2>(x, xmid, 1 / delx, s);
+      shape_mc<2>(x, xmid, 1 / delx, s);
       status = status & (std::abs(s[0] - W(xeval[0] - x)) < epsilon);
       status = status & (std::abs(s[1] - W(xeval[1] - x)) < epsilon);
       status = status & (std::abs(s[2] - W(xeval[2] - x)) < epsilon);
@@ -340,12 +340,12 @@ TEST_CASE("Second-order shape function")
     simd_f64 xmin_simd = xmin;
     simd_f64 delx_simd = delx;
 
-    shape<2>(x_simd, xmin_simd, 1 / delx_simd, s_simd);
+    shape_mc<2>(x_simd, xmin_simd, 1 / delx_simd, s_simd);
 
     bool status = true;
     for (int i = 0; i < simd_f64::size; i++) {
       float64 s[3];
-      shape<2>(x[i], xmin, 1 / delx, s);
+      shape_mc<2>(x[i], xmin, 1 / delx, s);
       status = status & (std::abs(s[0] - s_simd[0].get(i)) < epsilon);
       status = status & (std::abs(s[1] - s_simd[1].get(i)) < epsilon);
       status = status & (std::abs(s[2] - s_simd[2].get(i)) < epsilon);
@@ -383,7 +383,7 @@ TEST_CASE("Third-order shape function")
       float64 s[4];
       float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-      shape<3>(x, xmin, 1 / delx, s);
+      shape_mc<3>(x, xmin, 1 / delx, s);
       status = status & (std::abs(s[0] - W(xeval[0] - x)) < epsilon);
       status = status & (std::abs(s[1] - W(xeval[1] - x)) < epsilon);
       status = status & (std::abs(s[2] - W(xeval[2] - x)) < epsilon);
@@ -407,12 +407,12 @@ TEST_CASE("Third-order shape function")
     simd_f64 xmin_simd = xmin;
     simd_f64 delx_simd = delx;
 
-    shape<3>(x_simd, xmin_simd, 1 / delx_simd, s_simd);
+    shape_mc<3>(x_simd, xmin_simd, 1 / delx_simd, s_simd);
 
     bool status = true;
     for (int i = 0; i < simd_f64::size; i++) {
       float64 s[4];
-      shape<3>(x[i], xmin, 1 / delx, s);
+      shape_mc<3>(x[i], xmin, 1 / delx, s);
       status = status & (std::abs(s[0] - s_simd[0].get(i)) < epsilon);
       status = status & (std::abs(s[1] - s_simd[1].get(i)) < epsilon);
       status = status & (std::abs(s[2] - s_simd[2].get(i)) < epsilon);
@@ -456,7 +456,7 @@ TEST_CASE("Fourth-order shape function")
       float64 s[5];
       float64 x = xmin + (xmax - xmin) * i / (N - 1);
 
-      shape<4>(x, xmid, 1 / delx, s);
+      shape_mc<4>(x, xmid, 1 / delx, s);
       status = status & (std::abs(s[0] - W(xeval[0] - x)) < epsilon);
       status = status & (std::abs(s[1] - W(xeval[1] - x)) < epsilon);
       status = status & (std::abs(s[2] - W(xeval[2] - x)) < epsilon);
@@ -481,12 +481,12 @@ TEST_CASE("Fourth-order shape function")
     simd_f64 xmin_simd = xmin;
     simd_f64 delx_simd = delx;
 
-    shape<4>(x_simd, xmin_simd, 1 / delx_simd, s_simd);
+    shape_mc<4>(x_simd, xmin_simd, 1 / delx_simd, s_simd);
 
     bool status = true;
     for (int i = 0; i < simd_f64::size; i++) {
       float64 s[5];
-      shape<4>(x[i], xmin, 1 / delx, s);
+      shape_mc<4>(x[i], xmin, 1 / delx, s);
       status = status & (std::abs(s[0] - s_simd[0].get(i)) < epsilon);
       status = status & (std::abs(s[1] - s_simd[1].get(i)) < epsilon);
       status = status & (std::abs(s[2] - s_simd[2].get(i)) < epsilon);

@@ -177,7 +177,7 @@ static void push_boris(T_float& ux, T_float& uy, T_float& uz, T_float ex, T_floa
 
 /// implementation of first-order particle shape function
 template <typename T_float>
-static void shape1(T_float x, T_float X, T_float rdx, T_float s[2])
+static void shape_mc1(T_float x, T_float X, T_float rdx, T_float s[2])
 {
   T_float delta = (x - X) * rdx;
 
@@ -187,7 +187,7 @@ static void shape1(T_float x, T_float X, T_float rdx, T_float s[2])
 
 /// implementation of second-order particle shape function
 template <typename T_float>
-static void shape2(T_float x, T_float X, T_float rdx, T_float s[3])
+static void shape_mc2(T_float x, T_float X, T_float rdx, T_float s[3])
 {
   T_float delta = (x - X) * rdx;
 
@@ -202,7 +202,7 @@ static void shape2(T_float x, T_float X, T_float rdx, T_float s[3])
 
 /// implementation of third-order particle shape function
 template <typename T_float>
-static void shape3(T_float x, T_float X, T_float rdx, T_float s[4])
+static void shape_mc3(T_float x, T_float X, T_float rdx, T_float s[4])
 {
   const T_float a     = 1 / 6.0;
   T_float       delta = (x - X) * rdx;
@@ -222,7 +222,7 @@ static void shape3(T_float x, T_float X, T_float rdx, T_float s[4])
 
 /// implementation of fourth-order particle shape function
 template <typename T_float>
-static void shape4(T_float x, T_float X, T_float rdx, T_float s[5])
+static void shape_mc4(T_float x, T_float X, T_float rdx, T_float s[5])
 {
   const T_float a     = 1 / 384.0;
   const T_float b     = 1 / 96.0;
@@ -439,18 +439,18 @@ static void shape_wt4(T_float x, T_float X, T_float rdx, T_float dt, T_float rdt
 /// @param[out] s   weights at grid points
 ///
 template <int Order, typename T_float>
-static void shape(T_float x, T_float X, T_float rdx, T_float s[Order + 1])
+static void shape_mc(T_float x, T_float X, T_float rdx, T_float s[Order + 1])
 {
   static_assert(Order >= 1 && Order <= 4, "Order must be 1, 2, 3, or 4");
 
   if constexpr (Order == 1) {
-    shape1(x, X, rdx, s);
+    shape_mc1(x, X, rdx, s);
   } else if constexpr (Order == 2) {
-    shape2(x, X, rdx, s);
+    shape_mc2(x, X, rdx, s);
   } else if constexpr (Order == 3) {
-    shape3(x, X, rdx, s);
+    shape_mc3(x, X, rdx, s);
   } else if constexpr (Order == 4) {
-    shape4(x, X, rdx, s);
+    shape_mc4(x, X, rdx, s);
   }
 }
 

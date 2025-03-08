@@ -22,7 +22,7 @@ set(SERIAL_EXECS
 	test_chunk
 	test_chunkmap
 	test_chunkvector
-	test_particle_primitives
+	test_primitives
 	test_esirkepov
 	test_interp
 	test_xtensor_particle

@@ -2,7 +2,7 @@
 
 #include "esirkepov.hpp"
 #include "nix.hpp"
-#include "particle_primitives.hpp"
+#include "primitives.hpp"
 
 #include <experimental/mdspan>
 #include <iostream>
@@ -12,7 +12,7 @@
 using namespace nix::typedefs;
 using namespace nix::esirkepov;
 using nix::primitives::digitize;
-using nix::primitives::shape;
+using nix::primitives::shape_mc;
 
 namespace stdex    = std::experimental;
 using Array2D      = stdex::mdspan<float64, stdex::dextents<size_t, 2>>;
@@ -275,9 +275,9 @@ bool deposit3d_scalar(const float64 delt, const float64 delh, float64 xu[7], flo
   int iy0 = digitize(xv[1], 0.0, rdh);
   int iz0 = digitize(xv[2], 0.0, rdh);
 
-  shape<Order>(xv[0], ix0 * delh, rdh, &ss[0][0][1]);
-  shape<Order>(xv[1], iy0 * delh, rdh, &ss[0][1][1]);
-  shape<Order>(xv[2], iz0 * delh, rdh, &ss[0][2][1]);
+  shape_mc<Order>(xv[0], ix0 * delh, rdh, &ss[0][0][1]);
+  shape_mc<Order>(xv[1], iy0 * delh, rdh, &ss[0][1][1]);
+  shape_mc<Order>(xv[2], iz0 * delh, rdh, &ss[0][2][1]);
 
   // check charge density
   for (int jz = 0; jz < Order + 3; jz++) {
@@ -298,9 +298,9 @@ bool deposit3d_scalar(const float64 delt, const float64 delh, float64 xu[7], flo
   int iy1 = digitize(xu[1], 0.0, rdh);
   int iz1 = digitize(xu[2], 0.0, rdh);
 
-  shape<Order>(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0]);
-  shape<Order>(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0]);
-  shape<Order>(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0]);
+  shape_mc<Order>(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0]);
+  shape_mc<Order>(xu[1], iy1 * delh, rdh, &ss[1][1][1 + iy1 - iy0]);
+  shape_mc<Order>(xu[2], iz1 * delh, rdh, &ss[1][2][1 + iz1 - iz0]);
 
   // calculate charge and current density
   deposit3d<Order>(dhdt, dhdt, dhdt, qs, ss, cur);
@@ -354,9 +354,9 @@ bool deposit3d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_fl
   auto iy0 = digitize(xv[1], zero, rdh);
   auto iz0 = digitize(xv[2], zero, rdh);
 
-  shape<Order>(xv[0], xsimd::to_float(ix0) * delh, rdh, &ss[0][0][1]);
-  shape<Order>(xv[1], xsimd::to_float(iy0) * delh, rdh, &ss[0][1][1]);
-  shape<Order>(xv[2], xsimd::to_float(iz0) * delh, rdh, &ss[0][2][1]);
+  shape_mc<Order>(xv[0], xsimd::to_float(ix0) * delh, rdh, &ss[0][0][1]);
+  shape_mc<Order>(xv[1], xsimd::to_float(iy0) * delh, rdh, &ss[0][1][1]);
+  shape_mc<Order>(xv[2], xsimd::to_float(iz0) * delh, rdh, &ss[0][2][1]);
 
   // check charge density
   for (int jz = 0; jz < Order + 3; jz++) {
@@ -377,9 +377,9 @@ bool deposit3d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_fl
   auto iy1 = digitize(xu[1], zero, rdh);
   auto iz1 = digitize(xu[2], zero, rdh);
 
-  shape<Order>(xu[0], xsimd::to_float(ix1) * delh, rdh, &ss[1][0][1]);
-  shape<Order>(xu[1], xsimd::to_float(iy1) * delh, rdh, &ss[1][1][1]);
-  shape<Order>(xu[2], xsimd::to_float(iz1) * delh, rdh, &ss[1][2][1]);
+  shape_mc<Order>(xu[0], xsimd::to_float(ix1) * delh, rdh, &ss[1][0][1]);
+  shape_mc<Order>(xu[1], xsimd::to_float(iy1) * delh, rdh, &ss[1][1][1]);
+  shape_mc<Order>(xu[2], xsimd::to_float(iz1) * delh, rdh, &ss[1][2][1]);
 
   //
   // in-place shift of ss[1] according to particle movement

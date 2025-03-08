@@ -4,7 +4,7 @@
 
 #include "nix.hpp"
 #include "particle.hpp"
-#include "particle_primitives.hpp"
+#include "primitives.hpp"
 #include "xtensorall.hpp"
 
 NIX_NAMESPACE_BEGIN
