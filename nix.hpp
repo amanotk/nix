@@ -235,6 +235,28 @@ struct is_xtensor<T, std::void_t
 };
 // clang-format on
 
+/// utility to get internal data pointer of array
+template <typename T_array>
+static auto get_data_pointer(T_array& array)
+{
+  if constexpr (is_xtensor<T_array>::value == true) {
+    return array.data();
+  } else if constexpr (is_mdspan<T_array>::value == true) {
+    return array.data_handle();
+  }
+}
+
+/// utility to get stride of array for a given dimension
+template <typename T_array>
+static auto get_stride(T_array& array, int dim)
+{
+  if constexpr (is_xtensor<T_array>::value == true) {
+    return array.strides()[dim];
+  } else if constexpr (is_mdspan<T_array>::value == true) {
+    return array.stride(dim);
+  }
+}
+
 NIX_NAMESPACE_END
 
 // Local Variables:

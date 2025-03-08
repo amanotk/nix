@@ -24,6 +24,7 @@ set(SERIAL_EXECS
 	test_chunkvector
 	test_particle_primitives
 	test_esirkepov
+	test_interp
 	test_xtensor_particle
 	test_logger
 	test_mpistream
