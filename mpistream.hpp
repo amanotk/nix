@@ -11,6 +11,8 @@
 #include <ostream>
 #include <sstream>
 
+#include "nix.hpp"
+
 // format for temporary stdout and stderr files
 static constexpr char filename_format[] = "%06d";
 static constexpr char dev_null[]        = "/dev/null";

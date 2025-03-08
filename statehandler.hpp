@@ -89,7 +89,7 @@ public:
   template <typename App, typename Data>
   bool load_application(App&& app, Data&& data, std::string prefix)
   {
-    std::string   filename = get_path_with_basedir(prefix, true) + ".msgpack";
+    std::string   filename = get_path_with_basedir(prefix) + ".msgpack";
     std::ifstream ifs(filename, std::ios::binary);
 
     json state  = json::from_msgpack(ifs);

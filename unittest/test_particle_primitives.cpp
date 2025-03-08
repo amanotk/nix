@@ -14,6 +14,9 @@ using Array2D      = stdex::mdspan<float64, stdex::dextents<size_t, 2>>;
 using Array4D      = stdex::mdspan<float64, stdex::dextents<size_t, 4>>;
 using uniform_rand = std::uniform_real_distribution<float64>;
 
+template <typename T>
+using aligned_vector = std::vector<T, xsimd::aligned_allocator<T, 64>>;
+
 //
 // forward declarations of helper functions
 //
@@ -93,7 +96,7 @@ TEST_CASE("digitize")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = xmin + delx * i + rand(engine) * delx;
@@ -134,7 +137,7 @@ TEST_CASE("sign")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = (i % 2 == 0) ? +1.0 : -1.0;
@@ -182,9 +185,9 @@ TEST_CASE("lorentz_factor")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> ux(simd_f64::size);
-    std::vector<float64> uy(simd_f64::size);
-    std::vector<float64> uz(simd_f64::size);
+    aligned_vector<float64> ux(simd_f64::size);
+    aligned_vector<float64> uy(simd_f64::size);
+    aligned_vector<float64> uz(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       ux[i] = rand(engine);
@@ -228,15 +231,15 @@ TEST_CASE("push_boris")
   {
     using simd::simd_f64;
 
-    std::vector<float64> ux(simd_f64::size);
-    std::vector<float64> uy(simd_f64::size);
-    std::vector<float64> uz(simd_f64::size);
-    std::vector<float64> ex(simd_f64::size);
-    std::vector<float64> ey(simd_f64::size);
-    std::vector<float64> ez(simd_f64::size);
-    std::vector<float64> bx(simd_f64::size);
-    std::vector<float64> by(simd_f64::size);
-    std::vector<float64> bz(simd_f64::size);
+    aligned_vector<float64> ux(simd_f64::size);
+    aligned_vector<float64> uy(simd_f64::size);
+    aligned_vector<float64> uz(simd_f64::size);
+    aligned_vector<float64> ex(simd_f64::size);
+    aligned_vector<float64> ey(simd_f64::size);
+    aligned_vector<float64> ez(simd_f64::size);
+    aligned_vector<float64> bx(simd_f64::size);
+    aligned_vector<float64> by(simd_f64::size);
+    aligned_vector<float64> bz(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       ux[i] = u0 * rand(engine);
@@ -306,7 +309,7 @@ TEST_CASE("First-order shape function")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = xmin + (xmax - xmin) * i / (simd_f64::size - 1);
@@ -374,7 +377,7 @@ TEST_CASE("Second-order shape function")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = xmin + (xmax - xmin) * i / (simd_f64::size - 1);
@@ -443,7 +446,7 @@ TEST_CASE("Third-order shape function")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = xmin + (xmax - xmin) * i / (simd_f64::size - 1);
@@ -519,7 +522,7 @@ TEST_CASE("Fourth-order shape function")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = xmin + (xmax - xmin) * i / (simd_f64::size - 1);
@@ -589,7 +592,7 @@ TEST_CASE("First-order shape function for WT scheme")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = xmin + (xmax - xmin) * i / (simd_f64::size - 1);
@@ -661,7 +664,7 @@ TEST_CASE("Second-order shape function for WT scheme")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = xmin + (xmax - xmin) * i / (simd_f64::size - 1);
@@ -738,7 +741,7 @@ TEST_CASE("Third-order shape function for WT scheme")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = xmin + (xmax - xmin) * i / (simd_f64::size - 1);
@@ -822,7 +825,7 @@ TEST_CASE("Fourth-order shape function for WT scheme")
     using simd::simd_f64;
 
     // initialize
-    std::vector<float64> x(simd_f64::size);
+    aligned_vector<float64> x(simd_f64::size);
 
     for (int i = 0; i < simd_f64::size; i++) {
       x[i] = xmin + (xmax - xmin) * i / (simd_f64::size - 1);
@@ -998,15 +1001,15 @@ TEST_CASE("Current append to global array 3D")
   const float64 q   = 1.0;
 
   // current array
-  std::vector<float64> uj_data1(Nz * Ny * Nx * 4);
-  std::vector<float64> uj_data2(Nz * Ny * Nx * 4);
-  auto                 uj1 = stdex::mdspan(uj_data1.data(), Nz, Ny, Nx, 4);
-  auto                 uj2 = stdex::mdspan(uj_data2.data(), Nz, Ny, Nx, 4);
+  aligned_vector<float64> uj_data1(Nz * Ny * Nx * 4);
+  aligned_vector<float64> uj_data2(Nz * Ny * Nx * 4);
+  auto                    uj1 = stdex::mdspan(uj_data1.data(), Nz, Ny, Nx, 4);
+  auto                    uj2 = stdex::mdspan(uj_data2.data(), Nz, Ny, Nx, 4);
 
   // vector index
-  std::vector<int64> iz0_data = {2, 3, 4, 5, 2, 3, 4, 5};
-  std::vector<int64> iy0_data = {2, 2, 2, 2, 2, 2, 2, 2};
-  std::vector<int64> ix0_data = {5, 4, 3, 2, 5, 4, 3, 2};
+  aligned_vector<int64> iz0_data = {2, 3, 4, 5, 2, 3, 4, 5};
+  aligned_vector<int64> iy0_data = {2, 2, 2, 2, 2, 2, 2, 2};
+  aligned_vector<int64> ix0_data = {5, 4, 3, 2, 5, 4, 3, 2};
 
   //
   // first order
@@ -1171,15 +1174,15 @@ TEST_CASE("Interpolation 3D")
   uniform_rand       rand(0.0, +1.0);
 
   // field array
-  std::vector<float64> eb_data(Nz * Ny * Nx * 6);
-  auto                 eb = stdex::mdspan(eb_data.data(), Nz, Ny, Nx, 6);
+  aligned_vector<float64> eb_data(Nz * Ny * Nx * 6);
+  auto                    eb = stdex::mdspan(eb_data.data(), Nz, Ny, Nx, 6);
   std::transform(eb_data.begin(), eb_data.end(), eb_data.begin(),
                  [&](float64 x) { return rand(engine); });
 
   // vector index
-  std::vector<int64> iz0_data = {2, 3, 4, 5, 2, 3, 4, 5};
-  std::vector<int64> iy0_data = {2, 2, 2, 2, 2, 2, 2, 2};
-  std::vector<int64> ix0_data = {5, 4, 3, 2, 5, 4, 3, 2};
+  aligned_vector<int64> iz0_data = {2, 3, 4, 5, 2, 3, 4, 5};
+  aligned_vector<int64> iy0_data = {2, 2, 2, 2, 2, 2, 2, 2};
+  aligned_vector<int64> ix0_data = {5, 4, 3, 2, 5, 4, 3, 2};
 
   //
   // first order
@@ -1848,11 +1851,11 @@ bool test_interpolate3d_scalar(T_array eb, int iz0, int iy0, int ix0, float64 de
   uniform_rand       rand(0.0, +1.0);
 
   // test data
-  std::vector<float64> result1(6);
-  std::vector<float64> result2(6);
-  std::vector<float64> wx_data(size);
-  std::vector<float64> wy_data(size);
-  std::vector<float64> wz_data(size);
+  aligned_vector<float64> result1(6);
+  aligned_vector<float64> result2(6);
+  aligned_vector<float64> wx_data(size);
+  aligned_vector<float64> wy_data(size);
+  aligned_vector<float64> wz_data(size);
   std::transform(wx_data.begin(), wx_data.end(), wx_data.begin(),
                  [&](float64) { return rand(engine); });
   std::transform(wy_data.begin(), wy_data.end(), wy_data.begin(),
@@ -1932,11 +1935,11 @@ bool test_interpolate3d_xsimd(T_array eb, T_int iz0, T_int iy0, T_int ix0, float
   uniform_rand       rand(0.0, +1.0);
 
   // test data
-  std::vector<float64> result1(simd_f64::size * 6);
-  std::vector<float64> result2(simd_f64::size * 6);
-  std::vector<float64> wx_data(size * simd_f64::size);
-  std::vector<float64> wy_data(size * simd_f64::size);
-  std::vector<float64> wz_data(size * simd_f64::size);
+  aligned_vector<float64> result1(simd_f64::size * 6);
+  aligned_vector<float64> result2(simd_f64::size * 6);
+  aligned_vector<float64> wx_data(size * simd_f64::size);
+  aligned_vector<float64> wy_data(size * simd_f64::size);
+  aligned_vector<float64> wz_data(size * simd_f64::size);
 
   for (int i = 0; i < simd_f64::size; i++) {
     for (int j = 0; j < Order + 1; j++) {
