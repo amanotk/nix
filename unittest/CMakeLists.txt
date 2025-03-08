@@ -23,6 +23,7 @@ set(SERIAL_EXECS
 	test_chunkmap
 	test_chunkvector
 	test_particle_primitives
+	test_esirkepov
 	test_xtensor_particle
 	test_logger
 	test_mpistream
