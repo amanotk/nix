@@ -9,9 +9,90 @@ NIX_NAMESPACE_BEGIN
 
 namespace esirkepov
 {
-/// charge density calculation for Esirkepov scheme
+
+namespace
+{
+///
+/// 2D Esirkepov scheme primitives
+///
 template <int N, typename T_float>
-static void rho3d(T_float qs, T_float ss[2][3][N], T_float current[N][N][N][4])
+void ro2d(T_float qs, T_float ss[2][2][N], T_float current[N][N][4])
+{
+  for (int jy = 0; jy < N; jy++) {
+    for (int jx = 0; jx < N; jx++) {
+      current[jy][jx][0] += qs * ss[1][0][jx] * ss[1][1][jy];
+    }
+  }
+}
+
+template <int N, typename T_float>
+void ds2d(T_float ss[2][2][N])
+{
+  for (int dir = 0; dir < 2; dir++) {
+    for (int l = 0; l < N; l++) {
+      ss[1][dir][l] -= ss[0][dir][l];
+    }
+  }
+}
+
+template <int N, typename T_float>
+void jx2d(T_float qdxdt, T_float ss[2][2][N], T_float current[N][N][4])
+{
+  const T_float A = 1.0 / 2;
+
+  for (int jy = 0; jy < N; jy++) {
+    T_float ww = 0;
+    T_float wx = -(ss[0][1][jy] + A * ss[1][1][jy]) * qdxdt;
+
+    for (int jx = 0; jx < N - 1; jx++) {
+      ww += ss[1][0][jx] * wx;
+      current[jy][jx + 1][1] += ww;
+    }
+  }
+}
+
+template <int N, typename T_float>
+void jy2d(T_float qdydt, T_float ss[2][2][N], T_float current[N][N][4])
+{
+  const T_float A = 1.0 / 2;
+
+  for (int jx = 0; jx < N; jx++) {
+    T_float ww = 0;
+    T_float wy = -(ss[0][0][jx] + A * ss[1][0][jx]) * qdydt;
+
+    for (int jy = 0; jy < N - 1; jy++) {
+      ww += ss[1][1][jy] * wy;
+      current[jy + 1][jx][2] += ww;
+    }
+  }
+}
+
+template <int N, typename T_float>
+void jz2d(T_float qvz, T_float ss[2][2][N], T_float current[N][N][4])
+{
+  const T_float A = 1.0 / 2;
+  const T_float B = 1.0 / 3;
+
+  for (int jy = 0; jy < N; jy++) {
+    for (int jx = 0; jx < N; jx++) {
+      T_float wz = ((1 * ss[0][0][jx] + A * ss[1][0][jx]) * ss[0][1][jy] +
+                    (A * ss[0][0][jx] + B * ss[1][0][jx]) * ss[1][1][jy]) *
+                   qvz;
+
+      current[jy][jx][3] += wz;
+    }
+  }
+}
+} // namespace
+
+namespace
+{
+///
+/// 3D Esirkepov scheme primitives
+///
+
+template <int N, typename T_float>
+void ro3d(T_float qs, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   for (int jz = 0; jz < N; jz++) {
     for (int jy = 0; jy < N; jy++) {
@@ -22,9 +103,8 @@ static void rho3d(T_float qs, T_float ss[2][3][N], T_float current[N][N][N][4])
   }
 }
 
-/// calculation of DS(*,*) of Esirkepov (2001)
 template <int N, typename T_float>
-static void ds3d(T_float ss[2][3][N])
+void ds3d(T_float ss[2][3][N])
 {
   for (int dir = 0; dir < 3; dir++) {
     for (int l = 0; l < N; l++) {
@@ -33,9 +113,8 @@ static void ds3d(T_float ss[2][3][N])
   }
 }
 
-/// calculation of Jx for Esirkepov scheme
 template <int N, typename T_float>
-static void jx3d(T_float qdxdt, T_float ss[2][3][N], T_float current[N][N][N][4])
+void jx3d(T_float qdxdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -55,9 +134,8 @@ static void jx3d(T_float qdxdt, T_float ss[2][3][N], T_float current[N][N][N][4]
   }
 }
 
-/// calculation of Jy for Esirkepov scheme
 template <int N, typename T_float>
-static void jy3d(T_float qdydt, T_float ss[2][3][N], T_float current[N][N][N][4])
+void jy3d(T_float qdydt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -77,9 +155,8 @@ static void jy3d(T_float qdydt, T_float ss[2][3][N], T_float current[N][N][N][4]
   }
 }
 
-/// calculation of Jz for Esirkepov scheme
 template <int N, typename T_float>
-static void jz3d(T_float qdzdt, T_float ss[2][3][N], T_float current[N][N][N][4])
+void jz3d(T_float qdzdt, T_float ss[2][3][N], T_float current[N][N][N][4])
 {
   const T_float A = 1.0 / 2;
   const T_float B = 1.0 / 3;
@@ -98,44 +175,59 @@ static void jz3d(T_float qdzdt, T_float ss[2][3][N], T_float current[N][N][N][4]
     }
   }
 }
+} // namespace
 
-/// shift weights after movement for Esirkepov scheme (needed for vectorization)
-template <int Order, typename T_int, typename T_float>
-static void shift_weights3d(T_int shift[3], T_float ss[3][Order + 3])
+template <int Dim, int Order, typename T_int, typename T_float>
+static void shift_weights(T_int shift[Dim], T_float ss[Dim][Order + 3])
 {
   constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
-  if constexpr (is_scalar == true) {
-    for (int dir = 0; dir < 3; dir++) {
+  if constexpr (is_scalar) {
+    for (int dir = 0; dir < Dim; dir++) {
       if (shift[dir] < 0) {
-        // forward
+        // forward: shift leftwards
         for (int ii = 0; ii < Order + 2; ii++) {
           ss[dir][ii] = ss[dir][ii + 1];
         }
       } else if (shift[dir] > 0) {
-        // backward
+        // backward: shift rightwards
         for (int ii = Order + 2; ii > 0; ii--) {
           ss[dir][ii] = ss[dir][ii - 1];
         }
       }
     }
-  } else if constexpr (is_vector == true) {
+  } else if constexpr (is_vector) {
     using value_type = typename T_float::value_type;
-
-    for (int dir = 0; dir < 3; dir++) {
-      // forward
+    for (int dir = 0; dir < Dim; dir++) {
+      // forward shift
       auto cond_f = xsimd::batch_bool_cast<value_type>(shift[dir] < 0);
       for (int ii = 0; ii < Order + 2; ii++) {
         ss[dir][ii] = xsimd::select(cond_f, ss[dir][ii + 1], ss[dir][ii]);
       }
-      // backward
+      // backward shift
       auto cond_b = xsimd::batch_bool_cast<value_type>(shift[dir] > 0);
       for (int ii = Order + 2; ii > 0; ii--) {
         ss[dir][ii] = xsimd::select(cond_b, ss[dir][ii - 1], ss[dir][ii]);
       }
     }
   }
+}
+
+template <int Order, typename T_float>
+static void deposit2d(float64 dxdt, float64 dydt, T_float vz, T_float qs,
+                      T_float ss[2][2][Order + 3], T_float current[Order + 3][Order + 3][4])
+{
+  // calculate charge density
+  ro2d<Order + 3>(qs, ss, current);
+
+  // ss[1][*][*] now represents DS(*,*) of Esirkepov (2001)
+  ds2d<Order + 3>(ss);
+
+  // calculate Jx, Jy, Jz
+  jx2d<Order + 3>(qs * dxdt, ss, current);
+  jy2d<Order + 3>(qs * dydt, ss, current);
+  jz2d<Order + 3>(qs * vz, ss, current);
 }
 
 ///
@@ -159,8 +251,8 @@ static void deposit3d(float64 dxdt, float64 dydt, float64 dzdt, T_float qs,
                       T_float ss[2][3][Order + 3],
                       T_float current[Order + 3][Order + 3][Order + 3][4])
 {
-  // calculate rho
-  rho3d<Order + 3>(qs, ss, current);
+  // calculate charge density
+  ro3d<Order + 3>(qs, ss, current);
 
   // ss[1][*][*] now represents DS(*,*) of Esirkepov (2001)
   ds3d<Order + 3>(ss);
@@ -170,7 +262,6 @@ static void deposit3d(float64 dxdt, float64 dydt, float64 dzdt, T_float qs,
   jy3d<Order + 3>(qs * dydt, ss, current);
   jz3d<Order + 3>(qs * dzdt, ss, current);
 }
-
 } // namespace esirkepov
 
 NIX_NAMESPACE_END
