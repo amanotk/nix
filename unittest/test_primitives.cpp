@@ -23,6 +23,13 @@ using aligned_vector = std::vector<T, xsimd::aligned_allocator<T, 64>>;
 //
 
 template <int Order, typename T_array>
+bool test_append_current2d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon);
+
+template <int Order, typename T_array, typename T_int>
+bool test_append_current2d_xsimd(T_array& uj, T_array& vj, int iz0, T_int iy0, T_int ix0,
+                                 const float64 epsilon);
+
+template <int Order, typename T_array>
 bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon);
 
 template <int Order, typename T_array, typename T_int>
@@ -794,7 +801,102 @@ TEST_CASE("Fourth-order shape function for WT scheme")
   }
 }
 
-TEST_CASE("Current append to global array 3D")
+TEST_CASE("Append current to global array 2D")
+{
+  const int     Ny  = 16;
+  const int     Nx  = 16;
+  const float64 eps = 1.0e-14;
+  const float64 q   = 1.0;
+
+  // current array
+  aligned_vector<float64> uj_data1(Ny * Nx * 4);
+  aligned_vector<float64> uj_data2(Ny * Nx * 4);
+  auto                    uj1 = stdex::mdspan(uj_data1.data(), 1, Ny, Nx, 4);
+  auto                    uj2 = stdex::mdspan(uj_data2.data(), 1, Ny, Nx, 4);
+
+  // vector index
+  aligned_vector<int64> iy0_data = {2, 2, 2, 2, 2, 2, 2, 2};
+  aligned_vector<int64> ix0_data = {5, 4, 3, 2, 5, 4, 3, 2};
+
+  //
+  // first order
+  //
+  SECTION("First-order current append to global array : scalar")
+  {
+    REQUIRE(test_append_current2d_scalar<1>(uj1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_current2d_scalar<1>(uj2, 0, 4, 8, eps) == true);
+  }
+  SECTION("First-order current append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_current2d_xsimd<1>(uj1, uj2, 0, 4, 8, eps) == true);
+
+    // vector index
+    int      iz0 = 0;
+    simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
+    simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
+    REQUIRE(test_append_current2d_xsimd<1>(uj1, uj2, iz0, iy0, ix0, eps) == true);
+  }
+  //
+  // second order
+  //
+  SECTION("Second-order current append to global array : scalar")
+  {
+    REQUIRE(test_append_current2d_scalar<2>(uj1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_current2d_scalar<2>(uj2, 0, 4, 8, eps) == true);
+  }
+  SECTION("Second-order current append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_current2d_xsimd<2>(uj1, uj2, 0, 4, 8, eps) == true);
+
+    // vector index
+    int      iz0 = 0;
+    simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
+    simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
+    REQUIRE(test_append_current2d_xsimd<2>(uj1, uj2, iz0, iy0, ix0, eps) == true);
+  }
+  //
+  // third order
+  //
+  SECTION("Third-order current append to global array : scalar")
+  {
+    REQUIRE(test_append_current2d_scalar<3>(uj1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_current2d_scalar<3>(uj2, 0, 4, 8, eps) == true);
+  }
+  SECTION("Third-order current append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_current2d_xsimd<3>(uj1, uj2, 0, 4, 8, eps) == true);
+
+    // vector index
+    int      iz0 = 0;
+    simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
+    simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
+    REQUIRE(test_append_current2d_xsimd<3>(uj1, uj2, iz0, iy0, ix0, eps) == true);
+  }
+  //
+  // fourth order
+  //
+  SECTION("Fourth-order current append to global array : scalar")
+  {
+    REQUIRE(test_append_current2d_scalar<4>(uj1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_current2d_scalar<4>(uj2, 0, 4, 8, eps) == true);
+  }
+  SECTION("Fourth-order current append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_current2d_xsimd<4>(uj1, uj2, 0, 4, 8, eps) == true);
+
+    // vector index
+    int      iz0 = 0;
+    simd_i64 iy0 = xsimd::load_unaligned(iy0_data.data());
+    simd_i64 ix0 = xsimd::load_unaligned(ix0_data.data());
+    REQUIRE(test_append_current2d_xsimd<4>(uj1, uj2, iz0, iy0, ix0, eps) == true);
+  }
+}
+
+TEST_CASE("Append current to global array 3D")
 {
   const int     Nz  = 16;
   const int     Ny  = 16;
@@ -894,6 +996,119 @@ TEST_CASE("Current append to global array 3D")
 //
 // implementation of helper functions
 //
+
+template <int Order, typename T_array>
+bool test_append_current2d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon)
+{
+  const int size = Order + 3;
+
+  float64 cur[size][size][4] = {0};
+
+  // test data
+  for (int jy = 0; jy < size; jy++) {
+    for (int jx = 0; jx < size; jx++) {
+      for (int k = 0; k < 4; k++) {
+        cur[jy][jx][k] = k + 1;
+      }
+    }
+  }
+
+  // append
+  append_current2d<Order>(uj, iz0, iy0, ix0, cur);
+
+  // check
+  bool status = true;
+  {
+    int iz = iz0;
+
+    for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+      for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+        for (int k = 0; k < 4; k++) {
+          status = status & (std::abs(uj(iz, iy, ix, k) - (k + 1)) < epsilon);
+        }
+      }
+    }
+  }
+
+  return status;
+}
+
+template <int Order, typename T_array, typename T_int>
+bool test_append_current2d_xsimd(T_array& uj, T_array& vj, int iz0, T_int iy0, T_int ix0,
+                                 const float64 epsilon)
+{
+  const int size   = Order + 3;
+  const int stride = size * size * 4;
+  const int Nz     = uj.extent(0);
+  const int Ny     = uj.extent(1);
+  const int Nx     = uj.extent(2);
+
+  // index for scalar version
+  int iy[simd_f64::size];
+  int ix[simd_f64::size];
+
+  if constexpr (std::is_integral_v<T_int>) {
+    // scalar index
+    for (int i = 0; i < simd_f64::size; i++) {
+      iy[i] = iy0;
+      ix[i] = ix0;
+    }
+  } else if constexpr (std::is_same_v<T_int, simd_i64>) {
+    // vector index
+    iy0.store_unaligned(iy);
+    ix0.store_unaligned(ix);
+  }
+
+  float64  cur[simd_f64::size][size][size][4] = {0};
+  simd_f64 cur_simd[size][size][4]            = {0};
+  simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(-1, +1);
+
+  // test data
+  for (int ip = 0; ip < simd_f64::size; ip++) {
+    for (int jy = 0; jy < size; jy++) {
+      for (int jx = 0; jx < size; jx++) {
+        for (int k = 0; k < 4; k++) {
+          cur[ip][jy][jx][k] = rand(engine);
+        }
+      }
+    }
+  }
+  for (int jy = 0; jy < size; jy++) {
+    for (int jx = 0; jx < size; jx++) {
+      for (int k = 0; k < 4; k++) {
+        cur_simd[jy][jx][k] = simd_f64::gather(&cur[0][jy][jx][k], index_simd);
+      }
+    }
+  }
+
+  // SIMD version
+  append_current2d<Order>(vj, iz0, iy0, ix0, cur_simd);
+
+  // scalar version
+  for (int ip = 0; ip < simd_f64::size; ip++) {
+    append_current2d<Order>(uj, iz0, iy[ip], ix[ip], cur[ip]);
+  }
+
+  // compare scalar and SIMD results
+  bool status = true;
+  {
+    int iz = iz0;
+
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int k = 0; k < 4; k++) {
+          status = status & (std::abs(uj(iz, iy, ix, k) - vj(iz, iy, ix, k)) < epsilon);
+        }
+      }
+    }
+  }
+
+  return status;
+}
 
 template <int Order, typename T_array>
 bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon)

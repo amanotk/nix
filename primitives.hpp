@@ -490,7 +490,7 @@ static void shape_wt(T_float x, T_float X, T_float rdx, T_float dt, T_float rdt,
 
 /// implementations of append_current3d for different vector sizes
 template <typename T_int, typename T_float>
-static void append_current3d_impl(float64* ptr, T_int offset[1], T_float cur[4])
+static void append_current_impl(float64* ptr, T_int offset[1], T_float cur[4])
 {
   if constexpr (T_float::size == 1) {
     // implementation of vector size 1
@@ -600,6 +600,59 @@ static void append_current3d_impl(float64* ptr, T_int offset[1], T_float cur[4])
 
 /// append local curent contribution to global current array
 template <int Order, typename T_array, typename T_int, typename T_float>
+static void append_current2d(T_array& uj, int iz, T_int iy0, T_int ix0,
+                             T_float current[Order + 3][Order + 3][4])
+{
+  constexpr int  size      = Order + 3;
+  constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+  constexpr bool is_sorted = std::is_integral_v<T_int>;
+
+  if constexpr (is_scalar == true) {
+    // naive scalar implementation
+    for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+      for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+        uj(iz, iy, ix, 0) += current[jy][jx][0];
+        uj(iz, iy, ix, 1) += current[jy][jx][1];
+        uj(iz, iy, ix, 2) += current[jy][jx][2];
+        uj(iz, iy, ix, 3) += current[jy][jx][3];
+      }
+    }
+  } else if constexpr (is_vector == true && is_sorted == true) {
+    // all particle contributions are added to the same grid point
+    for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+      for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+        uj(iz, iy, ix, 0) += xsimd::reduce_add(current[jy][jx][0]);
+        uj(iz, iy, ix, 1) += xsimd::reduce_add(current[jy][jx][1]);
+        uj(iz, iy, ix, 2) += xsimd::reduce_add(current[jy][jx][2]);
+        uj(iz, iy, ix, 3) += xsimd::reduce_add(current[jy][jx][3]);
+      }
+    }
+  } else if constexpr (is_vector == true && is_sorted == false) {
+    // particle contributions are added to different grid points
+    auto stride_z = get_stride(uj, 0);
+    auto stride_y = get_stride(uj, 1);
+    auto stride_x = get_stride(uj, 2);
+    auto stride_c = get_stride(uj, 3);
+    auto pointer  = get_data_pointer(uj);
+
+    alignas(64) int64 offset[T_float::size];
+
+    for (int jy = 0; jy < size; jy++) {
+      T_int iy = iy0 + jy;
+      for (int jx = 0; jx < size; jx++) {
+        T_int ix = ix0 + jx;
+        xsimd::store_aligned(offset, iz * stride_z + iy * stride_y + ix * stride_x);
+        append_current_impl(pointer, offset, current[jy][jx]);
+      }
+    }
+  } else {
+    static_assert([] { return false; }(), "Invalid combination of types");
+  }
+}
+
+/// append local curent contribution to global current array
+template <int Order, typename T_array, typename T_int, typename T_float>
 static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
                              T_float current[Order + 3][Order + 3][Order + 3][4])
 {
@@ -649,7 +702,7 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
         for (int jx = 0; jx < size; jx++) {
           T_int ix = ix0 + jx;
           xsimd::store_aligned(offset, iz * stride_z + iy * stride_y + ix * stride_x);
-          append_current3d_impl(pointer, offset, current[jz][jy][jx]);
+          append_current_impl(pointer, offset, current[jz][jy][jx]);
         }
       }
     }
