@@ -9,37 +9,56 @@ NIX_NAMESPACE_BEGIN
 
 namespace interp
 {
-/// shift weights for interpolate3d (needed for vectorization)
-template <int Order, typename T_int, typename T_float>
-static void shift_weights3d(T_int shift, T_float ww[Order + 2])
+namespace
 {
-  constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
-  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
-
-  if constexpr (is_scalar == true) {
-    if (shift > 0) {
-      for (int ii = Order + 1; ii > 0; ii--) {
-        ww[ii] = ww[ii - 1];
-      }
-      ww[0] = 0;
+template <int Order, typename T_array, typename T_float>
+static auto interp2d_impl_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
+                                 T_float wy[Order + 2], T_float wx[Order + 2], T_float dt)
+{
+  int     iz       = iz0;
+  T_float result_y = 0;
+  for (int jy = 0, iy = iy0; jy < Order + 2; jy++, iy++) {
+    T_float result_x = 0;
+    for (int jx = 0, ix = ix0; jx < Order + 2; jx++, ix++) {
+      result_x += eb(iz, iy, ix, ik) * wx[jx];
     }
-  } else if constexpr (is_vector == true) {
-    using value_type = typename T_float::value_type;
-
-    auto cond = xsimd::batch_bool_cast<value_type>(shift > 0);
-    for (int ii = Order + 1; ii > 0; ii--) {
-      ww[ii] = xsimd::select(cond, ww[ii - 1], ww[ii]);
-    }
-    ww[0] = xsimd::select(cond, T_float(0), ww[0]);
-  } else {
-    static_assert([] { return false; }(), "Invalid combination of types");
+    result_y += result_x * wy[jy];
   }
+
+  return result_y * dt;
+}
+
+template <int Order, typename T_array, typename T_int, typename T_float>
+static auto interp2d_impl_unsorted(T_array& eb, int iz0, T_int iy0, T_int ix0, int ik,
+                                   T_float wy[Order + 2], T_float wx[Order + 2], T_float dt)
+{
+  auto stride_z = get_stride(eb, 0);
+  auto stride_y = get_stride(eb, 1);
+  auto stride_x = get_stride(eb, 2);
+  auto stride_c = get_stride(eb, 3);
+  auto pointer  = get_data_pointer(eb);
+
+  T_int   index_z  = iz0 * stride_z;
+  T_float result_y = 0;
+  for (int jy = 0; jy < Order + 2; jy++) {
+    T_int   index_y  = (iy0 + jy) * stride_y + index_z;
+    T_float result_x = 0;
+    for (int jx = 0; jx < Order + 2; jx++) {
+      T_int index_x = (ix0 + jx) * stride_x + index_y;
+      T_int index   = index_x + ik * stride_c;
+      result_x += simd_f64::gather(pointer, index) * wx[jx];
+    }
+    result_y += result_x * wy[jy];
+  }
+
+  return result_y * dt;
 }
 
 /// implementations of interpolate3d for sorted index
 template <int Order, typename T_array, typename T_float>
-static auto sorted_impl3d(T_array& eb, int iz0, int iy0, int ix0, int ik, T_float wz[Order + 2],
-                          T_float wy[Order + 2], T_float wx[Order + 2], T_float dt)
+static auto interp3d_impl_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
+                                 T_float wz[Order + 2], T_float wy[Order + 2],
+                                 T_float wx[Order + 2], T_float dt)
 {
   T_float result_z = 0;
   for (int jz = 0, iz = iz0; jz < Order + 2; jz++, iz++) {
@@ -59,9 +78,9 @@ static auto sorted_impl3d(T_array& eb, int iz0, int iy0, int ix0, int ik, T_floa
 
 /// implementation of interpolate3d for unsorted index
 template <int Order, typename T_array, typename T_int, typename T_float>
-static auto unsorted_impl3d(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
-                            T_float wz[Order + 2], T_float wy[Order + 2], T_float wx[Order + 2],
-                            T_float dt)
+static auto interp3d_impl_unsorted(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik,
+                                   T_float wz[Order + 2], T_float wy[Order + 2],
+                                   T_float wx[Order + 2], T_float dt)
 {
   auto stride_z = get_stride(eb, 0);
   auto stride_y = get_stride(eb, 1);
@@ -88,6 +107,48 @@ static auto unsorted_impl3d(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik
 
   return result_z * dt;
 }
+} // namespace
+
+template <int Order, typename T_int, typename T_float>
+static void shift_weights(T_int shift, T_float ww[Order + 2])
+{
+  constexpr bool is_scalar = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
+  constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
+
+  if constexpr (is_scalar == true) {
+    if (shift > 0) {
+      for (int ii = Order + 1; ii > 0; ii--) {
+        ww[ii] = ww[ii - 1];
+      }
+      ww[0] = 0;
+    }
+  } else if constexpr (is_vector == true) {
+    using value_type = typename T_float::value_type;
+
+    auto cond = xsimd::batch_bool_cast<value_type>(shift > 0);
+    for (int ii = Order + 1; ii > 0; ii--) {
+      ww[ii] = xsimd::select(cond, ww[ii - 1], ww[ii]);
+    }
+    ww[0] = xsimd::select(cond, T_float(0), ww[0]);
+  } else {
+    static_assert([] { return false; }(), "Invalid combination of types");
+  }
+}
+
+template <int Order, typename T_array, typename T_int, typename T_float>
+static auto interp2d(T_array& eb, int iz0, T_int iy0, T_int ix0, int ik, T_float wy[Order + 2],
+                     T_float wx[Order + 2], T_float dt)
+{
+  constexpr bool is_sorted = std::is_integral_v<T_int>;
+
+  if constexpr (is_sorted == true) {
+    // both scalar and vector implementation for scalar index
+    return interp2d_impl_sorted<Order>(eb, iz0, iy0, ix0, ik, wy, wx, dt);
+  } else {
+    // vector implementation for vector index
+    return interp2d_impl_unsorted<Order>(eb, iz0, iy0, ix0, ik, wy, wx, dt);
+  }
+}
 
 ///
 /// @brief calculate electromagnetic field at particle position by interpolation
@@ -110,10 +171,10 @@ static auto interp3d(T_array& eb, T_int iz0, T_int iy0, T_int ix0, int ik, T_flo
 
   if constexpr (is_sorted == true) {
     // both scalar and vector implementation for scalar index
-    return sorted_impl3d<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
+    return interp3d_impl_sorted<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
   } else {
     // vector implementation for vector index
-    return unsorted_impl3d<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
+    return interp3d_impl_unsorted<Order>(eb, iz0, iy0, ix0, ik, wz, wy, wx, dt);
   }
 }
 
