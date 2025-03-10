@@ -711,6 +711,82 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
   }
 }
 
+template <int Order, typename T_array, typename T_int, typename T_float>
+static void append_moment2d(T_array& um, int iz0, T_int iy0, T_int ix0, int is,
+                            T_float moment[Order + 1][Order + 1][14])
+{
+  constexpr int  size        = Order + 1;
+  constexpr int  num_moments = 14;
+  constexpr bool is_scalar   = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
+  constexpr bool is_vector   = std::is_integral_v<T_int> && std::is_same_v<T_float, simd_f64>;
+
+  if constexpr (is_scalar == true) {
+    // naive scalar implementation
+    {
+      int iz = iz0;
+
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int k = 0; k < num_moments; k++) {
+            um(iz, iy, ix, is, k) += moment[jy][jx][k];
+          }
+        }
+      }
+    }
+  } else if constexpr (is_vector == true) {
+    // all particle contributions are added to the same grid point
+    {
+      int iz = iz0;
+
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int k = 0; k < num_moments; k++) {
+            um(iz, iy, ix, is, k) += xsimd::reduce_add(moment[jy][jx][k]);
+          }
+        }
+      }
+    }
+  } else {
+    static_assert([] { return false; }(), "Invalid combination of types");
+  }
+}
+
+template <int Order, typename T_array, typename T_int, typename T_float>
+static void append_moment3d(T_array& um, T_int iz0, T_int iy0, T_int ix0, int is,
+                            T_float moment[Order + 1][Order + 1][Order + 1][14])
+{
+  constexpr int  size        = Order + 1;
+  constexpr int  num_moments = 14;
+  constexpr bool is_scalar   = std::is_integral_v<T_int> && std::is_floating_point_v<T_float>;
+  constexpr bool is_vector   = std::is_integral_v<T_int> && std::is_same_v<T_float, simd_f64>;
+
+  if constexpr (is_scalar == true) {
+    // naive scalar implementation
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int k = 0; k < num_moments; k++) {
+            um(iz, iy, ix, is, k) += moment[jz][jy][jx][k];
+          }
+        }
+      }
+    }
+  } else if constexpr (is_vector == true) {
+    // all particle contributions are added to the same grid point
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int k = 0; k < num_moments; k++) {
+            um(iz, iy, ix, is, k) += xsimd::reduce_add(moment[jz][jy][jx][k]);
+          }
+        }
+      }
+    }
+  } else {
+    static_assert([] { return false; }(), "Invalid combination of types");
+  }
+}
+
 } // namespace primitives
 
 NIX_NAMESPACE_END

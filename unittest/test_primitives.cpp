@@ -36,6 +36,20 @@ template <int Order, typename T_array, typename T_int>
 bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0, T_int ix0,
                                  const float64 epsilon);
 
+template <int Order, typename T_array>
+bool test_append_moment2d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon);
+
+template <int Order, typename T_array, typename T_int>
+bool test_append_moment2d_xsimd(T_array& uj, T_array& vj, int iz0, T_int iy0, T_int ix0,
+                                const float64 epsilon);
+
+template <int Order, typename T_array>
+bool test_append_moment3d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon);
+
+template <int Order, typename T_array, typename T_int>
+bool test_append_moment3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0, T_int ix0,
+                                const float64 epsilon);
+
 //
 // test cases
 //
@@ -806,7 +820,6 @@ TEST_CASE("Append current to global array 2D")
   const int     Ny  = 16;
   const int     Nx  = 16;
   const float64 eps = 1.0e-14;
-  const float64 q   = 1.0;
 
   // current array
   aligned_vector<float64> uj_data1(Ny * Nx * 4);
@@ -902,7 +915,6 @@ TEST_CASE("Append current to global array 3D")
   const int     Ny  = 16;
   const int     Nx  = 16;
   const float64 eps = 1.0e-14;
-  const float64 q   = 1.0;
 
   // current array
   aligned_vector<float64> uj_data1(Nz * Ny * Nx * 4);
@@ -993,6 +1005,143 @@ TEST_CASE("Append current to global array 3D")
   }
 }
 
+TEST_CASE("Append moment to global array 2D")
+{
+  const int     Nm  = 14;
+  const int     Ns  = 2;
+  const int     Ny  = 16;
+  const int     Nx  = 16;
+  const float64 eps = 1.0e-14;
+
+  // moment array
+  aligned_vector<float64> um_data1(Ny * Nx * Ns * Nm);
+  aligned_vector<float64> um_data2(Ny * Nx * Ns * Nm);
+  auto                    um1 = stdex::mdspan(um_data1.data(), 1, Ny, Nx, Ns, Nm);
+  auto                    um2 = stdex::mdspan(um_data2.data(), 1, Ny, Nx, Ns, Nm);
+
+  //
+  // first order
+  //
+  SECTION("First-order moment append to global array : scalar")
+  {
+    REQUIRE(test_append_moment2d_scalar<1>(um1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_moment2d_scalar<1>(um2, 0, 4, 8, eps) == true);
+  }
+  SECTION("First-order moment append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_moment2d_xsimd<1>(um1, um2, 0, 4, 8, eps) == true);
+  }
+  //
+  // second order
+  //
+  SECTION("Second-order moment append to global array : scalar")
+  {
+    REQUIRE(test_append_moment2d_scalar<2>(um1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_moment2d_scalar<2>(um2, 0, 4, 8, eps) == true);
+  }
+  SECTION("Second-order moment append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_moment2d_xsimd<2>(um1, um2, 0, 4, 8, eps) == true);
+  }
+  //
+  // third order
+  //
+  SECTION("Third-order moment append to global array : scalar")
+  {
+    REQUIRE(test_append_moment2d_scalar<3>(um1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_moment2d_scalar<3>(um2, 0, 4, 8, eps) == true);
+  }
+  SECTION("Third-order moment append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_moment2d_xsimd<3>(um1, um2, 0, 4, 8, eps) == true);
+  }
+  //
+  // fourth order
+  //
+  SECTION("Fourth-order moment append to global array : scalar")
+  {
+    REQUIRE(test_append_moment2d_scalar<4>(um1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_moment2d_scalar<4>(um2, 0, 4, 8, eps) == true);
+  }
+  SECTION("Fourth-order moment append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_moment2d_xsimd<4>(um1, um2, 0, 4, 8, eps) == true);
+  }
+}
+
+TEST_CASE("Append moment to global array 3D")
+{
+  const int     Nm  = 14;
+  const int     Ns  = 2;
+  const int     Nz  = 16;
+  const int     Ny  = 16;
+  const int     Nx  = 16;
+  const float64 eps = 1.0e-14;
+
+  // moment array
+  aligned_vector<float64> um_data1(Nz * Ny * Nx * Ns * Nm);
+  aligned_vector<float64> um_data2(Nz * Ny * Nx * Ns * Nm);
+  auto                    um1 = stdex::mdspan(um_data1.data(), Nz, Ny, Nx, Ns, Nm);
+  auto                    um2 = stdex::mdspan(um_data2.data(), Nz, Ny, Nx, Ns, Nm);
+
+  //
+  // first order
+  //
+  SECTION("First-order moment append to global array : scalar")
+  {
+    REQUIRE(test_append_moment3d_scalar<1>(um1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_moment3d_scalar<1>(um2, 0, 4, 8, eps) == true);
+  }
+  SECTION("First-order moment append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_moment3d_xsimd<1>(um1, um2, 0, 4, 8, eps) == true);
+  }
+  //
+  // second order
+  //
+  SECTION("Second-order moment append to global array : scalar")
+  {
+    REQUIRE(test_append_moment3d_scalar<2>(um1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_moment3d_scalar<2>(um2, 0, 4, 8, eps) == true);
+  }
+  SECTION("Second-order moment append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_moment3d_xsimd<2>(um1, um2, 0, 4, 8, eps) == true);
+  }
+  //
+  // third order
+  //
+  SECTION("Third-order moment append to global array : scalar")
+  {
+    REQUIRE(test_append_moment3d_scalar<3>(um1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_moment3d_scalar<3>(um2, 0, 4, 8, eps) == true);
+  }
+  SECTION("Third-order moment append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_moment3d_xsimd<3>(um1, um2, 0, 4, 8, eps) == true);
+  }
+  //
+  // fourth order
+  //
+  SECTION("Fourth-order moment append to global array : scalar")
+  {
+    REQUIRE(test_append_moment3d_scalar<4>(um1, 0, 2, 2, eps) == true);
+    REQUIRE(test_append_moment3d_scalar<4>(um2, 0, 4, 8, eps) == true);
+  }
+  SECTION("Fourth-order moment append to global array : xsimd")
+  {
+    // scalar index
+    REQUIRE(test_append_moment3d_xsimd<4>(um1, um2, 0, 4, 8, eps) == true);
+  }
+}
+
 //
 // implementation of helper functions
 //
@@ -1000,21 +1149,45 @@ TEST_CASE("Append current to global array 3D")
 template <int Order, typename T_array>
 bool test_append_current2d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon)
 {
-  const int size = Order + 3;
+  const int size       = Order + 3;
+  const int Nz         = nix::get_extent(uj, 0);
+  const int Ny         = nix::get_extent(uj, 1);
+  const int Nx         = nix::get_extent(uj, 2);
+  const int num_append = 5;
 
   float64 cur[size][size][4] = {0};
 
-  // test data
-  for (int jy = 0; jy < size; jy++) {
-    for (int jx = 0; jx < size; jx++) {
-      for (int k = 0; k < 4; k++) {
-        cur[jy][jx][k] = k + 1;
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(0, 1);
+
+  // check
+  assert(Nz == 1);
+
+  // zero fill
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int ic = 0; ic < 4; ic++) {
+          uj(iz, iy, ix, ic) = 0;
+        }
       }
     }
   }
 
-  // append
-  append_current2d<Order>(uj, iz0, iy0, ix0, cur);
+  // test data
+  for (int iy = 0; iy < size; iy++) {
+    for (int ix = 0; ix < size; ix++) {
+      for (int ic = 0; ic < 4; ic++) {
+        cur[iy][ix][ic] = rand(engine);
+      }
+    }
+  }
+
+  // call
+  for (int i = 0; i < num_append; i++) {
+    append_current2d<Order>(uj, iz0, iy0, ix0, cur);
+  }
 
   // check
   bool status = true;
@@ -1023,8 +1196,9 @@ bool test_append_current2d_scalar(T_array& uj, int iz0, int iy0, int ix0, const 
 
     for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
       for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-        for (int k = 0; k < 4; k++) {
-          status = status & (std::abs(uj(iz, iy, ix, k) - (k + 1)) < epsilon);
+        for (int ic = 0; ic < 4; ic++) {
+          auto error = std::abs(uj(iz, iy, ix, ic) - num_append * cur[jy][jx][ic]);
+          status     = status && (error < epsilon);
         }
       }
     }
@@ -1037,60 +1211,78 @@ template <int Order, typename T_array, typename T_int>
 bool test_append_current2d_xsimd(T_array& uj, T_array& vj, int iz0, T_int iy0, T_int ix0,
                                  const float64 epsilon)
 {
-  const int size   = Order + 3;
-  const int stride = size * size * 4;
-  const int Nz     = uj.extent(0);
-  const int Ny     = uj.extent(1);
-  const int Nx     = uj.extent(2);
-
-  // index for scalar version
-  int iy[simd_f64::size];
-  int ix[simd_f64::size];
-
-  if constexpr (std::is_integral_v<T_int>) {
-    // scalar index
-    for (int i = 0; i < simd_f64::size; i++) {
-      iy[i] = iy0;
-      ix[i] = ix0;
-    }
-  } else if constexpr (std::is_same_v<T_int, simd_i64>) {
-    // vector index
-    iy0.store_unaligned(iy);
-    ix0.store_unaligned(ix);
-  }
+  const int size       = Order + 3;
+  const int stride     = size * size * 4;
+  const int Nz         = nix::get_extent(uj, 0);
+  const int Ny         = nix::get_extent(uj, 1);
+  const int Nx         = nix::get_extent(uj, 2);
+  const int num_append = 5;
 
   float64  cur[simd_f64::size][size][size][4] = {0};
   simd_f64 cur_simd[size][size][4]            = {0};
   simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+  int      iy_scalar[simd_f64::size];
+  int      ix_scalar[simd_f64::size];
 
   std::random_device seed;
   std::mt19937_64    engine(seed());
-  uniform_rand       rand(-1, +1);
+  uniform_rand       rand(0, 1);
 
-  // test data
-  for (int ip = 0; ip < simd_f64::size; ip++) {
-    for (int jy = 0; jy < size; jy++) {
-      for (int jx = 0; jx < size; jx++) {
-        for (int k = 0; k < 4; k++) {
-          cur[ip][jy][jx][k] = rand(engine);
+  // check
+  assert(Nz == 1);
+
+  // index
+  if constexpr (std::is_integral_v<T_int>) {
+    // scalar index
+    for (int i = 0; i < simd_f64::size; i++) {
+      iy_scalar[i] = iy0;
+      ix_scalar[i] = ix0;
+    }
+  } else if constexpr (std::is_same_v<T_int, simd_i64>) {
+    // vector index
+    iy0.store_unaligned(iy_scalar);
+    ix0.store_unaligned(ix_scalar);
+  }
+
+  // zero fill
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int ic = 0; ic < 4; ic++) {
+          uj(iz, iy, ix, ic) = 0;
+          vj(iz, iy, ix, ic) = 0;
         }
       }
     }
   }
-  for (int jy = 0; jy < size; jy++) {
-    for (int jx = 0; jx < size; jx++) {
-      for (int k = 0; k < 4; k++) {
-        cur_simd[jy][jx][k] = simd_f64::gather(&cur[0][jy][jx][k], index_simd);
+
+  // test data
+  for (int ip = 0; ip < simd_f64::size; ip++) {
+    for (int iy = 0; iy < size; iy++) {
+      for (int ix = 0; ix < size; ix++) {
+        for (int ic = 0; ic < 4; ic++) {
+          cur[ip][iy][ix][ic] = rand(engine);
+        }
+      }
+    }
+  }
+  for (int iy = 0; iy < size; iy++) {
+    for (int ix = 0; ix < size; ix++) {
+      for (int ic = 0; ic < 4; ic++) {
+        cur_simd[iy][ix][ic] = simd_f64::gather(&cur[0][iy][ix][ic], index_simd);
       }
     }
   }
 
-  // SIMD version
-  append_current2d<Order>(vj, iz0, iy0, ix0, cur_simd);
+  // call
+  for (int i = 0; i < num_append; i++) {
+    // SIMD version
+    append_current2d<Order>(vj, iz0, iy0, ix0, cur_simd);
 
-  // scalar version
-  for (int ip = 0; ip < simd_f64::size; ip++) {
-    append_current2d<Order>(uj, iz0, iy[ip], ix[ip], cur[ip]);
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      append_current2d<Order>(uj, iz0, iy_scalar[ip], ix_scalar[ip], cur[ip]);
+    }
   }
 
   // compare scalar and SIMD results
@@ -1100,8 +1292,9 @@ bool test_append_current2d_xsimd(T_array& uj, T_array& vj, int iz0, T_int iy0, T
 
     for (int iy = 0; iy < Ny; iy++) {
       for (int ix = 0; ix < Nx; ix++) {
-        for (int k = 0; k < 4; k++) {
-          status = status & (std::abs(uj(iz, iy, ix, k) - vj(iz, iy, ix, k)) < epsilon);
+        for (int ic = 0; ic < 4; ic++) {
+          auto error = std::abs(uj(iz, iy, ix, ic) - vj(iz, iy, ix, ic));
+          status     = status && (error < epsilon);
         }
       }
     }
@@ -1113,31 +1306,53 @@ bool test_append_current2d_xsimd(T_array& uj, T_array& vj, int iz0, T_int iy0, T
 template <int Order, typename T_array>
 bool test_append_current3d_scalar(T_array& uj, int iz0, int iy0, int ix0, const float64 epsilon)
 {
-  const int size = Order + 3;
+  const int size       = Order + 3;
+  const int Nz         = nix::get_extent(uj, 0);
+  const int Ny         = nix::get_extent(uj, 1);
+  const int Nx         = nix::get_extent(uj, 2);
+  const int num_append = 5;
 
   float64 cur[size][size][size][4] = {0};
 
-  // test data
-  for (int jz = 0; jz < size; jz++) {
-    for (int jy = 0; jy < size; jy++) {
-      for (int jx = 0; jx < size; jx++) {
-        for (int k = 0; k < 4; k++) {
-          cur[jz][jy][jx][k] = k + 1;
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(0, 1);
+
+  // zero fill
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int ic = 0; ic < 4; ic++) {
+          uj(iz, iy, ix, ic) = 0;
         }
       }
     }
   }
 
-  // append
-  append_current3d<Order>(uj, iz0, iy0, ix0, cur);
+  // test data
+  for (int iz = 0; iz < size; iz++) {
+    for (int iy = 0; iy < size; iy++) {
+      for (int ix = 0; ix < size; ix++) {
+        for (int ic = 0; ic < 4; ic++) {
+          cur[iz][iy][ix][ic] = rand(engine);
+        }
+      }
+    }
+  }
+
+  // call
+  for (int i = 0; i < num_append; i++) {
+    append_current3d<Order>(uj, iz0, iy0, ix0, cur);
+  }
 
   // check
   bool status = true;
   for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
     for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
       for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
-        for (int k = 0; k < 4; k++) {
-          status = status & (std::abs(uj(iz, iy, ix, k) - (k + 1)) < epsilon);
+        for (int ic = 0; ic < 4; ic++) {
+          auto error = std::abs(uj(iz, iy, ix, ic) - num_append * cur[jz][jy][jx][ic]);
+          status     = status && (error < epsilon);
         }
       }
     }
@@ -1150,67 +1365,82 @@ template <int Order, typename T_array, typename T_int>
 bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0, T_int ix0,
                                  const float64 epsilon)
 {
-  const int size   = Order + 3;
-  const int stride = size * size * size * 4;
-  const int Nz     = uj.extent(0);
-  const int Ny     = uj.extent(1);
-  const int Nx     = uj.extent(2);
-
-  // index for scalar version
-  int iz[simd_f64::size];
-  int iy[simd_f64::size];
-  int ix[simd_f64::size];
-
-  if constexpr (std::is_integral_v<T_int>) {
-    // scalar index
-    for (int i = 0; i < simd_f64::size; i++) {
-      iz[i] = iz0;
-      iy[i] = iy0;
-      ix[i] = ix0;
-    }
-  } else if constexpr (std::is_same_v<T_int, simd_i64>) {
-    // vector index
-    iz0.store_unaligned(iz);
-    iy0.store_unaligned(iy);
-    ix0.store_unaligned(ix);
-  }
+  const int size       = Order + 3;
+  const int stride     = size * size * size * 4;
+  const int Nz         = uj.extent(0);
+  const int Ny         = uj.extent(1);
+  const int Nx         = uj.extent(2);
+  const int num_append = 5;
 
   float64  cur[simd_f64::size][size][size][size][4] = {0};
   simd_f64 cur_simd[size][size][size][4]            = {0};
   simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+  int      iz_scalar[simd_f64::size];
+  int      iy_scalar[simd_f64::size];
+  int      ix_scalar[simd_f64::size];
 
   std::random_device seed;
   std::mt19937_64    engine(seed());
-  uniform_rand       rand(-1, +1);
+  uniform_rand       rand(0, +1);
+
+  // index
+  if constexpr (std::is_integral_v<T_int>) {
+    // scalar index
+    for (int i = 0; i < simd_f64::size; i++) {
+      iz_scalar[i] = iz0;
+      iy_scalar[i] = iy0;
+      ix_scalar[i] = ix0;
+    }
+  } else if constexpr (std::is_same_v<T_int, simd_i64>) {
+    // vector index
+    iz0.store_unaligned(iz_scalar);
+    iy0.store_unaligned(iy_scalar);
+    ix0.store_unaligned(ix_scalar);
+  }
+
+  // zero fill
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int ic = 0; ic < 4; ic++) {
+          uj(iz, iy, ix, ic) = 0;
+          vj(iz, iy, ix, ic) = 0;
+        }
+      }
+    }
+  }
 
   // test data
   for (int ip = 0; ip < simd_f64::size; ip++) {
-    for (int jz = 0; jz < size; jz++) {
-      for (int jy = 0; jy < size; jy++) {
-        for (int jx = 0; jx < size; jx++) {
-          for (int k = 0; k < 4; k++) {
-            cur[ip][jz][jy][jx][k] = rand(engine);
+    for (int iz = 0; iz < size; iz++) {
+      for (int iy = 0; iy < size; iy++) {
+        for (int ix = 0; ix < size; ix++) {
+          for (int ic = 0; ic < 4; ic++) {
+            cur[ip][iz][iy][ix][ic] = rand(engine);
           }
         }
       }
     }
   }
-  for (int jz = 0; jz < size; jz++) {
-    for (int jy = 0; jy < size; jy++) {
-      for (int jx = 0; jx < size; jx++) {
-        for (int k = 0; k < 4; k++) {
-          cur_simd[jz][jy][jx][k] = simd_f64::gather(&cur[0][jz][jy][jx][k], index_simd);
+  for (int iz = 0; iz < size; iz++) {
+    for (int iy = 0; iy < size; iy++) {
+      for (int ix = 0; ix < size; ix++) {
+        for (int ic = 0; ic < 4; ic++) {
+          cur_simd[iz][iy][ix][ic] = simd_f64::gather(&cur[0][iz][iy][ix][ic], index_simd);
         }
       }
     }
   }
 
-  // SIMD version
-  append_current3d<Order>(vj, iz0, iy0, ix0, cur_simd);
+  // call
+  for (int i = 0; i < num_append; i++) {
+    // SIMD version
+    append_current3d<Order>(vj, iz0, iy0, ix0, cur_simd);
 
-  // scalar version
-  for (int ip = 0; ip < simd_f64::size; ip++) {
-    append_current3d<Order>(uj, iz[ip], iy[ip], ix[ip], cur[ip]);
+    // scalar version
+    for (int ip = 0; ip < simd_f64::size; ip++) {
+      append_current3d<Order>(uj, iz_scalar[ip], iy_scalar[ip], ix_scalar[ip], cur[ip]);
+    }
   }
 
   // compare scalar and SIMD results
@@ -1218,8 +1448,362 @@ bool test_append_current3d_xsimd(T_array& uj, T_array& vj, T_int iz0, T_int iy0,
   for (int iz = 0; iz < Nz; iz++) {
     for (int iy = 0; iy < Ny; iy++) {
       for (int ix = 0; ix < Nx; ix++) {
-        for (int k = 0; k < 4; k++) {
-          status = status & (std::abs(uj(iz, iy, ix, k) - vj(iz, iy, ix, k)) < epsilon);
+        for (int ic = 0; ic < 4; ic++) {
+          auto error = std::abs(uj(iz, iy, ix, ic) - vj(iz, iy, ix, ic));
+          status     = status && (error < epsilon);
+        }
+      }
+    }
+  }
+
+  return status;
+}
+
+template <int Order, typename T_array>
+bool test_append_moment2d_scalar(T_array& um, int iz0, int iy0, int ix0, const float64 epsilon)
+{
+  const int size = Order + 1;
+
+  int     Nz                  = nix::get_extent(um, 0);
+  int     Ny                  = nix::get_extent(um, 1);
+  int     Nx                  = nix::get_extent(um, 2);
+  int     num_species         = nix::get_extent(um, 3);
+  int     num_moments         = nix::get_extent(um, 4);
+  float64 mom[size][size][14] = {0};
+
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(0, 1);
+
+  // check
+  assert(Nz == 1);
+  assert(num_species == 2);
+  assert(num_moments == 14);
+
+  // zero fill
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int is = 0; is < num_species; is++) {
+          for (int im = 0; im < num_moments; im++) {
+            um(iz, iy, ix, is, im) = 0;
+          }
+        }
+      }
+    }
+  }
+
+  // test data
+  for (int iy = 0; iy < size; iy++) {
+    for (int ix = 0; ix < size; ix++) {
+      for (int im = 0; im < num_moments; im++) {
+        mom[iy][ix][im] = rand(engine);
+      }
+    }
+  }
+
+  // call
+  for (int is = 0; is < num_species; is++) {
+    int num_append = is + 1;
+    for (int i = 0; i < num_append; i++) {
+      append_moment2d<Order>(um, iz0, iy0, ix0, is, mom);
+    }
+  }
+
+  // check
+  bool status = true;
+
+  for (int is = 0; is < num_species; is++) {
+    int num_append = is + 1;
+    {
+      int iz = iz0;
+
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int im = 0; im < num_moments; im++) {
+            auto error = std::abs(um(iz, iy, ix, is, im) - num_append * mom[jy][jx][im]);
+            status     = status && (error < epsilon);
+          }
+        }
+      }
+    }
+  }
+
+  return status;
+}
+
+template <int Order, typename T_array, typename T_int>
+bool test_append_moment2d_xsimd(T_array& um, T_array& vm, int iz0, T_int iy0, T_int ix0,
+                                const float64 epsilon)
+{
+  const int size   = Order + 1;
+  const int stride = size * size * 14;
+
+  int Nz          = nix::get_extent(um, 0);
+  int Ny          = nix::get_extent(um, 1);
+  int Nx          = nix::get_extent(um, 2);
+  int num_species = nix::get_extent(um, 3);
+  int num_moments = nix::get_extent(um, 4);
+
+  float64  mom[simd_f64::size][size][size][14] = {0};
+  simd_f64 mom_simd[size][size][14]            = {0};
+  simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+  int      iy_scalar[simd_f64::size];
+  int      ix_scalar[simd_f64::size];
+
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(0, 1);
+
+  // index for scalar version
+  for (int i = 0; i < simd_f64::size; i++) {
+    iy_scalar[i] = iy0;
+    ix_scalar[i] = ix0;
+  }
+
+  // check
+  assert(Nz == 1);
+  assert(num_species == 2);
+  assert(num_moments == 14);
+
+  // zero fill
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int is = 0; is < num_species; is++) {
+          for (int im = 0; im < num_moments; im++) {
+            um(iz, iy, ix, is, im) = 0;
+            vm(iz, iy, ix, is, im) = 0;
+          }
+        }
+      }
+    }
+  }
+
+  // test data
+  for (int ip = 0; ip < simd_f64::size; ip++) {
+    for (int iy = 0; iy < size; iy++) {
+      for (int ix = 0; ix < size; ix++) {
+        for (int im = 0; im < num_moments; im++) {
+          mom[ip][iy][ix][im] = rand(engine);
+        }
+      }
+    }
+  }
+  for (int iy = 0; iy < size; iy++) {
+    for (int ix = 0; ix < size; ix++) {
+      for (int im = 0; im < num_moments; im++) {
+        mom_simd[iy][ix][im] = simd_f64::gather(&mom[0][iy][ix][im], index_simd);
+      }
+    }
+  }
+
+  // call
+  for (int is = 0; is < num_species; is++) {
+    int num_append = is + 1;
+    // SIMD version
+    for (int i = 0; i < num_append; i++) {
+      append_moment2d<Order>(vm, iz0, iy0, ix0, is, mom_simd);
+    }
+
+    // scalar version
+    for (int i = 0; i < num_append; i++) {
+      for (int ip = 0; ip < simd_f64::size; ip++) {
+        append_moment2d<Order>(um, iz0, iy_scalar[ip], ix_scalar[ip], is, mom[ip]);
+      }
+    }
+  }
+
+  // compare scalar and SIMD results
+  bool status = true;
+  {
+    int iz = iz0;
+
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int is = 0; is < num_species; is++) {
+          for (int im = 0; im < num_moments; im++) {
+            auto error = std::abs(um(iz, iy, ix, is, im) - vm(iz, iy, ix, is, im));
+            status     = status && (error < epsilon);
+          }
+        }
+      }
+    }
+  }
+
+  return status;
+}
+
+template <int Order, typename T_array>
+bool test_append_moment3d_scalar(T_array& um, int iz0, int iy0, int ix0, const float64 epsilon)
+{
+  const int size = Order + 1;
+
+  int     Nz                        = nix::get_extent(um, 0);
+  int     Ny                        = nix::get_extent(um, 1);
+  int     Nx                        = nix::get_extent(um, 2);
+  int     num_species               = nix::get_extent(um, 3);
+  int     num_moments               = nix::get_extent(um, 4);
+  float64 mom[size][size][size][14] = {0};
+
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(0, 1);
+
+  // check
+  assert(num_species == 2);
+  assert(num_moments == 14);
+
+  // zero fill
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int is = 0; is < num_species; is++) {
+          for (int im = 0; im < num_moments; im++) {
+            um(iz, iy, ix, is, im) = 0;
+          }
+        }
+      }
+    }
+  }
+
+  // test data
+  for (int iz = 0; iz < size; iz++) {
+    for (int iy = 0; iy < size; iy++) {
+      for (int ix = 0; ix < size; ix++) {
+        for (int im = 0; im < num_moments; im++) {
+          mom[iz][iy][ix][im] = rand(engine);
+        }
+      }
+    }
+  }
+
+  // call
+  for (int is = 0; is < num_species; is++) {
+    int num_append = is + 1;
+    for (int i = 0; i < num_append; i++) {
+      append_moment3d<Order>(um, iz0, iy0, ix0, is, mom);
+    }
+  }
+
+  // check
+  bool status = true;
+
+  for (int is = 0; is < num_species; is++) {
+    int num_append = is + 1;
+    for (int jz = 0, iz = iz0; jz < size; jz++, iz++) {
+      for (int jy = 0, iy = iy0; jy < size; jy++, iy++) {
+        for (int jx = 0, ix = ix0; jx < size; jx++, ix++) {
+          for (int im = 0; im < num_moments; im++) {
+            auto error = std::abs(um(iz, iy, ix, is, im) - num_append * mom[iz][jy][jx][im]);
+            status     = status && (error < epsilon);
+          }
+        }
+      }
+    }
+  }
+
+  return status;
+}
+
+template <int Order, typename T_array, typename T_int>
+bool test_append_moment3d_xsimd(T_array& um, T_array& vm, T_int iz0, T_int iy0, T_int ix0,
+                                const float64 epsilon)
+{
+  const int size   = Order + 1;
+  const int stride = size * size * size * 14;
+
+  int Nz          = nix::get_extent(um, 0);
+  int Ny          = nix::get_extent(um, 1);
+  int Nx          = nix::get_extent(um, 2);
+  int num_species = nix::get_extent(um, 3);
+  int num_moments = nix::get_extent(um, 4);
+
+  float64  mom[simd_f64::size][size][size][size][14] = {0};
+  simd_f64 mom_simd[size][size][size][14]            = {0};
+  simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * stride;
+  int      iz_scalar[simd_f64::size];
+  int      iy_scalar[simd_f64::size];
+  int      ix_scalar[simd_f64::size];
+
+  std::random_device seed;
+  std::mt19937_64    engine(seed());
+  uniform_rand       rand(0, 1);
+
+  // index for scalar version
+  for (int i = 0; i < simd_f64::size; i++) {
+    iz_scalar[i] = iz0;
+    iy_scalar[i] = iy0;
+    ix_scalar[i] = ix0;
+  }
+
+  // check
+  assert(num_species == 2);
+  assert(num_moments == 14);
+
+  // zero fill
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int is = 0; is < num_species; is++) {
+          for (int im = 0; im < num_moments; im++) {
+            um(iz, iy, ix, is, im) = 0;
+            vm(iz, iy, ix, is, im) = 0;
+          }
+        }
+      }
+    }
+  }
+
+  // test data
+  for (int ip = 0; ip < simd_f64::size; ip++) {
+    for (int iz = 0; iz < size; iz++) {
+      for (int iy = 0; iy < size; iy++) {
+        for (int ix = 0; ix < size; ix++) {
+          for (int im = 0; im < num_moments; im++) {
+            mom[ip][iz][iy][ix][im] = rand(engine);
+          }
+        }
+      }
+    }
+  }
+  for (int iz = 0; iz < size; iz++) {
+    for (int iy = 0; iy < size; iy++) {
+      for (int ix = 0; ix < size; ix++) {
+        for (int im = 0; im < num_moments; im++) {
+          mom_simd[iz][iy][ix][im] = simd_f64::gather(&mom[0][iz][iy][ix][im], index_simd);
+        }
+      }
+    }
+  }
+
+  // call
+  for (int is = 0; is < num_species; is++) {
+    int num_append = is + 1;
+    // SIMD version
+    for (int i = 0; i < num_append; i++) {
+      append_moment3d<Order>(vm, iz0, iy0, ix0, is, mom_simd);
+    }
+
+    // scalar version
+    for (int i = 0; i < num_append; i++) {
+      for (int ip = 0; ip < simd_f64::size; ip++) {
+        append_moment3d<Order>(um, iz_scalar[ip], iy_scalar[ip], ix_scalar[ip], is, mom[ip]);
+      }
+    }
+  }
+
+  // compare scalar and SIMD results
+  bool status = true;
+
+  for (int iz = 0; iz < Nz; iz++) {
+    for (int iy = 0; iy < Ny; iy++) {
+      for (int ix = 0; ix < Nx; ix++) {
+        for (int is = 0; is < num_species; is++) {
+          for (int im = 0; im < num_moments; im++) {
+            auto error = std::abs(um(iz, iy, ix, is, im) - vm(iz, iy, ix, is, im));
+            status     = status && (error < epsilon);
+          }
         }
       }
     }

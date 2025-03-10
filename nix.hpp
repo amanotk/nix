@@ -253,6 +253,17 @@ static auto get_data_pointer(T_array& array)
   }
 }
 
+/// utility to get extent of array for a given dimension
+template <typename T_array>
+static auto get_extent(T_array& array, int dim)
+{
+  if constexpr (is_xtensor<T_array>::value == true) {
+    return array.shape(dim);
+  } else if constexpr (is_mdspan<T_array>::value == true) {
+    return array.extent(dim);
+  }
+}
+
 /// utility to get stride of array for a given dimension
 template <typename T_array>
 static auto get_stride(T_array& array, int dim)
