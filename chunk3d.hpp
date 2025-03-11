@@ -159,6 +159,10 @@ protected:
   int Uby;             ///< upper bound in y
   int Lbz;             ///< lower bound in z
   int Ubz;             ///< upper bound in z
+  int indexlb[3];      ///< index lower bound for MPI data exchange
+  int indexub[3];      ///< index upper bound for MPI data exchange
+  int dirlb[3];        ///< direction lower bound for MPI data exchange
+  int dirub[3];        ///< direction upper bound for MPI data exchange
   int sendlb[3][3];    ///< lower bound for send
   int sendub[3][3];    ///< upper bound for send
   int recvlb[3][3];    ///< lower bound for recv
@@ -461,62 +465,106 @@ DEFINE_MEMBER(void, set_boundary_margin)(int margin)
 {
   boundary_margin = margin;
 
-  size_t Nz = this->dims[0] + 2 * boundary_margin;
-  size_t Ny = this->dims[1] + 2 * boundary_margin;
-  size_t Nx = this->dims[2] + 2 * boundary_margin;
+  // z direction
+  if (this->dims[0] == 1) {
+    // ignorable coordinate
+    Lbz        = 1;
+    Ubz        = 1;
+    indexlb[0] = 1;
+    indexub[0] = 1;
+    dirlb[0]   = 0;
+    dirub[0]   = 0;
+  } else {
+    // lower and upper bound
+    Lbz        = boundary_margin;
+    Ubz        = boundary_margin + this->dims[0] - 1;
+    indexlb[0] = 0;
+    indexub[0] = 2;
+    dirlb[0]   = -1;
+    dirub[0]   = +1;
+    // MPI send
+    sendlb[0][0] = Lbz;
+    sendlb[0][1] = Lbz;
+    sendlb[0][2] = Ubz - boundary_margin + 1;
+    sendub[0][0] = Lbz + boundary_margin - 1;
+    sendub[0][1] = Ubz;
+    sendub[0][2] = Ubz;
+    // MPI recv
+    recvlb[0][0] = Lbz - boundary_margin;
+    recvlb[0][1] = Lbz;
+    recvlb[0][2] = Ubz + 1;
+    recvub[0][0] = Lbz - 1;
+    recvub[0][1] = Ubz;
+    recvub[0][2] = Ubz + boundary_margin;
+  }
 
-  //
-  // lower and upper bound
-  //
-  Lbz = boundary_margin;
-  Ubz = boundary_margin + this->dims[0] - 1;
-  Lby = boundary_margin;
-  Uby = boundary_margin + this->dims[1] - 1;
-  Lbx = boundary_margin;
-  Ubx = boundary_margin + this->dims[2] - 1;
+  // y direction
+  if (this->dims[1] == 1) {
+    // ignorable coordinate
+    Lby        = 1;
+    Uby        = 1;
+    indexlb[1] = 1;
+    indexub[1] = 1;
+    dirlb[1]   = 0;
+    dirub[1]   = 0;
+  } else {
+    // lower and upper bound
+    Lby        = boundary_margin;
+    Lby        = boundary_margin;
+    Uby        = boundary_margin + this->dims[1] - 1;
+    Uby        = boundary_margin + this->dims[1] - 1;
+    indexlb[1] = 0;
+    indexub[1] = 2;
+    dirlb[1]   = -1;
+    dirub[1]   = +1;
+    // MPI send
+    sendlb[1][0] = Lby;
+    sendlb[1][1] = Lby;
+    sendlb[1][2] = Uby - boundary_margin + 1;
+    sendub[1][0] = Lby + boundary_margin - 1;
+    sendub[1][1] = Uby;
+    sendub[1][2] = Uby;
+    // MPI recv
+    recvlb[1][0] = Lby - boundary_margin;
+    recvlb[1][1] = Lby;
+    recvlb[1][2] = Uby + 1;
+    recvub[1][0] = Lby - 1;
+    recvub[1][1] = Uby;
+    recvub[1][2] = Uby + boundary_margin;
+  }
 
-  // * z direction for MPI send
-  sendlb[0][0] = Lbz;
-  sendlb[0][1] = Lbz;
-  sendlb[0][2] = Ubz - boundary_margin + 1;
-  sendub[0][0] = Lbz + boundary_margin - 1;
-  sendub[0][1] = Ubz;
-  sendub[0][2] = Ubz;
-  // * y direction for MPI send
-  sendlb[1][0] = Lby;
-  sendlb[1][1] = Lby;
-  sendlb[1][2] = Uby - boundary_margin + 1;
-  sendub[1][0] = Lby + boundary_margin - 1;
-  sendub[1][1] = Uby;
-  sendub[1][2] = Uby;
-  // * x direction for MPI send
-  sendlb[2][0] = Lbx;
-  sendlb[2][1] = Lbx;
-  sendlb[2][2] = Ubx - boundary_margin + 1;
-  sendub[2][0] = Lbx + boundary_margin - 1;
-  sendub[2][1] = Ubx;
-  sendub[2][2] = Ubx;
-  // * z direction for MPI recv
-  recvlb[0][0] = Lbz - boundary_margin;
-  recvlb[0][1] = Lbz;
-  recvlb[0][2] = Ubz + 1;
-  recvub[0][0] = Lbz - 1;
-  recvub[0][1] = Ubz;
-  recvub[0][2] = Ubz + boundary_margin;
-  // * y direction for MPI recv
-  recvlb[1][0] = Lby - boundary_margin;
-  recvlb[1][1] = Lby;
-  recvlb[1][2] = Uby + 1;
-  recvub[1][0] = Lby - 1;
-  recvub[1][1] = Uby;
-  recvub[1][2] = Uby + boundary_margin;
-  // * x direction for MPI recv
-  recvlb[2][0] = Lbx - boundary_margin;
-  recvlb[2][1] = Lbx;
-  recvlb[2][2] = Ubx + 1;
-  recvub[2][0] = Lbx - 1;
-  recvub[2][1] = Ubx;
-  recvub[2][2] = Ubx + boundary_margin;
+  // x direction
+  if (this->dims[2] == 1) {
+    // ignorable coordinate
+    Lbx        = 1;
+    Ubx        = 1;
+    indexlb[2] = 1;
+    indexub[2] = 1;
+    dirlb[2]   = 0;
+    dirub[2]   = 0;
+  } else {
+    // lower and upper bound
+    Lbx        = boundary_margin;
+    Ubx        = boundary_margin + this->dims[2] - 1;
+    indexlb[2] = 0;
+    indexub[2] = 2;
+    dirlb[2]   = -1;
+    dirub[2]   = +1;
+    // MPI send
+    sendlb[2][0] = Lbx;
+    sendlb[2][1] = Lbx;
+    sendlb[2][2] = Ubx - boundary_margin + 1;
+    sendub[2][0] = Lbx + boundary_margin - 1;
+    sendub[2][1] = Ubx;
+    sendub[2][2] = Ubx;
+    // MPI recv
+    recvlb[2][0] = Lbx - boundary_margin;
+    recvlb[2][1] = Lbx;
+    recvlb[2][2] = Ubx + 1;
+    recvub[2][0] = Lbx - 1;
+    recvub[2][1] = Ubx;
+    recvub[2][2] = Ubx + boundary_margin;
+  }
 }
 
 DEFINE_MEMBER(int, pack)(void* buffer, int address)
@@ -603,27 +651,59 @@ DEFINE_MEMBER(void, set_coordinate)(float64 dz, float64 dy, float64 dx)
   dely = dy;
   delx = dx;
 
-  // local domain
-  zlim[0] = offset[0] * delz;
-  zlim[1] = offset[0] * delz + dims[0] * delz;
-  zlim[2] = zlim[1] - zlim[0];
-  ylim[0] = offset[1] * dely;
-  ylim[1] = offset[1] * dely + dims[1] * dely;
-  ylim[2] = ylim[1] - ylim[0];
-  xlim[0] = offset[2] * delx;
-  xlim[1] = offset[2] * delx + dims[2] * delx;
-  xlim[2] = xlim[1] - xlim[0];
+  // z direction
+  if (this->dims[0] == 1) {
+    // ignorable coordinate
+    zlim[0]  = -std::numeric_limits<float64>::max();
+    zlim[1]  = +std::numeric_limits<float64>::max();
+    zlim[2]  = +std::numeric_limits<float64>::max();
+    gzlim[0] = zlim[0];
+    gzlim[1] = zlim[1];
+    gzlim[2] = zlim[2];
+  } else {
+    zlim[0]  = offset[0] * delz;
+    zlim[1]  = offset[0] * delz + dims[0] * delz;
+    zlim[2]  = zlim[1] - zlim[0];
+    gzlim[0] = 0.0;
+    gzlim[1] = gdims[0] * delz;
+    gzlim[2] = gzlim[1] - gzlim[0];
+  }
 
-  // global domain
-  gzlim[0] = 0.0;
-  gzlim[1] = gdims[0] * delz;
-  gzlim[2] = gzlim[1] - gzlim[0];
-  gylim[0] = 0.0;
-  gylim[1] = gdims[1] * dely;
-  gylim[2] = gylim[1] - gylim[0];
-  gxlim[0] = 0.0;
-  gxlim[1] = gdims[2] * delx;
-  gxlim[2] = gxlim[1] - gxlim[0];
+  // y direction
+  if (this->dims[1] == 1) {
+    // ignorable coordinate
+    ylim[0]  = -std::numeric_limits<float64>::max();
+    ylim[1]  = +std::numeric_limits<float64>::max();
+    ylim[2]  = +std::numeric_limits<float64>::max();
+    gylim[0] = ylim[0];
+    gylim[1] = ylim[1];
+    gylim[2] = ylim[2];
+  } else {
+    ylim[0]  = offset[1] * dely;
+    ylim[1]  = offset[1] * dely + dims[1] * dely;
+    ylim[2]  = ylim[1] - ylim[0];
+    gylim[0] = 0.0;
+    gylim[1] = gdims[1] * dely;
+    gylim[2] = gylim[1] - gylim[0];
+  }
+
+  // x direction
+  if (this->dims[2] == 1) {
+    // ignorable coordinate
+    xlim[0]  = -std::numeric_limits<float64>::max();
+    xlim[1]  = +std::numeric_limits<float64>::max();
+    xlim[2]  = +std::numeric_limits<float64>::max();
+    gxlim[0] = xlim[0];
+    gxlim[1] = xlim[1];
+    gxlim[2] = xlim[2];
+  } else {
+    xlim[0]  = offset[2] * delx;
+    xlim[1]  = offset[2] * delx + dims[2] * delx;
+    xlim[2]  = xlim[1] - xlim[0];
+    gxlim[0] = 0.0;
+    gxlim[1] = gdims[2] * delx;
+    gxlim[2] = gxlim[1] - gxlim[0];
+  }
 }
 
 DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* gdims)
@@ -739,9 +819,9 @@ DEFINE_MEMBER(void, set_mpi_buffer)
 {
   int size = 0;
 
-  for (int iz = 0; iz < 3; iz++) {
-    for (int iy = 0; iy < 3; iy++) {
-      for (int ix = 0; ix < 3; ix++) {
+  for (int iz = indexlb[0]; iz <= indexub[0]; iz++) {
+    for (int iy = indexlb[1]; iy <= indexub[1]; iy++) {
+      for (int ix = indexlb[2]; ix <= indexub[2]; ix++) {
         if (iz == 1 && iy == 1 && ix == 1) {
           mpibuf->bufsize(iz, iy, ix) = 0;
           mpibuf->bufaddr(iz, iy, ix) = size;
@@ -783,9 +863,9 @@ DEFINE_MEMBER(int, probe_bc_exchange)
   mpibuf->bufaddr.fill(0);
 
   OMP_MAYBE_CRITICAL
-  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+  for (int dirz = dirlb[0], iz = indexlb[0]; dirz <= dirub[0]; dirz++, iz++) {
+    for (int diry = dirlb[1], iy = indexlb[1]; diry <= dirub[1]; diry++, iy++) {
+      for (int dirx = dirlb[2], ix = indexlb[2]; dirx <= dirub[2]; dirx++, ix++) {
         // skip
         if (iz == 1 && iy == 1 && ix == 1)
           continue;
@@ -825,9 +905,9 @@ DEFINE_MEMBER(int, probe_bc_exchange)
     int bufsize = 0;
 
     // prepare for recv
-    for (int iz = 0; iz < 3; iz++) {
-      for (int iy = 0; iy < 3; iy++) {
-        for (int ix = 0; ix < 3; ix++) {
+    for (int iz = indexlb[0]; iz <= indexub[0]; iz++) {
+      for (int iy = indexlb[1]; iy <= indexub[1]; iy++) {
+        for (int ix = indexlb[2]; ix <= indexub[2]; ix++) {
           mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
           mpibuf->bufaddr(iz, iy, ix) = bufsize;
           bufsize += mpibuf->bufsize(iz, iy, ix);
@@ -838,9 +918,9 @@ DEFINE_MEMBER(int, probe_bc_exchange)
 
     // recv
     OMP_MAYBE_CRITICAL
-    for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-      for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-        for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+    for (int dirz = dirlb[0], iz = indexlb[0]; dirz <= dirub[0]; dirz++, iz++) {
+      for (int diry = dirlb[1], iy = indexlb[1]; diry <= dirub[1]; diry++, iy++) {
+        for (int dirx = dirlb[2], ix = indexlb[2]; dirx <= dirub[2]; dirx++, ix++) {
           // skip
           if (iz == 1 && iy == 1 && ix == 1)
             continue;
@@ -870,9 +950,9 @@ DEFINE_MEMBER(template <typename Halo> void, pack_bc_exchange)
   // pre-process
   halo.pre_pack(mpibuf);
 
-  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+  for (int dirz = dirlb[0], iz = indexlb[0]; dirz <= dirub[0]; dirz++, iz++) {
+    for (int diry = dirlb[1], iy = indexlb[1]; diry <= dirub[1]; diry++, iy++) {
+      for (int dirx = dirlb[2], ix = indexlb[2]; dirx <= dirub[2]; dirx++, ix++) {
         // clang-format off
         int send_bound[3][2] = {
           sendlb[0][iz], sendub[0][iz],
@@ -908,9 +988,9 @@ DEFINE_MEMBER(template <typename Halo> void, unpack_bc_exchange)
   //
   // unpack recv buffer
   //
-  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+  for (int dirz = dirlb[0], iz = indexlb[0]; dirz <= dirub[0]; dirz++, iz++) {
+    for (int diry = dirlb[1], iy = indexlb[1]; diry <= dirub[1]; diry++, iy++) {
+      for (int dirx = dirlb[2], ix = indexlb[2]; dirx <= dirub[2]; dirx++, ix++) {
         // clang-format off
         int send_bound[3][2] = {
           sendlb[0][iz], sendub[0][iz],
@@ -944,9 +1024,9 @@ DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
   mpibuf->recvwait = false;
 
   OMP_MAYBE_CRITICAL
-  for (int dirz = -1, iz = 0; dirz <= +1; dirz++, iz++) {
-    for (int diry = -1, iy = 0; diry <= +1; diry++, iy++) {
-      for (int dirx = -1, ix = 0; dirx <= +1; dirx++, ix++) {
+  for (int dirz = dirlb[0], iz = indexlb[0]; dirz <= dirub[0]; dirz++, iz++) {
+    for (int diry = dirlb[1], iy = indexlb[1]; diry <= dirub[1]; diry++, iy++) {
+      for (int dirx = dirlb[2], ix = indexlb[2]; dirx <= dirub[2]; dirx++, ix++) {
         if (iz == 1 && iy == 1 && ix == 1)
           continue;
 
