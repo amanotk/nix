@@ -16,9 +16,8 @@ using primitives::digitize;
 
 ///
 /// @brief Base class for 3D Chunk
-/// @tparam Nb number of boundary margins
 ///
-template <int Nb, typename Particle>
+template <typename Particle>
 class Chunk3D : public Chunk<3>
 {
 public:
@@ -150,22 +149,20 @@ public:
   using MpiBufferPtr = std::shared_ptr<MpiBuffer>;
   using MpiBufferVec = std::vector<MpiBufferPtr>;
 
-  /// boundary margin
-  static const int boundary_margin = Nb;
-
 protected:
-  int gdims[3];     ///< global number of grids
-  int offset[3];    ///< global index offset
-  int Lbx;          ///< lower bound in x
-  int Ubx;          ///< upper bound in x
-  int Lby;          ///< lower bound in y
-  int Uby;          ///< upper bound in y
-  int Lbz;          ///< lower bound in z
-  int Ubz;          ///< upper bound in z
-  int sendlb[3][3]; ///< lower bound for send
-  int sendub[3][3]; ///< upper bound for send
-  int recvlb[3][3]; ///< lower bound for recv
-  int recvub[3][3]; ///< upper bound for recv
+  int boundary_margin; ///< boundary margin
+  int gdims[3];        ///< global number of grids
+  int offset[3];       ///< global index offset
+  int Lbx;             ///< lower bound in x
+  int Ubx;             ///< upper bound in x
+  int Lby;             ///< lower bound in y
+  int Uby;             ///< upper bound in y
+  int Lbz;             ///< lower bound in z
+  int Ubz;             ///< upper bound in z
+  int sendlb[3][3];    ///< lower bound for send
+  int sendub[3][3];    ///< upper bound for send
+  int recvlb[3][3];    ///< lower bound for recv
+  int recvub[3][3];    ///< upper bound for recv
 
   float64      delx;      ///< grid size in x
   float64      dely;      ///< grid size in y
@@ -186,6 +183,12 @@ public:
   /// @param id Chunk ID
   ///
   Chunk3D(const int dims[3], int id = 0);
+
+  ///
+  /// @brief set boundary margin
+  /// @param margin boundary margin
+  ///
+  void set_boundary_margin(int margin);
 
   ///
   /// @brief setup initial condition (pure virtual)
@@ -445,71 +448,75 @@ protected:
 // implementation follows
 //
 #define DEFINE_MEMBER(type, name)                                                                  \
-  template <int Nb, typename ParticlePtr>                                                          \
-  type Chunk3D<Nb, ParticlePtr>::name
+  template <typename ParticlePtr>                                                                  \
+  type Chunk3D<ParticlePtr>::name
 
 DEFINE_MEMBER(, Chunk3D)
 (const int dims[3], int id) : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0), option({})
 {
-  size_t Nz = this->dims[0] + 2 * Nb;
-  size_t Ny = this->dims[1] + 2 * Nb;
-  size_t Nx = this->dims[2] + 2 * Nb;
+  reset_load();
+}
+
+DEFINE_MEMBER(void, set_boundary_margin)(int margin)
+{
+  boundary_margin = margin;
+
+  size_t Nz = this->dims[0] + 2 * boundary_margin;
+  size_t Ny = this->dims[1] + 2 * boundary_margin;
+  size_t Nx = this->dims[2] + 2 * boundary_margin;
 
   //
   // lower and upper bound
   //
-  Lbz = Nb;
-  Ubz = this->dims[0] + Nb - 1;
-  Lby = Nb;
-  Uby = this->dims[1] + Nb - 1;
-  Lbx = Nb;
-  Ubx = this->dims[2] + Nb - 1;
+  Lbz = boundary_margin;
+  Ubz = boundary_margin + this->dims[0] - 1;
+  Lby = boundary_margin;
+  Uby = boundary_margin + this->dims[1] - 1;
+  Lbx = boundary_margin;
+  Ubx = boundary_margin + this->dims[2] - 1;
 
   // * z direction for MPI send
   sendlb[0][0] = Lbz;
   sendlb[0][1] = Lbz;
-  sendlb[0][2] = Ubz - Nb + 1;
-  sendub[0][0] = Lbz + Nb - 1;
+  sendlb[0][2] = Ubz - boundary_margin + 1;
+  sendub[0][0] = Lbz + boundary_margin - 1;
   sendub[0][1] = Ubz;
   sendub[0][2] = Ubz;
   // * y direction for MPI send
   sendlb[1][0] = Lby;
   sendlb[1][1] = Lby;
-  sendlb[1][2] = Uby - Nb + 1;
-  sendub[1][0] = Lby + Nb - 1;
+  sendlb[1][2] = Uby - boundary_margin + 1;
+  sendub[1][0] = Lby + boundary_margin - 1;
   sendub[1][1] = Uby;
   sendub[1][2] = Uby;
   // * x direction for MPI send
   sendlb[2][0] = Lbx;
   sendlb[2][1] = Lbx;
-  sendlb[2][2] = Ubx - Nb + 1;
-  sendub[2][0] = Lbx + Nb - 1;
+  sendlb[2][2] = Ubx - boundary_margin + 1;
+  sendub[2][0] = Lbx + boundary_margin - 1;
   sendub[2][1] = Ubx;
   sendub[2][2] = Ubx;
   // * z direction for MPI recv
-  recvlb[0][0] = Lbz - Nb;
+  recvlb[0][0] = Lbz - boundary_margin;
   recvlb[0][1] = Lbz;
   recvlb[0][2] = Ubz + 1;
   recvub[0][0] = Lbz - 1;
   recvub[0][1] = Ubz;
-  recvub[0][2] = Ubz + Nb;
+  recvub[0][2] = Ubz + boundary_margin;
   // * y direction for MPI recv
-  recvlb[1][0] = Lby - Nb;
+  recvlb[1][0] = Lby - boundary_margin;
   recvlb[1][1] = Lby;
   recvlb[1][2] = Uby + 1;
   recvub[1][0] = Lby - 1;
   recvub[1][1] = Uby;
-  recvub[1][2] = Uby + Nb;
+  recvub[1][2] = Uby + boundary_margin;
   // * x direction for MPI recv
-  recvlb[2][0] = Lbx - Nb;
+  recvlb[2][0] = Lbx - boundary_margin;
   recvlb[2][1] = Lbx;
   recvlb[2][2] = Ubx + 1;
   recvub[2][0] = Lbx - 1;
   recvub[2][1] = Ubx;
-  recvub[2][2] = Ubx + Nb;
-
-  // reset load
-  reset_load();
+  recvub[2][2] = Ubx + boundary_margin;
 }
 
 DEFINE_MEMBER(int, pack)(void* buffer, int address)
