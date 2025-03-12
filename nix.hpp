@@ -275,6 +275,13 @@ static auto get_stride(T_array& array, int dim)
   }
 }
 
+/// fill array with given value
+template <typename T_array, typename T>
+void fill_all(T_array& array, T&& value)
+{
+    std::fill_n(get_data_pointer(array), array.size(), value);
+}
+
 NIX_NAMESPACE_END
 
 // Local Variables:
