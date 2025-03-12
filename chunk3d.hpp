@@ -581,6 +581,7 @@ DEFINE_MEMBER(int, pack)(void* buffer, int address)
     count += memcpy_count(buffer, msgpack.data(), size, count, 0);
   }
 
+  count += memcpy_count(buffer, &boundary_margin, sizeof(int), count, 0);
   count += memcpy_count(buffer, &delx, sizeof(float64), count, 0);
   count += memcpy_count(buffer, &dely, sizeof(float64), count, 0);
   count += memcpy_count(buffer, &delz, sizeof(float64), count, 0);
@@ -620,6 +621,7 @@ DEFINE_MEMBER(int, unpack)(void* buffer, int address)
     option = json::from_msgpack(msgpack);
   }
 
+  count += memcpy_count(&boundary_margin, buffer, sizeof(int), 0, count);
   count += memcpy_count(&delx, buffer, sizeof(float64), 0, count);
   count += memcpy_count(&dely, buffer, sizeof(float64), 0, count);
   count += memcpy_count(&delz, buffer, sizeof(float64), 0, count);
@@ -640,6 +642,9 @@ DEFINE_MEMBER(int, unpack)(void* buffer, int address)
       count           = mpibufvec[mode]->unpack(buffer, count);
     }
   }
+
+  // set boundary margin related variables
+  set_boundary_margin(boundary_margin);
 
   return count;
 }
