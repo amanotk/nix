@@ -757,7 +757,7 @@ static void append_current3d(T_array& uj, T_int iz0, T_int iy0, T_int ix0,
 }
 
 template <int Order, typename T_array, typename T_int, typename T_float>
-static void append_moment1d(T_array& um, int iz, T_int iy, T_int ix0, int is,
+static void append_moment1d(T_array& um, int iz, int iy, T_int ix0, int is,
                             T_float moment[Order + 1][14])
 {
   constexpr int  size        = Order + 1;
