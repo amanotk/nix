@@ -13,6 +13,66 @@ namespace esirkepov
 namespace
 {
 ///
+/// 1D Esirkepov scheme primitives
+///
+template <int N, typename T_float>
+void ro1d(T_float qs, T_float ss[2][1][N], T_float current[N][4])
+{
+  for (int jx = 0; jx < N; jx++) {
+    current[jx][0] += qs * ss[1][0][jx];
+  }
+}
+
+template <int N, typename T_float>
+void ds1d(T_float ss[2][1][N])
+{
+  for (int dir = 0; dir < 1; dir++) {
+    for (int l = 0; l < N; l++) {
+      ss[1][dir][l] -= ss[0][dir][l];
+    }
+  }
+}
+
+template <int N, typename T_float>
+void jx1d(T_float qdxdt, T_float ss[2][1][N], T_float current[N][4])
+{
+  T_float ww = 0;
+  T_float wx = -qdxdt;
+
+  for (int jx = 0; jx < N - 1; jx++) {
+    ww += ss[1][0][jx] * wx;
+    current[jx + 1][1] += ww;
+  }
+}
+
+template <int N, typename T_float>
+void jy1d(T_float qvy, T_float ss[2][1][N], T_float current[N][4])
+{
+  const T_float A = 1.0 / 2;
+
+  for (int jx = 0; jx < N; jx++) {
+    T_float wy = (ss[0][0][jx] + A * ss[1][0][jx]) * qvy;
+
+    current[jx][2] += wy;
+  }
+}
+
+template <int N, typename T_float>
+void jz1d(T_float qvz, T_float ss[2][1][N], T_float current[N][4])
+{
+  const T_float A = 1.0 / 2;
+
+  for (int jx = 0; jx < N; jx++) {
+    T_float wz = (ss[0][0][jx] + A * ss[1][0][jx]) * qvz;
+
+    current[jx][3] += wz;
+  }
+}
+} // namespace
+
+namespace
+{
+///
 /// 2D Esirkepov scheme primitives
 ///
 template <int N, typename T_float>
@@ -212,6 +272,22 @@ static void shift_weights(T_int shift[Dim], T_float ss[Dim][Order + 3])
       }
     }
   }
+}
+
+template <int Order, typename T_float>
+static void deposit1d(float64 dxdt, T_float vy, T_float vz, T_float qs, T_float ss[2][1][Order + 3],
+                      T_float current[Order + 3][4])
+{
+  // calculate charge density
+  ro1d<Order + 3>(qs, ss, current);
+
+  // ss[1][*][*] now represents DS(*,*) of Esirkepov (2001)
+  ds1d<Order + 3>(ss);
+
+  // calculate Jx, Jy, Jz
+  jx1d<Order + 3>(qs * dxdt, ss, current);
+  jy1d<Order + 3>(qs * vy, ss, current);
+  jz1d<Order + 3>(qs * vz, ss, current);
 }
 
 template <int Order, typename T_float>

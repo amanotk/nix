@@ -18,6 +18,8 @@ namespace stdex    = std::experimental;
 using Array2D      = stdex::mdspan<float64, stdex::dextents<size_t, 2>>;
 using uniform_rand = std::uniform_real_distribution<float64>;
 
+const double epsilon = 1.0e-13;
+
 //
 // forward declarations of helper functions
 //
@@ -28,11 +30,31 @@ template <int Dim, int Order, typename T_int>
 bool test_shift_weights(T_int shift[], float64 ww[Order + 3]);
 
 template <int N>
-bool test_conservation2d(const float64 delt, const float64 delh, const float64 rho[N][N],
-                         const float64 cur[N][N][3], const float64 epsilon);
+bool test_conservation1d(const float64 delt, const float64 delh, const float64 rho[N],
+                         const float64 cur[N][4], const float64 epsilon);
 
 template <int Order>
-bool deposit2d_scalar(const float64 delt, const float64 delh, float64 xu[7], float64 xv[5],
+bool deposit1d_scalar(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
+                      float64 rho[Order + 3], float64 cur[Order + 3][4], const float64 epsilon);
+
+template <int Order, typename T_float>
+bool deposit1d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_float xv[7],
+                     T_float rho[Order + 3], T_float cur[Order + 3][4], const float64 epsilon);
+
+template <int Order, typename T_array>
+bool test_deposit1d_scalar(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
+                           const float64 epsilon);
+
+template <int Order, typename T_array>
+bool test_deposit1d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
+                          const float64 epsilon);
+
+template <int N>
+bool test_conservation2d(const float64 delt, const float64 delh, const float64 rho[N][N],
+                         const float64 cur[N][N][4], const float64 epsilon);
+
+template <int Order>
+bool deposit2d_scalar(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
                       float64 rho[Order + 3][Order + 3], float64 cur[Order + 3][Order + 3][3],
                       const float64 epsilon);
 
@@ -48,10 +70,6 @@ bool test_deposit2d_scalar(T_array& xu, T_array& xv, const int Np, float64 delt,
 template <int Order, typename T_array>
 bool test_deposit2d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
                           const float64 epsilon);
-
-template <int Order, typename T_array>
-bool test_deposit2d_scalar(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
-                           const float64 epsilon);
 
 template <int N>
 bool test_conservation3d(const float64 delt, const float64 delh, const float64 rho[N][N][N],
@@ -183,13 +201,12 @@ TEST_CASE("Esirkepov shift_weights")
   }
 }
 
-TEST_CASE("Esirkepov scheme in 2D")
+TEST_CASE("Esirkepov scheme in 1D")
 {
   const int     Np   = 1024;
   const float64 delt = GENERATE(0.5, 1.0, 2.0);
   const float64 delh = GENERATE(0.5, 1.0, 2.0);
   const float64 delv = delh / delt;
-  const float64 eps  = 1.0e-13;
 
   float64 xv_data[Np * 7];
   float64 xu_data[Np * 7];
@@ -203,44 +220,104 @@ TEST_CASE("Esirkepov scheme in 2D")
   //
   SECTION("First-order Esirkepov scheme : scalar")
   {
-    REQUIRE(test_deposit2d_scalar<1>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit1d_scalar<1>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   SECTION("First-order Esirkepov scheme : xsimd")
   {
-    REQUIRE(test_deposit2d_xsimd<1>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit1d_xsimd<1>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   //
   // second order
   //
   SECTION("Second-order Esirkepov scheme : scalar")
   {
-    REQUIRE(test_deposit2d_scalar<2>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit1d_scalar<2>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   SECTION("Second-order Esirkepov scheme : xsimd")
   {
-    REQUIRE(test_deposit2d_xsimd<2>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit1d_xsimd<2>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   //
   // third order
   //
   SECTION("Third-order Esirkepov scheme : scalar")
   {
-    REQUIRE(test_deposit2d_scalar<3>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit1d_scalar<3>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   SECTION("Third-order Esirkepov scheme : xsimd")
   {
-    REQUIRE(test_deposit2d_xsimd<3>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit1d_xsimd<3>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   //
   // forth order
   //
   SECTION("Fourth-order Esirkepov scheme : scalar")
   {
-    REQUIRE(test_deposit2d_scalar<4>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit1d_scalar<4>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   SECTION("Fourth-order Esirkepov scheme : xsimd")
   {
-    REQUIRE(test_deposit2d_xsimd<4>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit1d_xsimd<4>(xu, xv, Np, delt, delh, epsilon) == true);
+  }
+}
+
+TEST_CASE("Esirkepov scheme in 2D")
+{
+  const int     Np   = 1024;
+  const float64 delt = GENERATE(0.5, 1.0, 2.0);
+  const float64 delh = GENERATE(0.5, 1.0, 2.0);
+  const float64 delv = delh / delt;
+
+  float64 xv_data[Np * 7];
+  float64 xu_data[Np * 7];
+  auto    xv = stdex::mdspan(xv_data, Np, 7);
+  auto    xu = stdex::mdspan(xu_data, Np, 7);
+
+  set_random_particle(xu, delh, delv);
+
+  //
+  // first order
+  //
+  SECTION("First-order Esirkepov scheme : scalar")
+  {
+    REQUIRE(test_deposit2d_scalar<1>(xu, xv, Np, delt, delh, epsilon) == true);
+  }
+  SECTION("First-order Esirkepov scheme : xsimd")
+  {
+    REQUIRE(test_deposit2d_xsimd<1>(xu, xv, Np, delt, delh, epsilon) == true);
+  }
+  //
+  // second order
+  //
+  SECTION("Second-order Esirkepov scheme : scalar")
+  {
+    REQUIRE(test_deposit2d_scalar<2>(xu, xv, Np, delt, delh, epsilon) == true);
+  }
+  SECTION("Second-order Esirkepov scheme : xsimd")
+  {
+    REQUIRE(test_deposit2d_xsimd<2>(xu, xv, Np, delt, delh, epsilon) == true);
+  }
+  //
+  // third order
+  //
+  SECTION("Third-order Esirkepov scheme : scalar")
+  {
+    REQUIRE(test_deposit2d_scalar<3>(xu, xv, Np, delt, delh, epsilon) == true);
+  }
+  SECTION("Third-order Esirkepov scheme : xsimd")
+  {
+    REQUIRE(test_deposit2d_xsimd<3>(xu, xv, Np, delt, delh, epsilon) == true);
+  }
+  //
+  // forth order
+  //
+  SECTION("Fourth-order Esirkepov scheme : scalar")
+  {
+    REQUIRE(test_deposit2d_scalar<4>(xu, xv, Np, delt, delh, epsilon) == true);
+  }
+  SECTION("Fourth-order Esirkepov scheme : xsimd")
+  {
+    REQUIRE(test_deposit2d_xsimd<4>(xu, xv, Np, delt, delh, epsilon) == true);
   }
 }
 
@@ -250,7 +327,6 @@ TEST_CASE("Esirkepov scheme in 3D")
   const float64 delt = GENERATE(0.5, 1.0, 2.0);
   const float64 delh = GENERATE(0.5, 1.0, 2.0);
   const float64 delv = delh / delt;
-  const float64 eps  = 1.0e-13;
 
   float64 xv_data[Np * 7];
   float64 xu_data[Np * 7];
@@ -264,44 +340,44 @@ TEST_CASE("Esirkepov scheme in 3D")
   //
   SECTION("First-order Esirkepov scheme : scalar")
   {
-    REQUIRE(test_deposit3d_scalar<1>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit3d_scalar<1>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   SECTION("First-order Esirkepov scheme : xsimd")
   {
-    REQUIRE(test_deposit3d_xsimd<1>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit3d_xsimd<1>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   //
   // second order
   //
   SECTION("Second-order Esirkepov scheme : scalar")
   {
-    REQUIRE(test_deposit3d_scalar<2>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit3d_scalar<2>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   SECTION("Second-order Esirkepov scheme : xsimd")
   {
-    REQUIRE(test_deposit3d_xsimd<2>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit3d_xsimd<2>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   //
   // third order
   //
   SECTION("Third-order Esirkepov scheme : scalar")
   {
-    REQUIRE(test_deposit3d_scalar<3>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit3d_scalar<3>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   SECTION("Third-order Esirkepov scheme : xsimd")
   {
-    REQUIRE(test_deposit3d_xsimd<3>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit3d_xsimd<3>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   //
   // forth order
   //
   SECTION("Fourth-order Esirkepov scheme : scalar")
   {
-    REQUIRE(test_deposit3d_scalar<4>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit3d_scalar<4>(xu, xv, Np, delt, delh, epsilon) == true);
   }
   SECTION("Fourth-order Esirkepov scheme : xsimd")
   {
-    REQUIRE(test_deposit3d_xsimd<4>(xu, xv, Np, delt, delh, eps) == true);
+    REQUIRE(test_deposit3d_xsimd<4>(xu, xv, Np, delt, delh, epsilon) == true);
   }
 }
 
@@ -399,6 +475,249 @@ bool test_shift_weights(T_int shift[Dim], float64 ww[Order + 3])
 }
 
 //
+// for 1D version
+//
+template <int N>
+bool test_conservation1d(const float64 delt, const float64 delh, const float64 rho[N],
+                         const float64 cur[N][4], const float64 epsilon)
+{
+  bool    status      = true;
+  float64 errsum      = 0.0;
+  float64 errnrm      = 0.0;
+  float64 J[N + 1][2] = {0};
+
+  for (int jx = 0; jx < N; jx++) {
+    J[jx][0] = cur[jx][0];
+    J[jx][1] = cur[jx][1];
+  }
+
+  for (int jx = 0; jx < N; jx++) {
+    errnrm += std::abs(J[jx][0]);
+    errsum += std::abs((J[jx][0] - rho[jx]) + (delt / delh) * (J[jx + 1][1] - J[jx][1]));
+  }
+
+  status = status && (errsum < epsilon * errnrm);
+  return status;
+}
+
+template <int Order>
+bool deposit1d_scalar(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
+                      float64 rho[Order + 3], float64 cur[Order + 3][4], const float64 epsilon)
+{
+  const float64 rdh  = 1 / delh;
+  const float64 dhdt = delh / delt;
+  const float64 qs   = 1;
+
+  bool    status  = true;
+  float64 rhosum0 = 0;
+  float64 rhosum1 = 0;
+  float64 rhosum2 = 0;
+  float64 vy      = 0;
+  float64 vz      = 0;
+
+  float64 ss[2][1][Order + 3] = {0};
+
+  xv[0] = xu[0];
+  xv[1] = xu[1];
+  xv[2] = xu[2];
+  xu[0] = xu[0] + xu[3] * delt;
+  xu[1] = xu[1] + xu[4] * delt;
+  xu[2] = xu[2] + xu[5] * delt;
+  vy    = xu[4];
+  vz    = xu[5];
+
+  //
+  // before move
+  //
+  int ix0 = digitize(xv[0], 0.0, rdh);
+
+  shape_mc<Order>(xv[0], ix0 * delh, rdh, &ss[0][0][1]);
+
+  // check charge density
+  for (int jx = 0; jx < Order + 3; jx++) {
+    float64 r = ss[0][0][jx];
+    rhosum0 += cur[jx][0];
+    rhosum1 += r;
+    rho[jx] += r;
+  }
+
+  //
+  // after move
+  //
+  int ix1 = digitize(xu[0], 0.0, rdh);
+
+  shape_mc<Order>(xu[0], ix1 * delh, rdh, &ss[1][0][1 + ix1 - ix0]);
+
+  // calculate charge and current density
+  deposit1d<Order>(dhdt, vy, vz, qs, ss, cur);
+
+  // check charge density
+  for (int jx = 0; jx < Order + 3; jx++) {
+    rhosum2 += cur[jx][0];
+  }
+
+  // contribution to charge density is normalized to unity
+  status = status && (std::abs(rhosum1 - 1) < epsilon);
+
+  // charge density increases exactly by one
+  status = status && (std::abs(rhosum2 - (rhosum0 + 1)) < epsilon * std::abs(rhosum2));
+
+  return status;
+}
+
+template <int Order, typename T_float>
+bool deposit1d_xsimd(const float64 delt, const float64 delh, T_float xu[7], T_float xv[7],
+                     T_float rho[Order + 3], T_float cur[Order + 3][4], const float64 epsilon)
+{
+  const T_float zero = 0;
+  const T_float rdh  = 1 / delh;
+  const float64 dhdt = delh / delt;
+  const T_float qs   = 1;
+
+  bool    status  = true;
+  T_float rhosum0 = 0;
+  T_float rhosum1 = 0;
+  T_float rhosum2 = 0;
+  T_float vy      = 0;
+  T_float vz      = 0;
+
+  T_float ss[2][1][Order + 3] = {0};
+
+  xv[0] = xu[0];
+  xv[1] = xu[1];
+  xv[2] = xu[2];
+  xu[0] = xu[0] + xu[3] * delt;
+  xu[1] = xu[1] + xu[4] * delt;
+  xu[2] = xu[2] + xu[5] * delt;
+  vy    = xu[4];
+  vz    = xu[5];
+
+  //
+  // before move
+  //
+  auto ix0 = digitize(xv[0], zero, rdh);
+
+  shape_mc<Order>(xv[0], xsimd::to_float(ix0) * delh, rdh, &ss[0][0][1]);
+
+  // check charge density
+  for (int jx = 0; jx < Order + 3; jx++) {
+    T_float r = ss[0][0][jx];
+    rhosum0 += cur[jx][0];
+    rhosum1 += r;
+    rho[jx] += r;
+  }
+
+  //
+  // after move
+  //
+  auto ix1 = digitize(xu[0], zero, rdh);
+
+  shape_mc<Order>(xu[0], xsimd::to_float(ix1) * delh, rdh, &ss[1][0][1]);
+
+  //
+  // in-place shift of ss[1] according to particle movement
+  //
+  xsimd::batch<int64_t> shift[1] = {ix1 - ix0};
+  shift_weights<1, Order>(shift, ss[1]);
+
+  // calculate charge and current density
+  deposit1d<Order>(dhdt, vy, vz, qs, ss, cur);
+
+  // check charge density
+  for (int jx = 0; jx < Order + 3; jx++) {
+    rhosum2 += cur[jx][0];
+  }
+
+  // error check: normalize the accumulated sums by the SIMD width
+  {
+    float64 rho0 = xsimd::reduce_add(rhosum0) / T_float::size;
+    float64 rho1 = xsimd::reduce_add(rhosum1) / T_float::size;
+    float64 rho2 = xsimd::reduce_add(rhosum2) / T_float::size;
+
+    // contribution to charge density is normalized to unity
+    status = status && (std::abs(rho1 - 1) < epsilon);
+
+    // charge density increases exactly by one
+    status = status && (std::abs(rho2 - (rho0 + 1)) < epsilon * std::abs(rho2));
+  }
+
+  return status;
+}
+
+template <int Order, typename T_array>
+bool test_deposit1d_scalar(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
+                           const float64 epsilon)
+{
+  const int size    = Order + 3;
+  bool      status1 = true;
+  bool      status2 = true;
+
+  float64 cur[size][4] = {0};
+  float64 rho[size]    = {0};
+
+  for (int ip = 0; ip < Np; ip++) {
+    float64* xu_ptr = &xu(ip, 0);
+    float64* xv_ptr = &xv(ip, 0);
+
+    status1 = status1 && deposit1d_scalar<Order>(delt, delh, xu_ptr, xv_ptr, rho, cur, epsilon);
+  }
+  status2 = status2 && test_conservation1d<Order + 3>(delt, delh, rho, cur, epsilon);
+
+  return status1 && status2;
+}
+
+template <int Order, typename T_array>
+bool test_deposit1d_xsimd(T_array& xu, T_array& xv, const int Np, float64 delt, float64 delh,
+                          const float64 epsilon)
+{
+  const int size    = Order + 3;
+  bool      status1 = true;
+  bool      status2 = true;
+
+  float64  rho[size]         = {0};
+  float64  cur[size][4]      = {0};
+  simd_f64 rho_simd[size]    = {0};
+  simd_f64 cur_simd[size][4] = {0};
+  simd_f64 xu_simd[7];
+  simd_f64 xv_simd[7];
+  simd_i64 index_simd = xsimd::detail::make_sequence_as_batch<simd_i64>() * 7;
+
+  // SIMD version
+  for (int ip = 0; ip < Np - Np % simd_f64::size; ip += simd_f64::size) {
+    // Load data
+    for (int k = 0; k < 7; k++) {
+      xu_simd[k] = simd_f64::gather(&xu(ip, k), index_simd);
+      xv_simd[k] = simd_f64::gather(&xv(ip, k), index_simd);
+    }
+
+    status1 = status1 &&
+              deposit1d_xsimd<Order>(delt, delh, xu_simd, xv_simd, rho_simd, cur_simd, epsilon);
+  }
+
+  // scalar version
+  for (int ip = 0; ip < Np - Np % simd_f64::size; ip++) {
+    float64* xu_ptr = &xu(ip, 0);
+    float64* xv_ptr = &xv(ip, 0);
+
+    status1 = status1 && deposit1d_scalar<Order>(delt, delh, xu_ptr, xv_ptr, rho, cur, epsilon);
+  }
+
+  // compare scalar and SIMD results
+  for (int i = 0; i < size; i++) {
+    for (int l = 0; l < 4; l++) {
+      float64 cur_sum = xsimd::reduce_add(cur_simd[i][l]);
+      float64 cur_err = std::abs(cur[i][l] - cur_sum);
+      status2 = status2 && ((cur_err <= epsilon) || (cur_err <= std::abs(cur_sum) * epsilon));
+    }
+    float64 rho_sum = xsimd::reduce_add(rho_simd[i]);
+    float64 rho_err = std::abs(rho[i] - rho_sum);
+    status2         = status2 && ((rho_err <= epsilon) || (rho_err <= std::abs(rho_sum) * epsilon));
+  }
+
+  return status1 && status2;
+}
+
+//
 // for 2D version
 //
 
@@ -435,7 +754,7 @@ bool test_conservation2d(const float64 delt, const float64 delh, const float64 r
 }
 
 template <int Order>
-bool deposit2d_scalar(const float64 delt, const float64 delh, float64 xu[7], float64 xv[5],
+bool deposit2d_scalar(const float64 delt, const float64 delh, float64 xu[7], float64 xv[7],
                       float64 rho[Order + 3][Order + 3], float64 cur[Order + 3][Order + 3][4],
                       const float64 epsilon)
 {
