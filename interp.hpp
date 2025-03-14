@@ -12,6 +12,42 @@ namespace interp
 namespace
 {
 template <int Order, typename T_array, typename T_float>
+static auto interp1d_impl_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
+                                 T_float wx[Order + 2], T_float dt)
+{
+  int     iz       = iz0;
+  int     iy       = iy0;
+  T_float result_x = 0;
+  for (int jx = 0, ix = ix0; jx < Order + 2; jx++, ix++) {
+    result_x += eb(iz, iy, ix, ik) * wx[jx];
+  }
+
+  return result_x * dt;
+}
+
+template <int Order, typename T_array, typename T_int, typename T_float>
+static auto interp1d_impl_unsorted(T_array& eb, int iz0, int iy0, T_int ix0, int ik,
+                                   T_float wx[Order + 2], T_float dt)
+{
+  auto stride_z = get_stride(eb, 0);
+  auto stride_y = get_stride(eb, 1);
+  auto stride_x = get_stride(eb, 2);
+  auto stride_c = get_stride(eb, 3);
+  auto pointer  = get_data_pointer(eb);
+
+  T_int   index_z  = iz0 * stride_z;
+  T_int   index_y  = iy0 * stride_y + index_z;
+  T_float result_x = 0;
+  for (int jx = 0; jx < Order + 2; jx++) {
+    T_int index_x = (ix0 + jx) * stride_x + index_y;
+    T_int index   = index_x + ik * stride_c;
+    result_x += simd_f64::gather(pointer, index) * wx[jx];
+  }
+
+  return result_x * dt;
+}
+
+template <int Order, typename T_array, typename T_float>
 static auto interp2d_impl_sorted(T_array& eb, int iz0, int iy0, int ix0, int ik,
                                  T_float wy[Order + 2], T_float wx[Order + 2], T_float dt)
 {
@@ -132,6 +168,21 @@ static void shift_weights(T_int shift, T_float ww[Order + 2])
     ww[0] = xsimd::select(cond, T_float(0), ww[0]);
   } else {
     static_assert([] { return false; }(), "Invalid combination of types");
+  }
+}
+
+template <int Order, typename T_array, typename T_int, typename T_float>
+static auto interp1d(T_array& eb, int iz0, int iy0, T_int ix0, int ik, T_float wx[Order + 2],
+                     T_float dt)
+{
+  constexpr bool is_sorted = std::is_integral_v<T_int>;
+
+  if constexpr (is_sorted == true) {
+    // both scalar and vector implementation for scalar index
+    return interp1d_impl_sorted<Order>(eb, iz0, iy0, ix0, ik, wx, dt);
+  } else {
+    // vector implementation for vector index
+    return interp1d_impl_unsorted<Order>(eb, iz0, iy0, ix0, ik, wx, dt);
   }
 }
 
