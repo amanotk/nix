@@ -360,7 +360,11 @@ public:
   ///
   float64 get_xmin()
   {
-    return xlim[0];
+    if (dims[2] == 1) {
+      return -std::numeric_limits<float64>::max();
+    } else {
+      return xlim[0];
+    }
   }
 
   ///
@@ -368,7 +372,11 @@ public:
   ///
   float64 get_xmax()
   {
-    return xlim[1];
+    if (dims[2] == 1) {
+      return +std::numeric_limits<float64>::max();
+    } else {
+      return xlim[1];
+    }
   }
 
   ///
@@ -376,7 +384,11 @@ public:
   ///
   float64 get_ymin()
   {
-    return ylim[0];
+    if (dims[1] == 1) {
+      return -std::numeric_limits<float64>::max();
+    } else {
+      return ylim[0];
+    }
   }
 
   ///
@@ -384,7 +396,11 @@ public:
   ///
   float64 get_ymax()
   {
-    return ylim[1];
+    if (dims[1] == 1) {
+      return +std::numeric_limits<float64>::max();
+    } else {
+      return ylim[1];
+    }
   }
 
   ///
@@ -392,7 +408,11 @@ public:
   ///
   float64 get_zmin()
   {
-    return zlim[0];
+    if (dims[0] == 1) {
+      return -std::numeric_limits<float64>::max();
+    } else {
+      return zlim[0];
+    }
   }
 
   ///
@@ -400,7 +420,11 @@ public:
   ///
   float64 get_zmax()
   {
-    return zlim[1];
+    if (dims[0] == 1) {
+      return +std::numeric_limits<float64>::max();
+    } else {
+      return zlim[1];
+    }
   }
 
 protected:
@@ -699,58 +723,28 @@ DEFINE_MEMBER(void, set_coordinate)(float64 dz, float64 dy, float64 dx)
   delx = dx;
 
   // z direction
-  if (this->dims[0] == 1) {
-    // ignorable coordinate
-    zlim[0]  = -std::numeric_limits<float64>::max();
-    zlim[1]  = +std::numeric_limits<float64>::max();
-    zlim[2]  = +std::numeric_limits<float64>::max();
-    gzlim[0] = zlim[0];
-    gzlim[1] = zlim[1];
-    gzlim[2] = zlim[2];
-  } else {
-    zlim[0]  = offset[0] * delz;
-    zlim[1]  = offset[0] * delz + dims[0] * delz;
-    zlim[2]  = zlim[1] - zlim[0];
-    gzlim[0] = 0.0;
-    gzlim[1] = gdims[0] * delz;
-    gzlim[2] = gzlim[1] - gzlim[0];
-  }
+  zlim[0]  = offset[0] * delz;
+  zlim[1]  = offset[0] * delz + dims[0] * delz;
+  zlim[2]  = zlim[1] - zlim[0];
+  gzlim[0] = 0.0;
+  gzlim[1] = gdims[0] * delz;
+  gzlim[2] = gzlim[1] - gzlim[0];
 
   // y direction
-  if (this->dims[1] == 1) {
-    // ignorable coordinate
-    ylim[0]  = -std::numeric_limits<float64>::max();
-    ylim[1]  = +std::numeric_limits<float64>::max();
-    ylim[2]  = +std::numeric_limits<float64>::max();
-    gylim[0] = ylim[0];
-    gylim[1] = ylim[1];
-    gylim[2] = ylim[2];
-  } else {
-    ylim[0]  = offset[1] * dely;
-    ylim[1]  = offset[1] * dely + dims[1] * dely;
-    ylim[2]  = ylim[1] - ylim[0];
-    gylim[0] = 0.0;
-    gylim[1] = gdims[1] * dely;
-    gylim[2] = gylim[1] - gylim[0];
-  }
+  ylim[0]  = offset[1] * dely;
+  ylim[1]  = offset[1] * dely + dims[1] * dely;
+  ylim[2]  = ylim[1] - ylim[0];
+  gylim[0] = 0.0;
+  gylim[1] = gdims[1] * dely;
+  gylim[2] = gylim[1] - gylim[0];
 
   // x direction
-  if (this->dims[2] == 1) {
-    // ignorable coordinate
-    xlim[0]  = -std::numeric_limits<float64>::max();
-    xlim[1]  = +std::numeric_limits<float64>::max();
-    xlim[2]  = +std::numeric_limits<float64>::max();
-    gxlim[0] = xlim[0];
-    gxlim[1] = xlim[1];
-    gxlim[2] = xlim[2];
-  } else {
-    xlim[0]  = offset[2] * delx;
-    xlim[1]  = offset[2] * delx + dims[2] * delx;
-    xlim[2]  = xlim[1] - xlim[0];
-    gxlim[0] = 0.0;
-    gxlim[1] = gdims[2] * delx;
-    gxlim[2] = gxlim[1] - gxlim[0];
-  }
+  xlim[0]  = offset[2] * delx;
+  xlim[1]  = offset[2] * delx + dims[2] * delx;
+  xlim[2]  = xlim[1] - xlim[0];
+  gxlim[0] = 0.0;
+  gxlim[1] = gdims[2] * delx;
+  gxlim[2] = gxlim[1] - gxlim[0];
 }
 
 DEFINE_MEMBER(void, set_global_context)(const int* offset, const int* gdims)
@@ -847,17 +841,25 @@ DEFINE_MEMBER(void, set_boundary_particle)(ParticlePtr particle, int Lbp, int Ub
 DEFINE_MEMBER(void, set_boundary_particle_after_sendrecv)
 (ParticlePtr particle, int Lbp, int Ubp, int species)
 {
-  // NOTE: trick to take care of round-off error
-  float64 xlength = gxlim[2] - std::numeric_limits<float64>::epsilon();
-  float64 ylength = gylim[2] - std::numeric_limits<float64>::epsilon();
-  float64 zlength = gzlim[2] - std::numeric_limits<float64>::epsilon();
+  // trick to take care of round-off error
+  const float64 xlength = gxlim[2] - std::numeric_limits<float64>::epsilon();
+  const float64 ylength = gylim[2] - std::numeric_limits<float64>::epsilon();
+  const float64 zlength = gzlim[2] - std::numeric_limits<float64>::epsilon();
+
+  // tick to take care of ignorable coordinates
+  const float64 xminimum = dims[2] != 1 ? gxlim[0] : -std::numeric_limits<float64>::max();
+  const float64 xmaximum = dims[2] != 1 ? gxlim[1] : +std::numeric_limits<float64>::max();
+  const float64 yminimum = dims[1] != 1 ? gylim[0] : -std::numeric_limits<float64>::max();
+  const float64 ymaximum = dims[1] != 1 ? gylim[1] : +std::numeric_limits<float64>::max();
+  const float64 zminimum = dims[0] != 1 ? gzlim[0] : -std::numeric_limits<float64>::max();
+  const float64 zmaximum = dims[0] != 1 ? gzlim[1] : +std::numeric_limits<float64>::max();
 
   // apply periodic boundary condition
   auto& xu = particle->xu;
   for (int ip = Lbp; ip <= Ubp; ip++) {
-    xu(ip, 0) += (xu(ip, 0) < gxlim[0]) * xlength - (xu(ip, 0) >= gxlim[1]) * xlength;
-    xu(ip, 1) += (xu(ip, 1) < gylim[0]) * ylength - (xu(ip, 1) >= gylim[1]) * ylength;
-    xu(ip, 2) += (xu(ip, 2) < gzlim[0]) * zlength - (xu(ip, 2) >= gzlim[1]) * zlength;
+    xu(ip, 0) += (xu(ip, 0) < xminimum) * xlength - (xu(ip, 0) >= xmaximum) * xlength;
+    xu(ip, 1) += (xu(ip, 1) < yminimum) * ylength - (xu(ip, 1) >= ymaximum) * ylength;
+    xu(ip, 2) += (xu(ip, 2) < zminimum) * zlength - (xu(ip, 2) >= zmaximum) * zlength;
   }
 }
 
