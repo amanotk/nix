@@ -16,8 +16,8 @@ class Halo3D
 public:
   static constexpr bool is_buffer_fixed = FixedBufferFlag;
 
-  Data*   data;
-  Chunk*  chunk;
+  Data*  data;
+  Chunk* chunk;
 
   ///
   /// @brief constructor
@@ -32,7 +32,7 @@ public:
   /// @brief pre-processing for packing
   ///
   template <typename BufferPtr>
-  void pre_pack(BufferPtr& mpibuf)
+  void pre_pack(BufferPtr& mpibuf, int indexlb[3], int indexub[3])
   {
   }
 
@@ -40,7 +40,7 @@ public:
   /// @brief post-processing for packing
   ///
   template <typename BufferPtr>
-  void post_pack(BufferPtr& mpibuf)
+  void post_pack(BufferPtr& mpibuf, int indexlb[3], int indexub[3])
   {
   }
 
@@ -48,7 +48,7 @@ public:
   /// @brief pre-processing for unpacking
   ///
   template <typename BufferPtr>
-  void pre_unpack(BufferPtr& mpibuf)
+  void pre_unpack(BufferPtr& mpibuf, int indexlb[3], int indexub[3])
   {
   }
 
@@ -56,7 +56,7 @@ public:
   /// @brief post-processing for unpacking
   ///
   template <typename BufferPtr>
-  void post_unpack(BufferPtr& mpibuf)
+  void post_unpack(BufferPtr& mpibuf, int indexlb[3], int indexub[3])
   {
   }
 

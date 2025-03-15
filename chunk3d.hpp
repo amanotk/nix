@@ -468,12 +468,26 @@ DEFINE_MEMBER(void, set_boundary_margin)(int margin)
   // z direction
   if (this->dims[0] == 1) {
     // ignorable coordinate
-    Lbz        = 1;
-    Ubz        = 1;
+    Lbz        = boundary_margin;
+    Ubz        = boundary_margin;
     indexlb[0] = 1;
     indexub[0] = 1;
     dirlb[0]   = 0;
     dirub[0]   = 0;
+    // MPI send
+    sendlb[0][0] = Lbz;
+    sendlb[0][1] = Lbz;
+    sendlb[0][2] = Ubz - boundary_margin + 1;
+    sendub[0][0] = Lbz + boundary_margin - 1;
+    sendub[0][1] = Ubz;
+    sendub[0][2] = Ubz;
+    // MPI recv
+    recvlb[0][0] = Lbz - boundary_margin;
+    recvlb[0][1] = Lbz;
+    recvlb[0][2] = Ubz + 1;
+    recvub[0][0] = Lbz - 1;
+    recvub[0][1] = Ubz;
+    recvub[0][2] = Ubz + boundary_margin;
   } else {
     // lower and upper bound
     Lbz        = boundary_margin;
@@ -501,12 +515,26 @@ DEFINE_MEMBER(void, set_boundary_margin)(int margin)
   // y direction
   if (this->dims[1] == 1) {
     // ignorable coordinate
-    Lby        = 1;
-    Uby        = 1;
+    Lby        = boundary_margin;
+    Uby        = boundary_margin;
     indexlb[1] = 1;
     indexub[1] = 1;
     dirlb[1]   = 0;
     dirub[1]   = 0;
+    // MPI send
+    sendlb[1][0] = Lby;
+    sendlb[1][1] = Lby;
+    sendlb[1][2] = Uby - boundary_margin + 1;
+    sendub[1][0] = Lby + boundary_margin - 1;
+    sendub[1][1] = Uby;
+    sendub[1][2] = Uby;
+    // MPI recv
+    recvlb[1][0] = Lby - boundary_margin;
+    recvlb[1][1] = Lby;
+    recvlb[1][2] = Uby + 1;
+    recvub[1][0] = Lby - 1;
+    recvub[1][1] = Uby;
+    recvub[1][2] = Uby + boundary_margin;
   } else {
     // lower and upper bound
     Lby        = boundary_margin;
@@ -536,12 +564,26 @@ DEFINE_MEMBER(void, set_boundary_margin)(int margin)
   // x direction
   if (this->dims[2] == 1) {
     // ignorable coordinate
-    Lbx        = 1;
-    Ubx        = 1;
+    Lbx        = boundary_margin;
+    Ubx        = boundary_margin;
     indexlb[2] = 1;
     indexub[2] = 1;
     dirlb[2]   = 0;
     dirub[2]   = 0;
+    // MPI send
+    sendlb[2][0] = Lbx;
+    sendlb[2][1] = Lbx;
+    sendlb[2][2] = Ubx - boundary_margin + 1;
+    sendub[2][0] = Lbx + boundary_margin - 1;
+    sendub[2][1] = Ubx;
+    sendub[2][2] = Ubx;
+    // MPI recv
+    recvlb[2][0] = Lbx - boundary_margin;
+    recvlb[2][1] = Lbx;
+    recvlb[2][2] = Ubx + 1;
+    recvub[2][0] = Lbx - 1;
+    recvub[2][1] = Ubx;
+    recvub[2][2] = Ubx + boundary_margin;
   } else {
     // lower and upper bound
     Lbx        = boundary_margin;
@@ -824,9 +866,9 @@ DEFINE_MEMBER(void, set_mpi_buffer)
 {
   int size = 0;
 
-  for (int iz = indexlb[0]; iz <= indexub[0]; iz++) {
-    for (int iy = indexlb[1]; iy <= indexub[1]; iy++) {
-      for (int ix = indexlb[2]; ix <= indexub[2]; ix++) {
+  for (int iz = 0; iz <= 2; iz++) {
+    for (int iy = 0; iy <= 2; iy++) {
+      for (int ix = 0; ix <= 2; ix++) {
         if (iz == 1 && iy == 1 && ix == 1) {
           mpibuf->bufsize(iz, iy, ix) = 0;
           mpibuf->bufaddr(iz, iy, ix) = size;
@@ -953,7 +995,7 @@ DEFINE_MEMBER(template <typename Halo> void, pack_bc_exchange)
 (MpiBufferPtr mpibuf, Halo& halo)
 {
   // pre-process
-  halo.pre_pack(mpibuf);
+  halo.pre_pack(mpibuf, indexlb, indexub);
 
   for (int dirz = dirlb[0], iz = indexlb[0]; dirz <= dirub[0]; dirz++, iz++) {
     for (int diry = dirlb[1], iy = indexlb[1]; diry <= dirub[1]; diry++, iy++) {
@@ -981,14 +1023,14 @@ DEFINE_MEMBER(template <typename Halo> void, pack_bc_exchange)
   }
 
   // post-process
-  halo.post_pack(mpibuf);
+  halo.post_pack(mpibuf, indexlb, indexub);
 }
 
 DEFINE_MEMBER(template <typename Halo> void, unpack_bc_exchange)
 (MpiBufferPtr mpibuf, Halo& halo)
 {
   // pre-process
-  halo.pre_unpack(mpibuf);
+  halo.pre_unpack(mpibuf, indexlb, indexub);
 
   //
   // unpack recv buffer
@@ -1016,7 +1058,7 @@ DEFINE_MEMBER(template <typename Halo> void, unpack_bc_exchange)
   }
 
   // post-proces
-  halo.post_unpack(mpibuf);
+  halo.post_unpack(mpibuf, indexlb, indexub);
 }
 
 DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
@@ -1027,6 +1069,15 @@ DEFINE_MEMBER(template <typename Halo> void, begin_bc_exchange)
 
   mpibuf->sendwait = false;
   mpibuf->recvwait = false;
+
+  for (int iz = 0; iz <= 2; iz++) {
+    for (int iy = 0; iy <= 2; iy++) {
+      for (int ix = 0; ix <= 2; ix++) {
+        mpibuf->sendreq(iz, iy, ix) = MPI_REQUEST_NULL;
+        mpibuf->recvreq(iz, iy, ix) = MPI_REQUEST_NULL;
+      }
+    }
+  }
 
   OMP_MAYBE_CRITICAL
   for (int dirz = dirlb[0], iz = indexlb[0]; dirz <= dirub[0]; dirz++, iz++) {

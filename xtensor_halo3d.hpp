@@ -209,7 +209,7 @@ public:
   }
 
   template <typename BufferPtr>
-  void pre_pack(BufferPtr& mpibuf)
+  void pre_pack(BufferPtr& mpibuf, int indexlb[3], int indexub[3])
   {
     const float64 xmin = chunk->get_xmin();
     const float64 xmax = chunk->get_xmax();
@@ -252,9 +252,9 @@ public:
       mpibuf->bufsize.fill(0);
       mpibuf->bufaddr.fill(0);
 
-      for (int iz = 0; iz < 3; iz++) {
-        for (int iy = 0; iy < 3; iy++) {
-          for (int ix = 0; ix < 3; ix++) {
+      for (int iz = indexlb[0]; iz <= indexub[0]; iz++) {
+        for (int iy = indexlb[1]; iy <= indexub[1]; iy++) {
+          for (int ix = indexlb[2]; ix <= indexub[2]; ix++) {
             // skip
             if (iz == 1 && iy == 1 && ix == 1)
               continue;
@@ -273,9 +273,9 @@ public:
     // pack header
     //
     {
-      for (int iz = 0; iz < 3; iz++) {
-        for (int iy = 0; iy < 3; iy++) {
-          for (int ix = 0; ix < 3; ix++) {
+      for (int iz = indexlb[0]; iz <= indexub[0]; iz++) {
+        for (int iy = indexlb[1]; iy <= indexub[1]; iy++) {
+          for (int ix = indexlb[2]; ix <= indexub[2]; ix++) {
             // skip
             if (iz == 1 && iy == 1 && ix == 1)
               continue;
@@ -298,9 +298,9 @@ public:
 
       for (int is = 0; is < Ns; is++) {
         // skip header
-        for (int iz = 0; iz < 3; iz++) {
-          for (int iy = 0; iy < 3; iy++) {
-            for (int ix = 0; ix < 3; ix++) {
+        for (int iz = indexlb[0]; iz <= indexub[0]; iz++) {
+          for (int iy = indexlb[1]; iy <= indexub[1]; iy++) {
+            for (int ix = indexlb[2]; ix <= indexub[2]; ix++) {
               addr(iz, iy, ix) += head_byte;
             }
           }
@@ -332,9 +332,9 @@ public:
       bool is_all_packed = true;
 
       for (int is = 0; is < Ns; is++) {
-        for (int iz = 0; iz < 3; iz++) {
-          for (int iy = 0; iy < 3; iy++) {
-            for (int ix = 0; ix < 3; ix++) {
+        for (int iz = indexlb[0]; iz <= indexub[0]; iz++) {
+          for (int iy = indexlb[1]; iy <= indexub[1]; iy++) {
+            for (int ix = indexlb[2]; ix <= indexub[2]; ix++) {
               is_all_packed = is_all_packed && (send_count(is, iz, iy, ix) == 0);
             }
           }
@@ -362,13 +362,13 @@ public:
   }
 
   template <typename BufferPtr>
-  void post_pack(BufferPtr& mpibuf)
+  void post_pack(BufferPtr& mpibuf, int indexlb[3], int indexub[3])
   {
     // do nothing
   }
 
   template <typename BufferPtr>
-  void pre_unpack(BufferPtr& mpibuf)
+  void pre_unpack(BufferPtr& mpibuf, int indexlb[3], int indexub[3])
   {
     std::array<size_t, 4>   shape = {static_cast<size_t>(Ns + 1), 3ul, 3ul, 3ul};
     xt::xtensor<int32_t, 4> recv_count(shape);
@@ -379,9 +379,9 @@ public:
     //
     // unpack header
     //
-    for (int iz = 0; iz < 3; iz++) {
-      for (int iy = 0; iy < 3; iy++) {
-        for (int ix = 0; ix < 3; ix++) {
+    for (int iz = indexlb[0]; iz <= indexub[0]; iz++) {
+      for (int iy = indexlb[1]; iy <= indexub[1]; iy++) {
+        for (int ix = indexlb[2]; ix <= indexub[2]; ix++) {
           // skip
           if (iz == 1 && iy == 1 && ix == 1)
             continue;
@@ -410,9 +410,9 @@ public:
 
       for (int is = 0; is < Ns; is++) {
         int np_next = particle[is]->Np;
-        for (int iz = 0; iz < 3; iz++) {
-          for (int iy = 0; iy < 3; iy++) {
-            for (int ix = 0; ix < 3; ix++) {
+        for (int iz = indexlb[0]; iz <= indexub[0]; iz++) {
+          for (int iy = indexlb[1]; iy <= indexub[1]; iy++) {
+            for (int ix = indexlb[2]; ix <= indexub[2]; ix++) {
               np_next += recv_count(is, iz, iy, ix);
             }
           }
@@ -484,7 +484,7 @@ public:
   }
 
   template <typename BufferPtr>
-  void post_unpack(BufferPtr& mpibuf)
+  void post_unpack(BufferPtr& mpibuf, int indexlb[3], int indexub[3])
   {
     //
     // set boundary condition and append count for received particles
