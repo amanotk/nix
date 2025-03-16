@@ -358,11 +358,35 @@ public:
   }
 
   ///
+  /// @brief return if x dimension is ignorable
+  ///
+  bool has_x_dim() const
+  {
+    return has_dim[2];
+  }
+
+  ///
+  /// @brief return if y dimension is ignorable
+  ///
+  bool has_y_dim() const
+  {
+    return has_dim[1];
+  }
+
+  ///
+  /// @brief return if z dimension is ignorable
+  ///
+  bool has_z_dim() const
+  {
+    return has_dim[0];
+  }
+
+  ///
   /// @brief get lower bound in x
   ///
   float64 get_xmin()
   {
-    if (has_dim[2]) {
+    if (has_x_dim()) {
       return xlim[0];
     } else {
       return -std::numeric_limits<float64>::max();
@@ -374,7 +398,7 @@ public:
   ///
   float64 get_xmax()
   {
-    if (has_dim[2]) {
+    if (has_x_dim()) {
       return xlim[1];
     } else {
       return +std::numeric_limits<float64>::max();
@@ -386,7 +410,7 @@ public:
   ///
   float64 get_ymin()
   {
-    if (has_dim[1]) {
+    if (has_y_dim()) {
       return ylim[0];
     } else {
       return -std::numeric_limits<float64>::max();
@@ -398,7 +422,7 @@ public:
   ///
   float64 get_ymax()
   {
-    if (has_dim[1]) {
+    if (has_y_dim()) {
       return ylim[1];
     } else {
       return +std::numeric_limits<float64>::max();
@@ -410,7 +434,7 @@ public:
   ///
   float64 get_zmin()
   {
-    if (has_dim[0]) {
+    if (has_z_dim()) {
       return zlim[0];
     } else {
       return -std::numeric_limits<float64>::max();
@@ -422,7 +446,7 @@ public:
   ///
   float64 get_zmax()
   {
-    if (has_dim[0]) {
+    if (has_z_dim()) {
       return zlim[1];
     } else {
       return +std::numeric_limits<float64>::max();
@@ -495,148 +519,97 @@ DEFINE_MEMBER(void, set_boundary_margin)(int margin)
 {
   boundary_margin = margin;
 
-  // z direction
-  if (this->dims[0] == 1) {
-    // ignorable coordinate
+  // direction indices
+  indexlb[0] = 0;
+  indexub[0] = 2;
+  dirlb[0]   = -1;
+  dirub[0]   = +1;
+  indexlb[1] = 0;
+  indexub[1] = 2;
+  dirlb[1]   = -1;
+  dirub[1]   = +1;
+  indexlb[2] = 0;
+  indexub[2] = 2;
+  dirlb[2]   = -1;
+  dirub[2]   = +1;
+
+  // lower and upper bound
+  Lbz = boundary_margin;
+  Ubz = boundary_margin + this->dims[0] - 1;
+  Lby = boundary_margin;
+  Uby = boundary_margin + this->dims[1] - 1;
+  Lbx = boundary_margin;
+  Ubx = boundary_margin + this->dims[2] - 1;
+
+  if (has_z_dim() == false) {
+    // z direction is ignorable coordinate
     Lbz        = boundary_margin;
     Ubz        = boundary_margin;
     indexlb[0] = 1;
     indexub[0] = 1;
     dirlb[0]   = 0;
     dirub[0]   = 0;
-    // MPI send
-    sendlb[0][0] = Lbz;
-    sendlb[0][1] = Lbz;
-    sendlb[0][2] = Ubz - boundary_margin + 1;
-    sendub[0][0] = Lbz + boundary_margin - 1;
-    sendub[0][1] = Ubz;
-    sendub[0][2] = Ubz;
-    // MPI recv
-    recvlb[0][0] = Lbz - boundary_margin;
-    recvlb[0][1] = Lbz;
-    recvlb[0][2] = Ubz + 1;
-    recvub[0][0] = Lbz - 1;
-    recvub[0][1] = Ubz;
-    recvub[0][2] = Ubz + boundary_margin;
-  } else {
-    // lower and upper bound
-    Lbz        = boundary_margin;
-    Ubz        = boundary_margin + this->dims[0] - 1;
-    indexlb[0] = 0;
-    indexub[0] = 2;
-    dirlb[0]   = -1;
-    dirub[0]   = +1;
-    // MPI send
-    sendlb[0][0] = Lbz;
-    sendlb[0][1] = Lbz;
-    sendlb[0][2] = Ubz - boundary_margin + 1;
-    sendub[0][0] = Lbz + boundary_margin - 1;
-    sendub[0][1] = Ubz;
-    sendub[0][2] = Ubz;
-    // MPI recv
-    recvlb[0][0] = Lbz - boundary_margin;
-    recvlb[0][1] = Lbz;
-    recvlb[0][2] = Ubz + 1;
-    recvub[0][0] = Lbz - 1;
-    recvub[0][1] = Ubz;
-    recvub[0][2] = Ubz + boundary_margin;
   }
 
-  // y direction
-  if (this->dims[1] == 1) {
-    // ignorable coordinate
+  if (has_y_dim() == false) {
+    // y direction is ignorable coordinate
     Lby        = boundary_margin;
     Uby        = boundary_margin;
     indexlb[1] = 1;
     indexub[1] = 1;
     dirlb[1]   = 0;
     dirub[1]   = 0;
-    // MPI send
-    sendlb[1][0] = Lby;
-    sendlb[1][1] = Lby;
-    sendlb[1][2] = Uby - boundary_margin + 1;
-    sendub[1][0] = Lby + boundary_margin - 1;
-    sendub[1][1] = Uby;
-    sendub[1][2] = Uby;
-    // MPI recv
-    recvlb[1][0] = Lby - boundary_margin;
-    recvlb[1][1] = Lby;
-    recvlb[1][2] = Uby + 1;
-    recvub[1][0] = Lby - 1;
-    recvub[1][1] = Uby;
-    recvub[1][2] = Uby + boundary_margin;
-  } else {
-    // lower and upper bound
-    Lby        = boundary_margin;
-    Lby        = boundary_margin;
-    Uby        = boundary_margin + this->dims[1] - 1;
-    Uby        = boundary_margin + this->dims[1] - 1;
-    indexlb[1] = 0;
-    indexub[1] = 2;
-    dirlb[1]   = -1;
-    dirub[1]   = +1;
-    // MPI send
-    sendlb[1][0] = Lby;
-    sendlb[1][1] = Lby;
-    sendlb[1][2] = Uby - boundary_margin + 1;
-    sendub[1][0] = Lby + boundary_margin - 1;
-    sendub[1][1] = Uby;
-    sendub[1][2] = Uby;
-    // MPI recv
-    recvlb[1][0] = Lby - boundary_margin;
-    recvlb[1][1] = Lby;
-    recvlb[1][2] = Uby + 1;
-    recvub[1][0] = Lby - 1;
-    recvub[1][1] = Uby;
-    recvub[1][2] = Uby + boundary_margin;
   }
 
-  // x direction
-  if (this->dims[2] == 1) {
-    // ignorable coordinate
+  if (has_x_dim() == false) {
+    // x direction is ignorable coordinate
     Lbx        = boundary_margin;
     Ubx        = boundary_margin;
     indexlb[2] = 1;
     indexub[2] = 1;
     dirlb[2]   = 0;
     dirub[2]   = 0;
-    // MPI send
-    sendlb[2][0] = Lbx;
-    sendlb[2][1] = Lbx;
-    sendlb[2][2] = Ubx - boundary_margin + 1;
-    sendub[2][0] = Lbx + boundary_margin - 1;
-    sendub[2][1] = Ubx;
-    sendub[2][2] = Ubx;
-    // MPI recv
-    recvlb[2][0] = Lbx - boundary_margin;
-    recvlb[2][1] = Lbx;
-    recvlb[2][2] = Ubx + 1;
-    recvub[2][0] = Lbx - 1;
-    recvub[2][1] = Ubx;
-    recvub[2][2] = Ubx + boundary_margin;
-  } else {
-    // lower and upper bound
-    Lbx        = boundary_margin;
-    Ubx        = boundary_margin + this->dims[2] - 1;
-    indexlb[2] = 0;
-    indexub[2] = 2;
-    dirlb[2]   = -1;
-    dirub[2]   = +1;
-    // MPI send
-    sendlb[2][0] = Lbx;
-    sendlb[2][1] = Lbx;
-    sendlb[2][2] = Ubx - boundary_margin + 1;
-    sendub[2][0] = Lbx + boundary_margin - 1;
-    sendub[2][1] = Ubx;
-    sendub[2][2] = Ubx;
-    // MPI recv
-    recvlb[2][0] = Lbx - boundary_margin;
-    recvlb[2][1] = Lbx;
-    recvlb[2][2] = Ubx + 1;
-    recvub[2][0] = Lbx - 1;
-    recvub[2][1] = Ubx;
-    recvub[2][2] = Ubx + boundary_margin;
   }
+
+  // MPI send
+  sendlb[0][0] = Lbz;
+  sendlb[0][1] = Lbz;
+  sendlb[0][2] = Ubz - boundary_margin + 1;
+  sendub[0][0] = Lbz + boundary_margin - 1;
+  sendub[0][1] = Ubz;
+  sendub[0][2] = Ubz;
+  sendlb[1][0] = Lby;
+  sendlb[1][1] = Lby;
+  sendlb[1][2] = Uby - boundary_margin + 1;
+  sendub[1][0] = Lby + boundary_margin - 1;
+  sendub[1][1] = Uby;
+  sendub[1][2] = Uby;
+  sendlb[2][0] = Lbx;
+  sendlb[2][1] = Lbx;
+  sendlb[2][2] = Ubx - boundary_margin + 1;
+  sendub[2][0] = Lbx + boundary_margin - 1;
+  sendub[2][1] = Ubx;
+  sendub[2][2] = Ubx;
+
+  // MPI recv
+  recvlb[0][0] = Lbz - boundary_margin;
+  recvlb[0][1] = Lbz;
+  recvlb[0][2] = Ubz + 1;
+  recvub[0][0] = Lbz - 1;
+  recvub[0][1] = Ubz;
+  recvub[0][2] = Ubz + boundary_margin;
+  recvlb[1][0] = Lby - boundary_margin;
+  recvlb[1][1] = Lby;
+  recvlb[1][2] = Uby + 1;
+  recvub[1][0] = Lby - 1;
+  recvub[1][1] = Uby;
+  recvub[1][2] = Uby + boundary_margin;
+  recvlb[2][0] = Lbx - boundary_margin;
+  recvlb[2][1] = Lbx;
+  recvlb[2][2] = Ubx + 1;
+  recvub[2][0] = Lbx - 1;
+  recvub[2][1] = Ubx;
+  recvub[2][2] = Ubx + boundary_margin;
 }
 
 DEFINE_MEMBER(int, pack)(void* buffer, int address)
@@ -847,25 +820,26 @@ DEFINE_MEMBER(void, set_boundary_particle)(ParticlePtr particle, int Lbp, int Ub
 DEFINE_MEMBER(void, set_boundary_particle_after_sendrecv)
 (ParticlePtr particle, int Lbp, int Ubp, int species)
 {
-  // trick to take care of round-off error
-  const float64 xlength = gxlim[2] - std::numeric_limits<float64>::epsilon();
-  const float64 ylength = gylim[2] - std::numeric_limits<float64>::epsilon();
-  const float64 zlength = gzlim[2] - std::numeric_limits<float64>::epsilon();
-
-  // tick to take care of ignorable coordinates
-  const float64 xminimum = dims[2] != 1 ? gxlim[0] : -std::numeric_limits<float64>::max();
-  const float64 xmaximum = dims[2] != 1 ? gxlim[1] : +std::numeric_limits<float64>::max();
-  const float64 yminimum = dims[1] != 1 ? gylim[0] : -std::numeric_limits<float64>::max();
-  const float64 ymaximum = dims[1] != 1 ? gylim[1] : +std::numeric_limits<float64>::max();
-  const float64 zminimum = dims[0] != 1 ? gzlim[0] : -std::numeric_limits<float64>::max();
-  const float64 zmaximum = dims[0] != 1 ? gzlim[1] : +std::numeric_limits<float64>::max();
+  // trick to take care of round-off error and ignorable coordinates
+  const int     xdim = has_x_dim();
+  const int     ydim = has_y_dim();
+  const int     zdim = has_z_dim();
+  const float64 xmin = gxlim[0];
+  const float64 xmax = gxlim[1];
+  const float64 ymin = gylim[0];
+  const float64 ymax = gylim[1];
+  const float64 zmin = gzlim[0];
+  const float64 zmax = gzlim[1];
+  const float64 xlen = xdim * (gxlim[2] - std::numeric_limits<float64>::epsilon());
+  const float64 ylen = ydim * (gylim[2] - std::numeric_limits<float64>::epsilon());
+  const float64 zlen = zdim * (gzlim[2] - std::numeric_limits<float64>::epsilon());
 
   // apply periodic boundary condition
   auto& xu = particle->xu;
   for (int ip = Lbp; ip <= Ubp; ip++) {
-    xu(ip, 0) += (xu(ip, 0) < xminimum) * xlength - (xu(ip, 0) >= xmaximum) * xlength;
-    xu(ip, 1) += (xu(ip, 1) < yminimum) * ylength - (xu(ip, 1) >= ymaximum) * ylength;
-    xu(ip, 2) += (xu(ip, 2) < zminimum) * zlength - (xu(ip, 2) >= zmaximum) * zlength;
+    xu(ip, 0) += (xu(ip, 0) < xmin) * xlen - (xu(ip, 0) >= xmax) * xlen;
+    xu(ip, 1) += (xu(ip, 1) < ymin) * ylen - (xu(ip, 1) >= ymax) * ylen;
+    xu(ip, 2) += (xu(ip, 2) < zmin) * zlen - (xu(ip, 2) >= zmax) * zlen;
   }
 }
 
