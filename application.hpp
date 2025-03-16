@@ -25,7 +25,7 @@ template <typename Chunk, typename ChunkMap>
 class Application
 {
 protected:
-  using ThisType        = Application<Chunk, ChunkMap>;
+  using this_type       = Application<Chunk, ChunkMap>;
   using PtrArgParser    = std::unique_ptr<ArgParser>;
   using PtrCfgParser    = std::unique_ptr<CfgParser>;
   using PtrStateHandler = std::unique_ptr<StateHandler>;
