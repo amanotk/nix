@@ -150,6 +150,8 @@ public:
   using MpiBufferVec = std::vector<MpiBufferPtr>;
 
 protected:
+  bool has_dim[3]; ///< flag to indicate if the dimension is ignorable
+
   int boundary_margin; ///< boundary margin
   int gdims[3];        ///< global number of grids
   int offset[3];       ///< global index offset
@@ -186,7 +188,7 @@ public:
   /// @param dims number of grids for each direction
   /// @param id Chunk ID
   ///
-  Chunk3D(const int dims[3], int id = 0);
+  Chunk3D(const int dims[3], const bool has_dim[3], int id = 0);
 
   ///
   /// @brief set boundary margin
@@ -480,8 +482,12 @@ protected:
   type Chunk3D<ParticlePtr>::name
 
 DEFINE_MEMBER(, Chunk3D)
-(const int dims[3], int id) : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0), option({})
+(const int dims[3], const bool has_dim[3], int id)
+    : Chunk<3>(dims, id), delx(1.0), dely(1.0), delz(1.0), option({})
 {
+  for (int i = 0; i < 3; i++) {
+    this->has_dim[i] = has_dim[i];
+  }
   reset_load();
 }
 

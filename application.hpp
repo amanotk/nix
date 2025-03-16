@@ -189,9 +189,9 @@ public:
   /// @param id chunk ID
   /// @return chunk object
   ///
-  virtual std::unique_ptr<Chunk> create_chunk(const int dims[], int id)
+  virtual std::unique_ptr<Chunk> create_chunk(const int dims[], const bool has_dim[], int id)
   {
-    return std::make_unique<Chunk>(dims, id);
+    return std::make_unique<Chunk>(dims, has_dim, id);
   }
 
 protected:
@@ -657,16 +657,36 @@ DEFINE_MEMBER(void, setup_chunks_init)()
   chunkmap->set_rank_boundary(boundary);
 
   // create local chunks
-  int numchunk = boundary[thisrank + 1] - boundary[thisrank];
-  int dims[3];
+  int  numchunk   = boundary[thisrank + 1] - boundary[thisrank];
+  bool has_dim[3] = {
+      (ndims[0] == 1 && cdims[0] == 1) ? false : true,
+      (ndims[1] == 1 && cdims[1] == 1) ? false : true,
+      (ndims[2] == 1 && cdims[2] == 1) ? false : true,
+  };
+  int dims[3]{
+      ndims[0] / cdims[0],
+      ndims[1] / cdims[1],
+      ndims[2] / cdims[2],
+  };
 
-  dims[0] = ndims[0] / cdims[0];
-  dims[1] = ndims[1] / cdims[1];
-  dims[2] = ndims[2] / cdims[2];
+  // check dimension
+  {
+    bool is_1d = has_dim[0] == false && has_dim[1] == false && has_dim[2] == true;
+    bool is_2d = has_dim[0] == false && has_dim[1] == true && has_dim[2] == true;
+    bool is_3d = has_dim[0] == true && has_dim[1] == true && has_dim[2] == true;
+
+    if (is_1d == false && is_2d == false && is_3d == false) {
+      ERROR << tfm::format("Invalid dimension");
+      ERROR << tfm::format("* has_dim = %d %d %d", has_dim[0], has_dim[1], has_dim[2]);
+      finalize();
+      exit(-1);
+    }
+  }
+
   chunkvec.resize(numchunk);
 
   for (int i = 0, id = boundary[thisrank]; id < boundary[thisrank + 1]; i++, id++) {
-    chunkvec[i] = create_chunk(dims, id);
+    chunkvec[i] = create_chunk(dims, has_dim, id);
   }
   chunkvec.set_neighbors(chunkmap);
 

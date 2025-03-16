@@ -248,10 +248,16 @@ protected:
     buffer.resize(*std::max_element(size.begin(), size.end()));
 
     // local dimensions
-    int dims[3];
-    dims[0] = data.ndims[0] / data.cdims[0];
-    dims[1] = data.ndims[1] / data.cdims[1];
-    dims[2] = data.ndims[2] / data.cdims[2];
+    bool has_dim[3] = {
+        (data.ndims[0] == 1 && data.cdims[0] == 1) ? false : true,
+        (data.ndims[1] == 1 && data.cdims[1] == 1) ? false : true,
+        (data.ndims[2] == 1 && data.cdims[2] == 1) ? false : true,
+    };
+    int dims[3]{
+        data.ndims[0] / data.cdims[0],
+        data.ndims[1] / data.cdims[1],
+        data.ndims[2] / data.cdims[2],
+    };
 
     // clear
     data.chunkvec.resize(0);
@@ -261,7 +267,7 @@ protected:
 
     // read data
     for (int i = 0; i < id.size(); i++) {
-      auto chunk = app.create_chunk(dims, 0);
+      auto chunk = app.create_chunk(dims, has_dim, 0);
 
       ifs.seekg(offset[i], std::ios::beg);
       ifs.read(reinterpret_cast<char*>(buffer.get()), size[i]);

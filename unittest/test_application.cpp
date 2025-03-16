@@ -54,6 +54,10 @@ class MockChunk : public Chunk<3>
 public:
   using Chunk<3>::Chunk;
 
+  MockChunk(const int dims[3], const bool has_dim[3], int id) : Chunk<3>(dims, id)
+  {
+  }
+
   virtual int set_boundary_query(int mode, int sendrecv) override
   {
     return 0;

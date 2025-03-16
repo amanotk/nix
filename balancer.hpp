@@ -194,10 +194,16 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& boundary
   int rank_r   = thisrank < rankmax ? thisrank + 1 : MPI_PROC_NULL;
 
   // chunk dimensions
-  int dims[3];
-  dims[0] = data.ndims[0] / data.cdims[0];
-  dims[1] = data.ndims[1] / data.cdims[1];
-  dims[2] = data.ndims[2] / data.cdims[2];
+  bool has_dim[3] = {
+      (data.ndims[0] == 1 && data.cdims[0] == 1) ? false : true,
+      (data.ndims[1] == 1 && data.cdims[1] == 1) ? false : true,
+      (data.ndims[2] == 1 && data.cdims[2] == 1) ? false : true,
+  };
+  int dims[3]{
+      data.ndims[0] / data.cdims[0],
+      data.ndims[1] / data.cdims[1],
+      data.ndims[2] / data.cdims[2],
+  };
 
   Buffer sendbuf;
   Buffer recvbuf;
@@ -291,7 +297,7 @@ void Balancer::sendrecv_chunk(App&& app, Data&& data, std::vector<int>& boundary
       MPI_Wait(&request, MPI_STATUS_IGNORE);
 
       // unpack
-      auto p = app.create_chunk(dims, 0);
+      auto p = app.create_chunk(dims, has_dim, 0);
       p->unpack(buf, 0);
       data.chunkvec.push_back(std::move(p));
 

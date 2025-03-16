@@ -29,7 +29,7 @@ private:
 public:
   std::vector<float64> x;
 
-  MockChunk(int dims[4], int id) : myid(id)
+  MockChunk(const int dims[3], const bool has_dim[3], int id) : myid(id)
   {
     x.resize(ndata);
     std::fill(x.begin(), x.end(), 0.0);
@@ -95,9 +95,9 @@ public:
     z = exp(3.0);
   }
 
-  std::unique_ptr<MockChunk> create_chunk(int dims[4], int id)
+  std::unique_ptr<MockChunk> create_chunk(const int dims[4], const bool has_dim[3], int id)
   {
-    return std::make_unique<MockChunk>(dims, id);
+    return std::make_unique<MockChunk>(dims, has_dim, id);
   }
 
   json to_json()
@@ -132,12 +132,14 @@ public:
 
   void prepare_chunkvec(int numchunk)
   {
+    bool has_dim[3] = {true, true, true};
+
     chunkvec.resize(0);
     chunkvec.shrink_to_fit();
 
     for (int i = 0; i < numchunk; i++) {
       int id = i + thisrank * numchunk;
-      chunkvec.push_back(create_chunk(ndims, id));
+      chunkvec.push_back(create_chunk(ndims, has_dim, id));
 
       // fill data
       for (int j = 0; j < ndata; j++) {

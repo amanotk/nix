@@ -37,7 +37,7 @@ private:
   std::vector<float64> x;
 
 public:
-  MockChunk(int dims[4], int id) : myid(id)
+  MockChunk(const int dims[3], const bool has_dim[3], int id) : myid(id)
   {
     x.resize(ndata);
   }
@@ -112,9 +112,9 @@ public:
 class MockApplication
 {
 public:
-  std::unique_ptr<MockChunk> create_chunk(int dims[4], int id)
+  std::unique_ptr<MockChunk> create_chunk(const int dims[3], const bool has_dim[3], int id)
   {
-    return std::make_unique<MockChunk>(dims, id);
+    return std::make_unique<MockChunk>(dims, has_dim, id);
   }
 };
 
@@ -148,8 +148,10 @@ public:
   {
     ChunkVec chunkvec;
 
+    bool has_dim[3] = {true, true, true};
+
     for (int i = boundary[thisrank], j = 0; i < boundary[thisrank + 1]; i++, j++) {
-      chunkvec.push_back(std::make_unique<MockChunk>(ndims, i));
+      chunkvec.push_back(std::make_unique<MockChunk>(ndims, has_dim, i));
       chunkvec[j]->set_load(1.0 / (boundary[thisrank + 1] - boundary[thisrank]));
     }
 
