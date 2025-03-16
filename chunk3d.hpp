@@ -362,10 +362,10 @@ public:
   ///
   float64 get_xmin()
   {
-    if (dims[2] == 1) {
-      return -std::numeric_limits<float64>::max();
-    } else {
+    if (has_dim[2]) {
       return xlim[0];
+    } else {
+      return -std::numeric_limits<float64>::max();
     }
   }
 
@@ -374,10 +374,10 @@ public:
   ///
   float64 get_xmax()
   {
-    if (dims[2] == 1) {
-      return +std::numeric_limits<float64>::max();
-    } else {
+    if (has_dim[2]) {
       return xlim[1];
+    } else {
+      return +std::numeric_limits<float64>::max();
     }
   }
 
@@ -386,10 +386,10 @@ public:
   ///
   float64 get_ymin()
   {
-    if (dims[1] == 1) {
-      return -std::numeric_limits<float64>::max();
-    } else {
+    if (has_dim[1]) {
       return ylim[0];
+    } else {
+      return -std::numeric_limits<float64>::max();
     }
   }
 
@@ -398,10 +398,10 @@ public:
   ///
   float64 get_ymax()
   {
-    if (dims[1] == 1) {
-      return +std::numeric_limits<float64>::max();
-    } else {
+    if (has_dim[1]) {
       return ylim[1];
+    } else {
+      return +std::numeric_limits<float64>::max();
     }
   }
 
@@ -410,10 +410,10 @@ public:
   ///
   float64 get_zmin()
   {
-    if (dims[0] == 1) {
-      return -std::numeric_limits<float64>::max();
-    } else {
+    if (has_dim[0]) {
       return zlim[0];
+    } else {
+      return -std::numeric_limits<float64>::max();
     }
   }
 
@@ -422,10 +422,10 @@ public:
   ///
   float64 get_zmax()
   {
-    if (dims[0] == 1) {
-      return +std::numeric_limits<float64>::max();
-    } else {
+    if (has_dim[0]) {
       return zlim[1];
+    } else {
+      return +std::numeric_limits<float64>::max();
     }
   }
 
