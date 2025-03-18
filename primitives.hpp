@@ -137,47 +137,119 @@ static auto ifthenelse(T_bool cond, T_float x, T_float y)
   }
 }
 
-/// return Lorentz factor for given four velocity and rc = 1/c
+/// return square root
 template <typename T_float>
-static auto lorentz_factor(T_float ux, T_float uy, T_float uz, T_float rc)
+static auto sqrt(T_float x)
 {
   constexpr bool is_scalar = std::is_floating_point_v<T_float>;
   constexpr bool is_vector = std::is_same_v<T_float, simd_f32> || std::is_same_v<T_float, simd_f64>;
 
   if constexpr (is_scalar == true) {
-    return sqrt(1 + (ux * ux + uy * uy + uz * uz) * rc * rc);
+    return std::sqrt(x);
   } else if constexpr (is_vector == true) {
-    return xsimd::sqrt(1 + (ux * ux + uy * uy + uz * uz) * rc * rc);
+    return xsimd::sqrt(x);
   } else {
     static_assert([] { return false; }(), "Only scalar or vector of floating point is allowed");
   }
 }
 
+/// return Lorentz factor for given four velocity and rc = 1/c
+template <typename T_float>
+static auto lorentz_factor(T_float ux, T_float uy, T_float uz, T_float rc)
+{
+  return sqrt(1 + (ux * ux + uy * uy + uz * uz) * rc * rc);
+}
+
 /// Boris pusher for equation of motion
 template <typename T_float>
 static void push_boris(T_float& ux, T_float& uy, T_float& uz, T_float ex, T_float ey, T_float ez,
-                       T_float bx, T_float by, T_float bz, T_float rc)
+                       T_float bx, T_float by, T_float bz, T_float cc)
 {
-  T_float gm, tt, vx, vy, vz;
+  T_float gm, bb, vx, vy, vz;
 
   ux += ex;
   uy += ey;
   uz += ez;
 
-  gm = rc / lorentz_factor(ux, uy, uz, rc);
+  // Lorentz factor for rotation
+  gm = 1 / sqrt(cc * cc + ux * ux + uy * uy + uz * uz);
+
   bx *= gm;
   by *= gm;
   bz *= gm;
-
-  tt = 2.0 / (1.0 + bx * bx + by * by + bz * bz);
+  bb = 2.0 / (1.0 + bx * bx + by * by + bz * bz);
 
   vx = ux + (uy * bz - uz * by);
   vy = uy + (uz * bx - ux * bz);
   vz = uz + (ux * by - uy * bx);
 
-  ux += (vy * bz - vz * by) * tt + ex;
-  uy += (vz * bx - vx * bz) * tt + ey;
-  uz += (vx * by - vy * bx) * tt + ez;
+  ux += (vy * bz - vz * by) * bb + ex;
+  uy += (vz * bx - vx * bz) * bb + ey;
+  uz += (vx * by - vy * bx) * bb + ez;
+}
+
+/// Vay (2008) pusher for equation of motion
+template <typename T_float>
+static void push_vay(T_float& ux, T_float& uy, T_float& uz, T_float ex, T_float ey, T_float ez,
+                     T_float bx, T_float by, T_float bz, T_float cc)
+{
+  T_float gm, bb, bu, xx, yy, vx, vy, vz;
+
+  gm = 1 / sqrt(cc * cc + ux * ux + uy * uy + uz * uz);
+  vx = ux + 2 * ex + gm * (uy * bz - uz * by);
+  vy = uy + 2 * ey + gm * (uz * bx - ux * bz);
+  vz = uz + 2 * ez + gm * (ux * by - uy * bx);
+
+  // use Lorentz factor defiend by Eq.(11) of Vay (2008)
+  gm = (cc * cc + vx * vx + vy * vy + vz * vz);
+  bb = bx * bx + by * by + bz * bz;
+  bu = bx * vx + by * vy + bz * vz;
+  xx = gm - bb;
+  yy = bb + bu * bu;
+  gm = 1 / sqrt(0.5 * (xx + sqrt(xx * xx + 4 * yy)));
+
+  bx *= gm;
+  by *= gm;
+  bz *= gm;
+  bu = bx * vx + by * vy + bz * vz;
+  bb = 1.0 / (1.0 + bx * bx + by * by + bz * bz);
+
+  ux = (vx + bu * bx + (vy * bz - vz * by)) * bb;
+  uy = (vy + bu * by + (vz * bx - vx * bz)) * bb;
+  uz = (vz + bu * bz + (vx * by - vy * bx)) * bb;
+}
+
+/// Higuera-Cary (2017) pusher for equation of motion
+template <typename T_float>
+static void push_higuera_cary(T_float& ux, T_float& uy, T_float& uz, T_float ex, T_float ey,
+                              T_float ez, T_float bx, T_float by, T_float bz, T_float cc)
+{
+  T_float gm, bb, bu, xx, yy, vx, vy, vz;
+
+  ux += ex;
+  uy += ey;
+  uz += ez;
+
+  // use Lorentz factor defiend by Eq.(20) of Higuera-Cary (2017)
+  gm = cc * cc + ux * ux + uy * uy + uz * uz;
+  bb = bx * bx + by * by + bz * bz;
+  bu = bx * ux + by * uy + bz * uz;
+  xx = gm - bb;
+  yy = bb + bu * bu;
+  gm = 1 / sqrt(0.5 * (xx + sqrt(xx * xx + 4 * yy)));
+
+  bx *= gm;
+  by *= gm;
+  bz *= gm;
+  bb = 2.0 / (1.0 + bx * bx + by * by + bz * bz);
+
+  vx = ux + (uy * bz - uz * by);
+  vy = uy + (uz * bx - ux * bz);
+  vz = uz + (ux * by - uy * bx);
+
+  ux += (vy * bz - vz * by) * bb + ex;
+  uy += (vz * bx - vx * bz) * bb + ey;
+  uz += (vx * by - vy * bx) * bb + ez;
 }
 
 /// implementation of first-order particle shape function
