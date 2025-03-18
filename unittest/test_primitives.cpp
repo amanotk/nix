@@ -205,6 +205,7 @@ TEST_CASE("lorentz_factor")
 
 TEST_CASE("push_boris")
 {
+  const float64 rc = 1.0;
   const float64 u0 = 1.0;
   const float64 e0 = GENERATE(0.25, 0.5, 1.0);
   const float64 b0 = GENERATE(0.25, 1.0, 4.0);
@@ -251,12 +252,13 @@ TEST_CASE("push_boris")
     simd_f64 bx_simd = xsimd::load_unaligned(bx.data());
     simd_f64 by_simd = xsimd::load_unaligned(by.data());
     simd_f64 bz_simd = xsimd::load_unaligned(bz.data());
+    simd_f64 rc_simd = rc;
 
-    push_boris(ux_simd, uy_simd, uz_simd, ex_simd, ey_simd, ez_simd, bx_simd, by_simd, bz_simd);
+    push_boris(ux_simd, uy_simd, uz_simd, ex_simd, ey_simd, ez_simd, bx_simd, by_simd, bz_simd, rc_simd);
 
     bool status = true;
     for (int i = 0; i < simd_f64::size; i++) {
-      push_boris(ux[i], uy[i], uz[i], ex[i], ey[i], ez[i], bx[i], by[i], bz[i]);
+      push_boris(ux[i], uy[i], uz[i], ex[i], ey[i], ez[i], bx[i], by[i], bz[i], rc);
       status = status & (std::abs(ux[i] - ux_simd.get(i)) < epsilon);
       status = status & (std::abs(uy[i] - uy_simd.get(i)) < epsilon);
       status = status & (std::abs(uz[i] - uz_simd.get(i)) < epsilon);

@@ -156,13 +156,18 @@ static auto lorentz_factor(T_float ux, T_float uy, T_float uz, T_float rc)
 /// Boris pusher for equation of motion
 template <typename T_float>
 static void push_boris(T_float& ux, T_float& uy, T_float& uz, T_float ex, T_float ey, T_float ez,
-                       T_float bx, T_float by, T_float bz)
+                       T_float bx, T_float by, T_float bz, T_float rc)
 {
-  T_float tt, vx, vy, vz;
+  T_float gm, tt, vx, vy, vz;
 
   ux += ex;
   uy += ey;
   uz += ez;
+
+  gm = rc / lorentz_factor(ux, uy, uz, rc);
+  bx *= gm;
+  by *= gm;
+  bz *= gm;
 
   tt = 2.0 / (1.0 + bx * bx + by * by + bz * bz);
 
