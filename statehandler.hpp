@@ -43,8 +43,11 @@ public:
       std::string   filename = get_path_with_basedir(prefix) + ".msgpack";
       std::ofstream ofs(filename, std::ios::binary);
       ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+      ofs.flush();
       ofs.close();
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     return true;
   }
@@ -71,6 +74,8 @@ public:
       save_chunkvec_header(app, data, filename, id, size, offset);
       save_chunkvec_content(app, data, filename, id, size, offset);
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     DEBUG2 << tfm::format("finish saving chunkvec with prefix %s", prefix);
 
@@ -185,6 +190,7 @@ protected:
     ofs.write(reinterpret_cast<const char*>(size.data()), element_size * numchunk);
     ofs.write(reinterpret_cast<const char*>(offset.data()), element_size * numchunk);
 
+    ofs.flush();
     ofs.close();
 
     return true;
@@ -210,6 +216,7 @@ protected:
       }
     }
 
+    ofs.close();
     ofs.close();
 
     return true;
