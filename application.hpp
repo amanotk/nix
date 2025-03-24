@@ -6,6 +6,7 @@
 #include "balancer.hpp"
 #include "buffer.hpp"
 #include "cfgparser.hpp"
+#include "chunkmap.hpp"
 #include "chunkvector.hpp"
 #include "logger.hpp"
 #include "mpistream.hpp"
@@ -21,11 +22,11 @@ NIX_NAMESPACE_BEGIN
 /// @tparam Chunk Chunk type
 /// @tparam ChunkMap ChunkMap type
 ///
-template <typename Chunk, typename ChunkMap>
+template <typename Chunk>
 class Application
 {
 protected:
-  using this_type       = Application<Chunk, ChunkMap>;
+  using this_type       = Application<Chunk>;
   using PtrArgParser    = std::unique_ptr<ArgParser>;
   using PtrCfgParser    = std::unique_ptr<CfgParser>;
   using PtrStateHandler = std::unique_ptr<StateHandler>;
@@ -368,8 +369,8 @@ protected:
 //
 
 #define DEFINE_MEMBER(type, name)                                                                  \
-  template <typename Chunk, typename ChunkMap>                                                     \
-  type Application<Chunk, ChunkMap>::name
+  template <typename Chunk>                                                                        \
+  type Application<Chunk>::name
 
 DEFINE_MEMBER(json, to_json)()
 {

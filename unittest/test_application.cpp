@@ -88,16 +88,10 @@ public:
   }
 };
 
-class MockChunkMap : public ChunkMap
+class TestApplication : public Application<MockChunk>
 {
 public:
-  using ChunkMap::ChunkMap;
-};
-
-class TestApplication : public Application<MockChunk, MockChunkMap>
-{
-public:
-  TestApplication() : Application<MockChunk, MockChunkMap>()
+  TestApplication() : Application<MockChunk>()
   {
     is_mpi_init_already_called = true;
 
