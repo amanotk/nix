@@ -9,13 +9,12 @@
 
 using namespace nix;
 
-template <int Ndim>
-class ChunkMapTest : public ChunkMap<Ndim>
+class ChunkMapTest : public ChunkMap
 {
 public:
-  using ChunkMap<Ndim>::ChunkMap;
-  using ChunkMap<Ndim>::dims;
-  using ChunkMap<Ndim>::periodicity;
+  using ChunkMap::ChunkMap;
+  using ChunkMap::dims;
+  using ChunkMap::periodicity;
 
   void test_dimension(int nz, int ny, int nx)
   {
@@ -91,21 +90,9 @@ TEST_CASE("Initialization")
   int Cy = GENERATE(1, 4, 10);
   int Cz = GENERATE(1, 4, 10);
 
-  SECTION("1D")
-  {
-    ChunkMapTest<1> chunkmap(Cx);
-    REQUIRE(chunkmap.validate());
-  }
-
-  SECTION("2D")
-  {
-    ChunkMapTest<2> chunkmap(Cy, Cx);
-    REQUIRE(chunkmap.validate());
-  }
-
   SECTION("3D")
   {
-    ChunkMapTest<3> chunkmap(Cz, Cy, Cx);
+    ChunkMapTest chunkmap(Cz, Cy, Cx);
     REQUIRE(chunkmap.validate());
   }
 }
@@ -116,21 +103,9 @@ TEST_CASE("Dimension")
   int Cy = GENERATE(1, 4, 10);
   int Cz = GENERATE(1, 4, 10);
 
-  SECTION("1D")
-  {
-    ChunkMapTest<1> chunkmap(Cx);
-    chunkmap.test_dimension(Cx, 1, 1);
-  }
-
-  SECTION("2D")
-  {
-    ChunkMapTest<2> chunkmap(Cy, Cx);
-    chunkmap.test_dimension(Cy, Cx, 1);
-  }
-
   SECTION("3D")
   {
-    ChunkMapTest<3> chunkmap(Cz, Cy, Cx);
+    ChunkMapTest chunkmap(Cz, Cy, Cx);
     chunkmap.test_dimension(Cz, Cy, Cx);
   }
 }
@@ -141,27 +116,9 @@ TEST_CASE("Periodicity")
   int Cy = GENERATE(1, 4, 10);
   int Cz = GENERATE(1, 4, 10);
 
-  SECTION("1D")
-  {
-    ChunkMapTest<1> chunkmap(Cx);
-    chunkmap.test_periodicity(1, 1, 1);
-
-    chunkmap.set_periodicity(0, 1, 1);
-    chunkmap.test_periodicity(0, 1, 1);
-  }
-
-  SECTION("2D")
-  {
-    ChunkMapTest<2> chunkmap(Cy, Cx);
-    chunkmap.test_periodicity(1, 1, 1);
-
-    chunkmap.set_periodicity(1, 0, 1);
-    chunkmap.test_periodicity(1, 0, 1);
-  }
-
   SECTION("3D")
   {
-    ChunkMapTest<3> chunkmap(Cz, Cy, Cx);
+    ChunkMapTest chunkmap(Cz, Cy, Cx);
     chunkmap.test_periodicity(1, 1, 1);
 
     chunkmap.set_periodicity(1, 1, 0);
@@ -171,29 +128,6 @@ TEST_CASE("Periodicity")
 
 TEST_CASE("set_rank from boundary array")
 {
-  SECTION("1D")
-  {
-    int Cx = 16;
-    int Nc = Cx;
-
-    std::vector<int> boundary{0, 4, 9, 14, Nc};
-    ChunkMapTest<1>  chunkmap(Cx);
-
-    chunkmap.test_set_rank_boundary(boundary);
-  }
-
-  SECTION("2D")
-  {
-    int Cx = 8;
-    int Cy = 2;
-    int Nc = Cy * Cx;
-
-    std::vector<int> boundary{0, 4, 9, 14, Nc};
-    ChunkMapTest<2>  chunkmap(Cy, Cx);
-
-    chunkmap.test_set_rank_boundary(boundary);
-  }
-
   SECTION("3D")
   {
     int Cx = 4;
@@ -202,42 +136,16 @@ TEST_CASE("set_rank from boundary array")
     int Nc = Cz * Cy * Cx;
 
     std::vector<int> boundary{0, 4, 9, 14, Nc};
-    ChunkMapTest<3>  chunkmap(Cz, Cy, Cx);
+    ChunkMapTest     chunkmap(Cz, Cy, Cx);
 
     chunkmap.test_set_rank_boundary(boundary);
   }
 }
 
-
 TEST_CASE("get_rank_boundary")
 {
-  const int nproc = 4;
+  const int        nproc    = 4;
   std::vector<int> boundary = {0, 4, 9, 14, 16};
-
-  SECTION("1D")
-  {
-    int Cx = 16;
-    int Nc = Cx;
-
-    std::vector<int> boundary{0, 4, 9, 14, Nc};
-    ChunkMapTest<1>  chunkmap(Cx);
-
-    chunkmap.set_rank_boundary(boundary);
-    chunkmap.test_get_rank_boundary();
-  }
-
-  SECTION("2D")
-  {
-    int Cx = 8;
-    int Cy = 2;
-    int Nc = Cy * Cx;
-
-    std::vector<int> boundary{0, 4, 9, 14, Nc};
-    ChunkMapTest<2>  chunkmap(Cy, Cx);
-
-    chunkmap.set_rank_boundary(boundary);
-    chunkmap.test_get_rank_boundary();
-  }
 
   SECTION("3D")
   {
@@ -247,7 +155,7 @@ TEST_CASE("get_rank_boundary")
     int Nc = Cz * Cy * Cx;
 
     std::vector<int> boundary{0, 4, 9, 14, Nc};
-    ChunkMapTest<3>  chunkmap(Cz, Cy, Cx);
+    ChunkMapTest     chunkmap(Cz, Cy, Cx);
 
     chunkmap.set_rank_boundary(boundary);
     chunkmap.test_get_rank_boundary();
@@ -260,7 +168,7 @@ TEST_CASE("get_neighbor_coord")
   int Cy = GENERATE(1, 4, 10);
   int Cz = GENERATE(1, 4, 10);
 
-  ChunkMapTest<3> chunkmap(Cz, Cy, Cx);
+  ChunkMapTest chunkmap(Cz, Cy, Cx);
 
   SECTION("X")
   {
@@ -316,67 +224,9 @@ TEST_CASE("Save to and load from file")
   int Cy = GENERATE(1, 4, 10);
   int Cz = GENERATE(1, 4, 10);
 
-  SECTION("1D")
-  {
-    ChunkMapTest<1> chunkmap(Cx);
-
-    // save
-    {
-      auto obj = chunkmap.to_json();
-
-      std::ofstream ofs(filename);
-      ofs << std::setw(2) << obj;
-    }
-
-    // load
-    {
-      json obj;
-
-      std::ifstream ifs(filename);
-      ifs >> obj;
-
-      chunkmap.from_json(obj);
-    }
-
-    // check for load
-    REQUIRE(chunkmap.validate());
-
-    // cleanup
-    std::remove(filename.c_str());
-  }
-
-  SECTION("2D")
-  {
-    ChunkMapTest<2> chunkmap(Cy, Cx);
-
-    // save
-    {
-      auto obj = chunkmap.to_json();
-
-      std::ofstream ofs(filename);
-      ofs << std::setw(2) << obj;
-    }
-
-    // load
-    {
-      json obj;
-
-      std::ifstream ifs(filename);
-      ifs >> obj;
-
-      chunkmap.from_json(obj);
-    }
-
-    // check for load
-    REQUIRE(chunkmap.validate());
-
-    // cleanup
-    std::remove(filename.c_str());
-  }
-
   SECTION("3D")
   {
-    ChunkMapTest<3> chunkmap(Cz, Cy, Cx);
+    ChunkMapTest chunkmap(Cz, Cy, Cx);
 
     // save
     {

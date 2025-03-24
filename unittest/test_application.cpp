@@ -88,10 +88,10 @@ public:
   }
 };
 
-class MockChunkMap : public ChunkMap<3>
+class MockChunkMap : public ChunkMap
 {
 public:
-  using ChunkMap<3>::ChunkMap;
+  using ChunkMap::ChunkMap;
 };
 
 class TestApplication : public Application<MockChunk, MockChunkMap>
