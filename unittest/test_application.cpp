@@ -3,10 +3,13 @@
 #include "application.hpp"
 #include "chunk.hpp"
 #include "chunkmap.hpp"
+#include "diag.hpp"
 
 #include "catch.hpp"
 
 using namespace nix;
+
+class TestApplication;
 
 const std::string config_filename = "config.json";
 const std::string config_content  = R"(
@@ -88,10 +91,14 @@ public:
   }
 };
 
-class TestApplication : public Application<MockChunk>
+class MockDiag : public Diag<TestApplication>
+{
+};
+
+class TestApplication : public Application<MockChunk, MockDiag>
 {
 public:
-  TestApplication() : Application<MockChunk>()
+  TestApplication() : Application<MockChunk, MockDiag>()
   {
     is_mpi_init_already_called = true;
 

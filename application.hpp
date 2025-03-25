@@ -22,11 +22,15 @@ NIX_NAMESPACE_BEGIN
 /// @tparam Chunk Chunk type
 /// @tparam ChunkMap ChunkMap type
 ///
-template <typename Chunk>
+template <typename Chunk, typename Diag>
 class Application
 {
-protected:
-  using this_type       = Application<Chunk>;
+public:
+  struct InternalData; // forward declaration
+  using this_type       = Application<Chunk, Diag>;
+  using chunk_type      = Chunk;
+  using diag_type       = Diag;
+  using data_type       = InternalData;
   using PtrArgParser    = std::unique_ptr<ArgParser>;
   using PtrCfgParser    = std::unique_ptr<CfgParser>;
   using PtrStateHandler = std::unique_ptr<StateHandler>;
@@ -34,28 +38,9 @@ protected:
   using PtrLogger       = std::unique_ptr<Logger>;
   using PtrChunkMap     = std::unique_ptr<ChunkMap>;
   using PtrChunk        = std::unique_ptr<Chunk>;
+  using PtrDiag         = std::unique_ptr<Diag>;
   using ChunkVec        = ChunkVector<PtrChunk>;
-
-  PtrArgParser    argparser;    ///< argument parser
-  PtrCfgParser    cfgparser;    ///< configuration parser
-  PtrStateHandler statehandler; ///< state handler
-  PtrBalancer     balancer;     ///< load balancer
-  PtrLogger       logger;       ///< logger
-  PtrChunkMap     chunkmap;     ///< chunkmap
-  ChunkVec        chunkvec;     ///< local chunks
-
-  int     thisrank; ///< my rank
-  int     nprocess; ///< number of mpi processes
-  int     nthread;  ///< number of threads
-  int     cl_argc;  ///< command-line argc
-  char**  cl_argv;  ///< command-line argv
-  float64 wclock;   ///< wall clock time at initialization
-  int     ndims[4]; ///< global grid dimensions
-  int     cdims[4]; ///< chunk dimensions
-  int     curstep;  ///< current iteration step
-  float64 curtime;  ///< current time
-
-  bool is_mpi_init_already_called; ///< flag for testing purpose
+  using DiagVec         = std::vector<PtrDiag>;
 
   ///
   /// @brief internal data struct
@@ -79,6 +64,29 @@ protected:
   {
     return {ndims, cdims, thisrank, nprocess, nthread, curstep, curtime, chunkmap, chunkvec};
   }
+
+protected:
+  PtrArgParser    argparser;    ///< argument parser
+  PtrCfgParser    cfgparser;    ///< configuration parser
+  PtrStateHandler statehandler; ///< state handler
+  PtrBalancer     balancer;     ///< load balancer
+  PtrLogger       logger;       ///< logger
+  PtrChunkMap     chunkmap;     ///< chunkmap
+  ChunkVec        chunkvec;     ///< local chunks
+  DiagVec         diagvec;      ///< diagnostic objects
+
+  int     thisrank; ///< my rank
+  int     nprocess; ///< number of mpi processes
+  int     nthread;  ///< number of threads
+  int     cl_argc;  ///< command-line argc
+  char**  cl_argv;  ///< command-line argv
+  float64 wclock;   ///< wall clock time at initialization
+  int     ndims[4]; ///< global grid dimensions
+  int     cdims[4]; ///< chunk dimensions
+  int     curstep;  ///< current iteration step
+  float64 curtime;  ///< current time
+
+  bool is_mpi_init_already_called; ///< flag for testing purpose
 
 public:
   /// @brief default constructor
@@ -251,6 +259,11 @@ protected:
   virtual void initialize_workload();
 
   ///
+  /// @brief initialize diagnostic
+  ///
+  virtual void initialize_diagnostic();
+
+  ///
   /// @brief setup chunks with initial condition
   ///
   virtual void setup_chunks_init();
@@ -275,9 +288,7 @@ protected:
   ///
   /// @brief perform various diagnostics output
   ///
-  virtual void diagnostic()
-  {
-  }
+  virtual void diagnostic();
 
   ///
   /// @brief advance physical quantities by one step
@@ -369,8 +380,8 @@ protected:
 //
 
 #define DEFINE_MEMBER(type, name)                                                                  \
-  template <typename Chunk>                                                                        \
-  type Application<Chunk>::name
+  template <typename Chunk, typename Diag>                                                         \
+  type Application<Chunk, Diag>::name
 
 DEFINE_MEMBER(json, to_json)()
 {
@@ -637,6 +648,11 @@ DEFINE_MEMBER(void, initialize_workload)()
   balancer->fill_load(1.0);
 }
 
+DEFINE_MEMBER(void, initialize_diagnostic)()
+{
+  // do nothing by default
+}
+
 DEFINE_MEMBER(void, setup_chunks_init)()
 {
   // error check
@@ -780,6 +796,34 @@ DEFINE_MEMBER(bool, rebalance)()
   logger->append(curstep, "rebalance", log);
 
   return status;
+}
+
+DEFINE_MEMBER(void, diagnostic)()
+{
+  DEBUG2 << "diagnostic() start";
+  float64 wclock1 = nix::wall_clock();
+
+  json config = cfgparser->get_diagnostic();
+
+  for (json::iterator it = config.begin(); it != config.end(); ++it) {
+    if (config.contains("name") == false)
+      return;
+
+    for (auto& diag : diagvec) {
+      if (diag->match(config["name"])) {
+        (*diag)(config);
+        break;
+      }
+    }
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  DEBUG2 << "diagnostic() end";
+  float64 wclock2 = nix::wall_clock();
+
+  json log = {{"elapsed", wclock2 - wclock1}};
+  logger->append(curstep, "diagnostic", log);
 }
 
 #undef DEFINE_MEMBER
