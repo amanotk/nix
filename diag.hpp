@@ -20,8 +20,7 @@ public:
   std::string basedir;    // base directory
   std::string iomode;     // I/O mode
 
-  DiagInfo(std::string basedir, std::string iomode)
-      : basedir(basedir), iomode(iomode)
+  DiagInfo(std::string basedir, std::string iomode) : basedir(basedir), iomode(iomode)
   {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -63,6 +62,8 @@ protected:
   std::shared_ptr<DiagInfo> info;
 
 public:
+  using app_type = Application;
+
   // constructor
   Diag(std::string name, Application& application, std::shared_ptr<DiagInfo> info)
       : name(name), application(application), info(info)

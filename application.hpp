@@ -518,6 +518,7 @@ DEFINE_MEMBER(void, initialize)(int argc, char** argv)
   initialize_debugprinting();
   initialize_dimensions();
   initialize_domain();
+  initialize_diagnostic();
 }
 
 DEFINE_MEMBER(void, finalize)()
@@ -606,7 +607,10 @@ DEFINE_MEMBER(void, initialize_mpi)(int* argc, char*** argv)
 
 DEFINE_MEMBER(void, finalize_mpi)()
 {
+  // these must be called before MPI_Finalize
   MpiStream::finalize();
+  diagvec.clear();
+
   MPI_Finalize();
 }
 
@@ -806,13 +810,14 @@ DEFINE_MEMBER(void, diagnostic)()
   json config = cfgparser->get_diagnostic();
 
   for (json::iterator it = config.begin(); it != config.end(); ++it) {
-    if (config.contains("name") == false)
+    auto element = *it;
+
+    if (element.contains("name") == false)
       return;
 
     for (auto& diag : diagvec) {
-      if (diag->match(config["name"])) {
-        (*diag)(config);
-        break;
+      if (diag->match(element["name"])) {
+        (*diag)(element);
       }
     }
   }
