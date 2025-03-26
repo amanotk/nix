@@ -57,15 +57,16 @@ template <typename Application>
 class Diag
 {
 protected:
-  std::string               name;
-  Application&              application; // reference to application object
-  std::shared_ptr<DiagInfo> info;
+  using app_type  = Application;
+  using info_type = DiagInfo;
+
+  std::string                name;
+  Application&               application; // reference to application object
+  std::shared_ptr<info_type> info;
 
 public:
-  using app_type = Application;
-
   // constructor
-  Diag(std::string name, Application& application, std::shared_ptr<DiagInfo> info)
+  Diag(std::string name, Application& application, std::shared_ptr<info_type> info)
       : name(name), application(application), info(info)
   {
     make_sure_directory_exists(format_dirname(""));
