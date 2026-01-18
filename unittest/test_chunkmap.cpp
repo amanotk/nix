@@ -1,9 +1,6 @@
 // -*- C++ -*-
 
 #include "chunkmap.hpp"
-#include <fstream>
-#include <iostream>
-#include <nlohmann/json.hpp>
 
 #include "catch.hpp"
 
@@ -254,7 +251,3 @@ TEST_CASE("Save to and load from file")
   }
 }
 
-// Local Variables:
-// c-file-style   : "gnu"
-// c-file-offsets : ((innamespace . 0) (inline-open . 0))
-// End:

@@ -31,6 +31,8 @@ set(SERIAL_EXECS
 	test_argparser
 	test_cfgparser
 	test_application
+	test_xtensor_halo3d
+	test_xtensor_packer3d
 	)
 
 add_library(obj_serial OBJECT test_serial.cpp)
@@ -73,17 +75,17 @@ foreach(target IN ITEMS ${PARALLEL_EXECS})
 endforeach()
 
 add_test(NAME test_nixio_parallel
-	COMMAND mpiexec -n 8 ./test_nixio_parallel -X 2 -Y 2 -Z 2
+	COMMAND mpiexec -n 8 ./test_nixio_parallel -X 2 -Y 2 -Z 2 "[np=8]"
 	)
 
 add_test(NAME test_balancer_parallel
-	COMMAND mpiexec -n 8 ./test_balancer_parallel
+	COMMAND mpiexec -n 8 ./test_balancer_parallel "[np=8]"
 	)
 
 add_test(NAME test_mpistream_parallel
-	COMMAND mpiexec -n 8 ./test_mpistream_parallel
+	COMMAND mpiexec -n 8 ./test_mpistream_parallel "[np=8]"
 	)
 
 add_test(NAME test_statehandler_parallel
-	COMMAND mpiexec -n 8 ./test_statehandler_parallel
+	COMMAND mpiexec -n 8 ./test_statehandler_parallel "[np=8]"
 	)

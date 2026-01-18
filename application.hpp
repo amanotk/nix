@@ -42,7 +42,7 @@ public:
   }
 
   // create chunk
-  virtual PtrChunk create_chunk(const int dims[], const bool has_dim[], int id)
+  virtual PtrChunk create_chunk(Dims3D dims, Bool3D has_dim, int id)
   {
     return std::make_unique<Chunk>(dims, has_dim, id);
   }
@@ -147,6 +147,10 @@ public:
     if (interface != nullptr) {
       interface->set_application(this);
     }
+  }
+
+  virtual ~Application()
+  {
   }
 
   /// @brief return Application interface
@@ -388,8 +392,4 @@ protected:
 
 NIX_NAMESPACE_END
 
-// Local Variables:
-// c-file-style   : "gnu"
-// c-file-offsets : ((innamespace . 0) (inline-open . 0))
-// End:
 #endif
