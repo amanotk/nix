@@ -1,6 +1,6 @@
 // -*- C++ -*-
-#ifndef _DIAG_HANDLER_HPP_
-#define _DIAG_HANDLER_HPP_
+#ifndef _IO_HANDLER_HPP_
+#define _IO_HANDLER_HPP_
 
 #include "buffer.hpp"
 #include "diag.hpp"
@@ -8,7 +8,7 @@
 
 NIX_NAMESPACE_BEGIN
 
-class DiagHandler
+class DiagIoHandler
 {
 protected:
   using info_type = Diag::info_type;
@@ -16,11 +16,11 @@ protected:
   std::shared_ptr<info_type> info;
 
 public:
-  DiagHandler(std::shared_ptr<info_type> info) : info(info)
+  DiagIoHandler(std::shared_ptr<info_type> info) : info(info)
   {
   }
 
-  virtual ~DiagHandler()
+  virtual ~DiagIoHandler()
   {
   }
 
@@ -41,7 +41,7 @@ public:
   virtual size_t write(int index, Buffer& buffer, size_t& disp) = 0;
 };
 
-class MpiioDiagHandler : public DiagHandler
+class MpiioDiagIoHandler : public DiagIoHandler
 {
 protected:
   MPI_File                 filehandle;
@@ -49,7 +49,7 @@ protected:
   std::vector<MPI_Request> request;
 
 public:
-  MpiioDiagHandler(std::shared_ptr<info_type> info) : DiagHandler(info), is_opened(false)
+  MpiioDiagIoHandler(std::shared_ptr<info_type> info) : DiagIoHandler(info), is_opened(false)
   {
   }
 
@@ -121,13 +121,13 @@ public:
   }
 };
 
-class PosixDiagHandler : public DiagHandler
+class PosixDiagIoHandler : public DiagIoHandler
 {
 protected:
   std::ofstream file;
 
 public:
-  PosixDiagHandler(std::shared_ptr<info_type> info) : DiagHandler(info)
+  PosixDiagIoHandler(std::shared_ptr<info_type> info) : DiagIoHandler(info)
   {
   }
 
