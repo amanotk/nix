@@ -125,7 +125,7 @@ protected:
   int     curstep;  ///< current iteration step
   float64 curtime;  ///< current time
 
-  bool is_mpi_init_already_called; ///< flag for testing purpose
+  bool is_mpi_init_called_by_me;   ///< true if Application initialized MPI
 
 public:
   /// @brief default constructor
@@ -139,7 +139,8 @@ public:
   /// @param argv array of arguments
   ///
   Application(int argc, char** argv, PtrInterface interface)
-      : is_mpi_init_already_called(false), interface(interface), chunkvec()
+      : is_mpi_init_called_by_me(false), interface(interface),
+        chunkvec()
   {
     cl_argc = argc;
     cl_argv = argv;
